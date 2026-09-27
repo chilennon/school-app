@@ -8,6 +8,7 @@ import { ClassRoom } from "@/types/school";
 import { computeTermAverages } from "@/lib/termAverages";
 import { generateBatchReportCards, ReportCardInput } from "@/lib/reportCardPdf";
 import { useSchoolConfig } from "@/hooks/useSchoolConfig";
+import { Home, ClipboardCheck, User, ChevronRight, Printer } from "lucide-react";
 
 interface ClassInfo {
   id: string;
@@ -39,6 +40,7 @@ interface CatalogSubject {
 }
 
 type ClassStatus = "draft" | "submitted" | "approved" | "mixed";
+type MobileTab = "home" | "scores" | "profile";
 
 function computePositions(students: any[]): Record<string, any> {
   const subjectTotals: Record<string, number[]> = {};
@@ -115,46 +117,24 @@ function computePositions(students: any[]): Record<string, any> {
   return studentInfo;
 }
 
-function StatusBadge({ status }: { status: ClassStatus }) {
+function StatusPill({ status }: { status: ClassStatus }) {
   const map = {
-    draft: {
-      label: "Draft — not yet submitted",
-      bg: "bg-slate-100 text-slate-700 border-slate-200",
-    },
-    submitted: {
-      label: "Submitted — awaiting approval",
-      bg: "bg-amber-50 text-amber-800 border-amber-200",
-    },
-    approved: {
-      label: "Approved — locked",
-      bg: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    },
-    mixed: {
-      label: "Mixed — some students need attention",
-      bg: "bg-red-50 text-red-800 border-red-200",
-    },
+    draft: { label: "Draft", cls: "bg-slate-100 text-slate-700 border-slate-200" },
+    submitted: { label: "Submitted", cls: "bg-amber-50 text-amber-800 border-amber-200" },
+    approved: { label: "Approved", cls: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+    mixed: { label: "Mixed status", cls: "bg-red-50 text-red-800 border-red-200" },
   } as const;
   const s = map[status];
   return (
-    <span
-      className={`inline-block mt-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${s.bg}`}
-    >
+    <span className={`inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full border ${s.cls}`}>
       {s.label}
     </span>
   );
 }
 
 const EMPTY_AFFECTIVE = {
-  a0: "",
-  a1: "",
-  a2: "",
-  a3: "",
-  a4: "",
-  a5: "",
-  a6: "",
-  a7: "",
-  a8: "",
-  a9: "",
+  a0: "", a1: "", a2: "", a3: "", a4: "",
+  a5: "", a6: "", a7: "", a8: "", a9: "",
 };
 const EMPTY_PSYCHOMOTOR = { p0: "", p1: "", p2: "", p3: "", p4: "", p5: "" };
 
@@ -187,8 +167,9 @@ export default function TeacherDashboardPage() {
   } | null>(null);
 
   const [userEmail, setUserEmail] = useState("");
+  const [mobileTab, setMobileTab] = useState<MobileTab>("home");
 
-    const [activeCompilerData, setActiveCompilerData] = useState<{
+  const [activeCompilerData, setActiveCompilerData] = useState<{
     student: any;
     classRoom: ClassRoom;
   } | null>(null);
@@ -218,12 +199,7 @@ export default function TeacherDashboardPage() {
   const fetchClassData = async (cls: ClassInfo, termId: string) => {
     const { data: classSubjects, error: csErr } = await supabase
       .from("class_subjects")
-      .select(
-        `
-        id,
-        subject:subjects (id, name, display_order)
-      `,
-      )
+      .select(`id, subject:subjects (id, name, display_order)`)
       .eq("class_id", cls.id)
       .eq("session_id", cls.session_id);
 
@@ -252,12 +228,7 @@ export default function TeacherDashboardPage() {
 
     const { data: enrolmentRows, error: enrErr } = await supabase
       .from("enrolments")
-      .select(
-        `
-        id,
-        student:students (id, name, reg_no, gender, age, assessment)
-      `,
-      )
+      .select(`id, student:students (id, name, reg_no, gender, age, assessment)`)
       .eq("class_id", cls.id)
       .eq("session_id", cls.session_id)
       .eq("status", "active");
@@ -279,37 +250,22 @@ export default function TeacherDashboardPage() {
 
     if (enrolmentIds.length > 0) {
       const [scoreRes, traitRes, recordRes] = await Promise.all([
-        supabase
-          .from("scores")
-          .select("*")
-          .in("enrolment_id", enrolmentIds)
-          .eq("term_id", termId),
-        supabase
-          .from("trait_ratings")
-          .select("*")
-          .in("enrolment_id", enrolmentIds)
-          .eq("term_id", termId),
-        supabase
-          .from("term_records")
-          .select("*")
-          .in("enrolment_id", enrolmentIds)
-          .eq("term_id", termId),
+        supabase.from("scores").select("*").in("enrolment_id", enrolmentIds).eq("term_id", termId),
+        supabase.from("trait_ratings").select("*").in("enrolment_id", enrolmentIds).eq("term_id", termId),
+        supabase.from("term_records").select("*").in("enrolment_id", enrolmentIds).eq("term_id", termId),
       ]);
 
       if (scoreRes.error) console.error("scores fetch failed:", scoreRes.error);
       if (traitRes.error) console.error("traits fetch failed:", traitRes.error);
-      if (recordRes.error)
-        console.error("records fetch failed:", recordRes.error);
+      if (recordRes.error) console.error("records fetch failed:", recordRes.error);
 
       (scoreRes.data || []).forEach((row: any) => {
-        if (!scoresByEnrolment[row.enrolment_id])
-          scoresByEnrolment[row.enrolment_id] = [];
+        if (!scoresByEnrolment[row.enrolment_id]) scoresByEnrolment[row.enrolment_id] = [];
         scoresByEnrolment[row.enrolment_id].push(row);
       });
 
       (traitRes.data || []).forEach((row: any) => {
-        if (!traitsByEnrolment[row.enrolment_id])
-          traitsByEnrolment[row.enrolment_id] = [];
+        if (!traitsByEnrolment[row.enrolment_id]) traitsByEnrolment[row.enrolment_id] = [];
         traitsByEnrolment[row.enrolment_id].push(row);
       });
 
@@ -318,7 +274,6 @@ export default function TeacherDashboardPage() {
       });
     }
 
-    // Cumulative averages across all terms
     let termAveragesByEnrolment: Record<
       string,
       { termAverages: Record<string, number>; cumulativeAverage: number | null }
@@ -384,10 +339,7 @@ export default function TeacherDashboardPage() {
       (traitsByEnrolment[s.enrolment_id] || []).forEach((t: any) => {
         if (t.trait_domain === "affective" && t.trait_key in affective) {
           affective[t.trait_key] = t.rating != null ? String(t.rating) : "";
-        } else if (
-          t.trait_domain === "psychomotor" &&
-          t.trait_key in psychomotor
-        ) {
+        } else if (t.trait_domain === "psychomotor" && t.trait_key in psychomotor) {
           psychomotor[t.trait_key] = t.rating != null ? String(t.rating) : "";
         }
       });
@@ -406,18 +358,13 @@ export default function TeacherDashboardPage() {
           subjects,
           affective,
           psychomotor,
-          daysOpened:
-            record?.days_opened != null ? String(record.days_opened) : "",
-          daysPresent:
-            record?.days_present != null ? String(record.days_present) : "",
-          daysAbsent:
-            record?.days_absent != null ? String(record.days_absent) : "",
+          daysOpened: record?.days_opened != null ? String(record.days_opened) : "",
+          daysPresent: record?.days_present != null ? String(record.days_present) : "",
+          daysAbsent: record?.days_absent != null ? String(record.days_absent) : "",
           teacherRemark: record?.class_teacher_comment || "",
           headRemark: record?.head_teacher_comment || "",
-          termAverages:
-            termAveragesByEnrolment[s.enrolment_id]?.termAverages || {},
-          cumulativeAverage:
-            termAveragesByEnrolment[s.enrolment_id]?.cumulativeAverage ?? null,
+          termAverages: termAveragesByEnrolment[s.enrolment_id]?.termAverages || {},
+          cumulativeAverage: termAveragesByEnrolment[s.enrolment_id]?.cumulativeAverage ?? null,
           status: record?.status || "draft",
         },
       };
@@ -434,7 +381,6 @@ export default function TeacherDashboardPage() {
     return { students: studentsBuilt, subjectOrder };
   };
 
-  // Load class + its terms, pick a default term, load data
   const loadClassWithTerms = async (cls: ClassInfo) => {
     setSelectedClass(cls);
 
@@ -458,10 +404,7 @@ export default function TeacherDashboardPage() {
     )[0];
     setSelectedTermId(defaultTerm.id);
 
-    const { students: builtStudents } = await fetchClassData(
-      cls,
-      defaultTerm.id,
-    );
+    const { students: builtStudents } = await fetchClassData(cls, defaultTerm.id);
     setStudents(builtStudents);
   };
 
@@ -499,7 +442,6 @@ export default function TeacherDashboardPage() {
         .order("name");
       if (catalog) setCatalogSubjects(catalog as CatalogSubject[]);
 
-      // ↓ ADDED: grade bands for report cards
       const { data: bandsData, error: bandsErr } = await supabase
         .from("grade_bands")
         .select("*")
@@ -533,10 +475,7 @@ export default function TeacherDashboardPage() {
     if (!selectedClass) return;
     setSelectedTermId(termId);
     setLoading(true);
-    const { students: builtStudents } = await fetchClassData(
-      selectedClass,
-      termId,
-    );
+    const { students: builtStudents } = await fetchClassData(selectedClass, termId);
     setStudents(builtStudents);
     setLoading(false);
   };
@@ -552,17 +491,11 @@ export default function TeacherDashboardPage() {
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordMessage({
-        type: "error",
-        text: "New passwords do not match.",
-      });
+      setPasswordMessage({ type: "error", text: "New passwords do not match." });
       return;
     }
     if (newPassword.length < 6) {
-      setPasswordMessage({
-        type: "error",
-        text: "Password must be at least 6 characters.",
-      });
+      setPasswordMessage({ type: "error", text: "Password must be at least 6 characters." });
       return;
     }
 
@@ -574,24 +507,16 @@ export default function TeacherDashboardPage() {
       password: currentPassword,
     });
     if (signInError) {
-      setPasswordMessage({
-        type: "error",
-        text: "Current password is incorrect.",
-      });
+      setPasswordMessage({ type: "error", text: "Current password is incorrect." });
       setPasswordLoading(false);
       return;
     }
 
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
     if (updateError) {
       setPasswordMessage({ type: "error", text: updateError.message });
     } else {
-      setPasswordMessage({
-        type: "success",
-        text: "Password updated successfully!",
-      });
+      setPasswordMessage({ type: "success", text: "Password updated successfully!" });
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -683,8 +608,7 @@ export default function TeacherDashboardPage() {
 
   const handleSubmitClassResults = async () => {
     if (!selectedClass || !selectedTermId) return;
-    const termName =
-      classTerms.find((t) => t.id === selectedTermId)?.name || "this term";
+    const termName = classTerms.find((t) => t.id === selectedTermId)?.name || "this term";
 
     if (
       !confirm(
@@ -700,10 +624,7 @@ export default function TeacherDashboardPage() {
         classId: selectedClass.id,
         termId: selectedTermId,
       });
-      const { students: builtStudents } = await fetchClassData(
-        selectedClass,
-        selectedTermId,
-      );
+      const { students: builtStudents } = await fetchClassData(selectedClass, selectedTermId);
       setStudents(builtStudents);
       alert("Results submitted for approval.");
     } catch (err: any) {
@@ -716,14 +637,11 @@ export default function TeacherDashboardPage() {
   const handleBatchPrint = () => {
     if (!selectedClass || !selectedTermId || students.length === 0) return;
     if (!gradeBands || gradeBands.length === 0) {
-      alert(
-        "School config not loaded yet. Please wait a moment and try again.",
-      );
+      alert("School config not loaded yet. Please wait a moment and try again.");
       return;
     }
 
-    const termName =
-      classTerms.find((t) => t.id === selectedTermId)?.name || "Term";
+    const termName = classTerms.find((t) => t.id === selectedTermId)?.name || "Term";
 
     const items: ReportCardInput[] = students.map((s) => {
       const asm = s.assessment || {};
@@ -761,19 +679,12 @@ export default function TeacherDashboardPage() {
 
     const doc = generateBatchReportCards(items);
     const safe = (s: string) => s.replace(/\s+/g, "_");
-    doc.save(
-      `${safe(selectedClass.name)}_${safe(termName)}_Term_ReportCards.pdf`,
-    );
+    doc.save(`${safe(selectedClass.name)}_${safe(termName)}_Term_ReportCards.pdf`);
   };
 
   const handleReopenClassResults = async () => {
     if (!selectedClass || !selectedTermId) return;
-    if (
-      !confirm(
-        "Reopen this class for editing? This will send results back to draft.",
-      )
-    )
-      return;
+    if (!confirm("Reopen this class for editing? This will send results back to draft.")) return;
 
     setSubmitting(true);
     try {
@@ -781,10 +692,7 @@ export default function TeacherDashboardPage() {
         classId: selectedClass.id,
         termId: selectedTermId,
       });
-      const { students: builtStudents } = await fetchClassData(
-        selectedClass,
-        selectedTermId,
-      );
+      const { students: builtStudents } = await fetchClassData(selectedClass, selectedTermId);
       setStudents(builtStudents);
     } catch (err: any) {
       alert(`Error: ${err.message}`);
@@ -797,18 +705,12 @@ export default function TeacherDashboardPage() {
     updatedStudent: any,
     status: "draft" | "completed",
   ): Promise<void> => {
-    const targetStudentId =
-      updatedStudent?.id || activeCompilerData?.student?.id;
+    const targetStudentId = updatedStudent?.id || activeCompilerData?.student?.id;
     const enrolmentId = activeCompilerData?.student?.enrolment_id;
     const termId = selectedTermId;
 
     if (!targetStudentId || !enrolmentId || !termId || !schoolId) {
-      console.error("Missing ids to save", {
-        targetStudentId,
-        enrolmentId,
-        termId,
-        schoolId,
-      });
+      console.error("Missing ids to save", { targetStudentId, enrolmentId, termId, schoolId });
       throw new Error("Missing required ids. Try reloading the page.");
     }
 
@@ -856,9 +758,9 @@ export default function TeacherDashboardPage() {
       .filter((x): x is NonNullable<typeof x> => x !== null);
 
     if (scoreUpserts.length > 0) {
-      const { error } = await supabase.from("scores").upsert(scoreUpserts, {
-        onConflict: "enrolment_id,class_subject_id,term_id",
-      });
+      const { error } = await supabase
+        .from("scores")
+        .upsert(scoreUpserts, { onConflict: "enrolment_id,class_subject_id,term_id" });
       if (error) throw new Error(`Failed to save scores: ${error.message}`);
     }
 
@@ -907,18 +809,9 @@ export default function TeacherDashboardPage() {
           school_id: schoolId,
           enrolment_id: enrolmentId,
           term_id: termId,
-          days_opened:
-            asm.daysOpened !== "" && asm.daysOpened != null
-              ? Number(asm.daysOpened)
-              : null,
-          days_present:
-            asm.daysPresent !== "" && asm.daysPresent != null
-              ? Number(asm.daysPresent)
-              : null,
-          days_absent:
-            asm.daysAbsent !== "" && asm.daysAbsent != null
-              ? Number(asm.daysAbsent)
-              : null,
+          days_opened: asm.daysOpened !== "" && asm.daysOpened != null ? Number(asm.daysOpened) : null,
+          days_present: asm.daysPresent !== "" && asm.daysPresent != null ? Number(asm.daysPresent) : null,
+          days_absent: asm.daysAbsent !== "" && asm.daysAbsent != null ? Number(asm.daysAbsent) : null,
           class_teacher_comment: asm.teacherRemark || null,
           head_teacher_comment: asm.headRemark || null,
           server_updated_at: new Date().toISOString(),
@@ -928,9 +821,7 @@ export default function TeacherDashboardPage() {
     );
 
     if (recordError)
-      throw new Error(
-        `Failed to save attendance/remarks: ${recordError.message}`,
-      );
+      throw new Error(`Failed to save attendance/remarks: ${recordError.message}`);
 
     const {
       subjects: _s,
@@ -959,8 +850,7 @@ export default function TeacherDashboardPage() {
       .select("*")
       .single();
 
-    if (error)
-      throw new Error(`Failed to save student record: ${error.message}`);
+    if (error) throw new Error(`Failed to save student record: ${error.message}`);
 
     const savedStudent = {
       ...(data || updatedStudent),
@@ -981,9 +871,7 @@ export default function TeacherDashboardPage() {
     };
 
     setStudents((prev) =>
-      prev.map((s) =>
-        s.id === targetStudentId ? { ...s, ...savedStudent } : s,
-      ),
+      prev.map((s) => (s.id === targetStudentId ? { ...s, ...savedStudent } : s)),
     );
     setActiveCompilerData((prev) =>
       prev ? { ...prev, student: { ...prev.student, ...savedStudent } } : prev,
@@ -992,38 +880,45 @@ export default function TeacherDashboardPage() {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-slate-500 font-medium">
-        Loading teacher workspace...
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-3 text-sm text-slate-500 font-medium">Loading your workspace…</p>
+        </div>
       </div>
     );
   }
 
+  // ── COMPILER VIEW ──
   if (activeCompilerData) {
     return (
-      <div className="min-h-screen bg-slate-100 p-4 md:p-6">
-        <div className="max-w-6xl mx-auto space-y-4">
-          <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm print:hidden">
-            <button
-              onClick={() => setActiveCompilerData(null)}
-              className="text-xs bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg hover:bg-slate-700 transition"
-            >
-              ← Back to Dashboard
-            </button>
-            <div className="text-right">
-              <p className="text-xs text-slate-500">Currently Editing</p>
-              <p className="text-sm font-bold text-slate-800">
-                {activeCompilerData.student.name} (
-                {activeCompilerData.student.reg_no})
-              </p>
-            </div>
+      <div className="min-h-screen bg-slate-50">
+        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 px-4 py-3 flex items-center gap-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+          <button
+            onClick={() => setActiveCompilerData(null)}
+            className="p-2 -ml-2 rounded-lg active:bg-slate-100"
+            aria-label="Back"
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-slate-500 truncate">
+              {activeCompilerData.classRoom.name} ·{" "}
+              {classTerms.find((t) => t.id === selectedTermId)?.name || "First"} Term
+            </p>
+            <p className="font-bold text-slate-900 truncate text-sm">
+              {activeCompilerData.student.name}
+            </p>
           </div>
+        </header>
 
+        <div className="p-3 md:p-6">
           <ResultsPage
             initialStudent={activeCompilerData.student}
             initialClass={activeCompilerData.classRoom}
-            term={
-              classTerms.find((t) => t.id === selectedTermId)?.name || "First"
-            }
+            term={classTerms.find((t) => t.id === selectedTermId)?.name || "First"}
             availableSubjects={catalogSubjects}
             onAddSubject={handleAddSubjectToClass}
             onSaveDraft={(updatedStudent: any) =>
@@ -1040,312 +935,377 @@ export default function TeacherDashboardPage() {
 
   const selectedTermName =
     classTerms.find((t) => t.id === selectedTermId)?.name || "";
+  const draftStudentsCount = students.filter(
+    (s) => s.assessment?.status === "draft",
+  ).length;
 
-  return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-6xl mx-auto space-y-6">
-        <header className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
-          <div>
-            <p className="text-xs font-semibold uppercase text-blue-600">
-              House Of Angels School
-            </p>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Welcome, {teacherName || "Teacher"}
-            </h1>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowPasswordForm(!showPasswordForm)}
-              className="text-xs bg-slate-100 text-slate-700 font-medium px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-200 transition"
-            >
-              Change Password
-            </button>
-            <button
-              onClick={handleLogout}
-              className="text-xs bg-red-50 text-red-600 font-medium px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-100 transition"
-            >
-              Sign Out
-            </button>
-          </div>
-        </header>
+  // ── HOME TAB ──
+  const renderHome = () => (
+    <div className="p-4 space-y-5">
+      <header className="pt-[env(safe-area-inset-top)]">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-blue-600">
+          House Of Angels School
+        </p>
+        <h1 className="text-2xl font-bold text-slate-900 mt-0.5">
+          Welcome, {teacherName || "Teacher"}
+        </h1>
+      </header>
 
-        {showPasswordForm && (
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-            <h2 className="text-lg font-bold text-slate-900">
-              Change Password
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Current Password
-                </label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="Enter current password"
-                />
-              </div>
-              <div className="hidden md:block"></div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  New Password
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="Enter new password"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Confirm New Password
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-                  placeholder="Confirm new password"
-                />
-              </div>
+      {selectedClass ? (
+        <button
+          onClick={() => setMobileTab("scores")}
+          className="w-full bg-blue-600 active:bg-blue-700 text-white p-5 rounded-2xl text-left transition shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+              <ClipboardCheck className="w-6 h-6" />
             </div>
-            {passwordMessage && (
-              <p
-                className={`text-sm ${passwordMessage.type === "success" ? "text-green-600" : "text-red-600"}`}
-              >
-                {passwordMessage.text}
+            <div className="flex-1 min-w-0">
+              <p className="text-lg font-bold leading-tight">Enter Scores</p>
+              <p className="text-sm text-blue-100 truncate">
+                {selectedClass.name}
+                {selectedTermName ? ` · ${selectedTermName} Term` : ""}
               </p>
-            )}
-            <div className="flex gap-2">
-              <button
-                onClick={handlePasswordChange}
-                disabled={passwordLoading}
-                className="text-xs bg-blue-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-              >
-                {passwordLoading ? "Updating..." : "Update Password"}
-              </button>
-              <button
-                onClick={() => setShowPasswordForm(false)}
-                className="text-xs bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg hover:bg-slate-300 transition"
-              >
-                Cancel
-              </button>
             </div>
+            <ChevronRight className="w-6 h-6 flex-shrink-0" />
           </div>
-        )}
+        </button>
+      ) : null}
 
-        {assignedClasses.length > 0 ? (
-          <div className="space-y-6">
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <h2 className="text-sm font-bold text-slate-700 uppercase mb-3">
-                Your Assigned Classes
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {assignedClasses.map((cls) => (
-                  <button
-                    key={cls.id}
-                    onClick={() => handleSelectClass(cls)}
-                    className={`p-4 rounded-xl text-left border transition ${
-                      selectedClass?.id === cls.id
-                        ? "border-blue-600 bg-blue-50 ring-2 ring-blue-500/20"
-                        : "border-slate-200 bg-white hover:border-slate-300"
-                    }`}
-                  >
-                    <h3 className="font-bold text-slate-900">{cls.name}</h3>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Session: {cls.session}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {selectedClass && (
-              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-                {/* Term tabs */}
-                <div className="flex gap-2 mb-4 border-b border-slate-200">
-                  {classTerms.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => handleSelectTerm(t.id)}
-                      className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition ${
-                        selectedTermId === t.id
-                          ? "border-blue-600 text-blue-600"
-                          : "border-transparent text-slate-500 hover:text-slate-700"
-                      }`}
-                    >
-                      {t.name} Term
-                      {t.is_current && (
-                        <span className="ml-2 text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full uppercase">
-                          current
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-
-                {classStatus === "mixed" && (
-                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-red-600 text-lg">⚠</span>
-                      <h3 className="font-bold text-red-900 text-sm">
-                        {
-                          students.filter(
-                            (s) => s.assessment?.status === "draft",
-                          ).length
-                        }{" "}
-                        student
-                        {students.filter(
-                          (s) => s.assessment?.status === "draft",
-                        ).length !== 1
-                          ? "s"
-                          : ""}{" "}
-                        need
-                        {students.filter(
-                          (s) => s.assessment?.status === "draft",
-                        ).length === 1
-                          ? "s"
-                          : ""}{" "}
-                        your attention
-                      </h3>
-                    </div>
-                    <p className="text-xs text-red-700 mb-3">
-                      The head teacher sent these results back. Click a name to
-                      open the compiler and fix them.
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {students
-                        .filter((s) => s.assessment?.status === "draft")
-                        .map((s) => (
-                          <button
-                            key={s.id}
-                            onClick={() => handleEnterScores(s)}
-                            className="text-xs bg-white border border-red-300 text-red-800 font-semibold px-3 py-1.5 rounded-lg hover:bg-red-100 transition"
-                          >
-                            {s.name} →
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">
-                      {selectedClass.name} — {selectedTermName} Term Roster (
-                      {students.length})
-                    </h2>
-                    <StatusBadge status={classStatus} />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleBatchPrint}
-                      disabled={students.length === 0}
-                      className="text-xs bg-slate-100 hover:bg-slate-200 disabled:bg-slate-50 text-slate-700 font-semibold px-4 py-2 rounded-lg transition"
-                    >
-                      🖨 Print All
-                    </button>
-                    {(classStatus === "draft" || classStatus === "mixed") && (
-                      <button
-                        onClick={handleSubmitClassResults}
-                        disabled={submitting}
-                        className="text-xs bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-semibold px-4 py-2 rounded-lg transition"
-                      >
-                        {submitting
-                          ? "Submitting..."
-                          : `Submit ${selectedTermName} Term`}
-                      </button>
-                    )}
-                    {classStatus === "submitted" && (
-                      <button
-                        onClick={handleReopenClassResults}
-                        disabled={submitting}
-                        className="text-xs bg-slate-100 hover:bg-slate-200 disabled:bg-slate-50 text-slate-700 font-semibold px-4 py-2 rounded-lg transition"
-                      >
-                        {submitting ? "Reopening..." : "Reopen for Edits"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm border-collapse">
-                    <thead className="bg-slate-100 text-slate-600 uppercase text-[10px]">
-                      <tr>
-                        <th className="p-3 border-b">Reg No</th>
-                        <th className="p-3 border-b">Student Name</th>
-                        <th className="p-3 border-b">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {students.length > 0 ? (
-                        students.map((student) => (
-                          <tr key={student.id} className="hover:bg-slate-50">
-                            <td className="p-3 font-mono text-xs text-slate-600">
-                              {student.reg_no}
-                            </td>
-                            <td className="p-3 font-medium text-slate-800">
-                              {student.name}
-                            </td>
-                            <td className="p-3">
-                              {(() => {
-                                const st =
-                                  student.assessment?.status || "draft";
-                                if (st === "submitted") {
-                                  return (
-                                    <span className="text-[11px] text-amber-700 italic">
-                                      Awaiting approval
-                                    </span>
-                                  );
-                                }
-                                if (st === "approved") {
-                                  return (
-                                    <span className="text-[11px] text-emerald-700 italic">
-                                      Approved — locked
-                                    </span>
-                                  );
-                                }
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleEnterScores(student)}
-                                    className="text-xs bg-blue-50 text-blue-600 font-semibold px-3 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-100 transition cursor-pointer"
-                                  >
-                                    {student.assessment?.status === "draft"
-                                      ? "Edit Scores"
-                                      : "Enter Scores"}
-                                  </button>
-                                );
-                              })()}
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={3}
-                            className="p-4 text-center text-slate-500 text-xs"
-                          >
-                            No students registered in this class.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+      <section>
+        <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+          My Classes
+        </h2>
+        {assignedClasses.length === 0 ? (
+          <div className="bg-amber-50 border border-amber-200 p-5 rounded-2xl text-center">
+            <p className="font-bold text-amber-900 text-sm">No classes assigned yet</p>
+            <p className="text-xs text-amber-700 mt-1">
+              Ask your admin to assign you to a class
+            </p>
           </div>
         ) : (
-          <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl text-amber-800 text-center">
-            <p className="font-bold">No Allocated Classes Found</p>
+          <div className="space-y-2">
+            {assignedClasses.map((cls) => (
+              <button
+                key={cls.id}
+                onClick={async () => {
+                  await handleSelectClass(cls);
+                  setMobileTab("scores");
+                }}
+                className="w-full p-4 bg-white rounded-2xl border border-slate-200 active:bg-slate-50 text-left flex items-center justify-between gap-3"
+              >
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-900">{cls.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{cls.session}</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-400 flex-shrink-0" />
+              </button>
+            ))}
           </div>
         )}
+      </section>
+    </div>
+  );
+
+  // ── SCORES TAB ──
+  const renderScores = () => (
+    <div className="p-4 space-y-4 pb-40">
+      <header className="pt-[env(safe-area-inset-top)]">
+        <h1 className="text-2xl font-bold text-slate-900">Scores</h1>
+        <p className="text-sm text-slate-500 mt-0.5">
+          Choose a class, then a term
+        </p>
+      </header>
+
+      {/* Class pills */}
+      {assignedClasses.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1">
+          {assignedClasses.map((cls) => (
+            <button
+              key={cls.id}
+              onClick={() => handleSelectClass(cls)}
+              className={`flex-shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition ${
+                selectedClass?.id === cls.id
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-white border border-slate-200 text-slate-700"
+              }`}
+            >
+              {cls.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Term tabs */}
+      {classTerms.length > 0 && (
+        <div className="flex border-b border-slate-200">
+          {classTerms.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => handleSelectTerm(t.id)}
+              className={`flex-1 py-3 text-sm font-semibold border-b-2 -mb-px transition ${
+                selectedTermId === t.id
+                  ? "border-blue-600 text-blue-600"
+                  : "border-transparent text-slate-500"
+              }`}
+            >
+              {t.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Mixed banner */}
+      {classStatus === "mixed" && draftStudentsCount > 0 && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl">
+          <p className="text-sm font-bold text-amber-900">
+            ⚠ {draftStudentsCount} student
+            {draftStudentsCount !== 1 ? "s" : ""} need
+            {draftStudentsCount === 1 ? "s" : ""} attention
+          </p>
+          <p className="text-xs text-amber-700 mt-1">
+            The head teacher sent these back. Tap a name below to fix them.
+          </p>
+        </div>
+      )}
+
+      {/* Roster */}
+      {selectedClass && classTerms.length > 0 && (
+        <>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-slate-900">
+              Roster · {students.length}
+            </p>
+            {classStatus !== "draft" && <StatusPill status={classStatus} />}
+          </div>
+
+          {students.length === 0 ? (
+            <div className="p-6 bg-white rounded-2xl border border-slate-200 text-center text-sm text-slate-500">
+              No students in this class yet.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {students.map((student) => {
+                const st = student.assessment?.status || "draft";
+                return (
+                  <div
+                    key={student.id}
+                    className="p-4 bg-white rounded-2xl border border-slate-200 flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-900 truncate">
+                        {student.name}
+                      </p>
+                      <p className="text-xs font-mono text-slate-500 mt-0.5">
+                        {student.reg_no}
+                      </p>
+                    </div>
+                    {st === "draft" || st === "not_started" ? (
+                      <button
+                        onClick={() => handleEnterScores(student)}
+                        className="flex-shrink-0 px-4 py-2.5 bg-blue-50 text-blue-600 font-semibold text-sm rounded-xl border border-blue-200 active:bg-blue-100"
+                      >
+                        {st === "draft" ? "Edit" : "Enter"}
+                      </button>
+                    ) : st === "submitted" ? (
+                      <span className="flex-shrink-0 text-xs text-amber-700 font-semibold px-2">
+                        Awaiting
+                      </span>
+                    ) : (
+                      <span className="flex-shrink-0 text-xs text-emerald-700 font-semibold px-2">
+                        Approved
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {!selectedClass && assignedClasses.length === 0 && (
+        <div className="p-6 bg-amber-50 rounded-2xl border border-amber-200 text-center">
+          <p className="text-sm font-bold text-amber-900">No classes assigned</p>
+          <p className="text-xs text-amber-700 mt-1">
+            You can't enter scores until an admin assigns you a class.
+          </p>
+        </div>
+      )}
+
+      {/* Sticky action bar */}
+      {selectedClass && students.length > 0 && (
+        <div className="fixed left-0 right-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-10 px-4 pointer-events-none">
+          <div className="max-w-lg mx-auto flex gap-2 pointer-events-auto">
+            <button
+              onClick={handleBatchPrint}
+              className="flex items-center justify-center gap-2 px-4 py-3.5 bg-white border border-slate-200 text-slate-700 font-semibold rounded-2xl shadow-sm active:bg-slate-50"
+            >
+              <Printer className="w-4 h-4" />
+              Print
+            </button>
+
+            {(classStatus === "draft" || classStatus === "mixed") && (
+              <button
+                onClick={handleSubmitClassResults}
+                disabled={submitting}
+                className="flex-1 py-3.5 bg-blue-600 disabled:bg-blue-400 text-white font-bold rounded-2xl shadow-sm active:bg-blue-700"
+              >
+                {submitting ? "Submitting…" : `Submit ${selectedTermName}`}
+              </button>
+            )}
+
+            {classStatus === "submitted" && (
+              <button
+                onClick={handleReopenClassResults}
+                disabled={submitting}
+                className="flex-1 py-3.5 bg-slate-100 disabled:bg-slate-50 text-slate-700 font-bold rounded-2xl shadow-sm active:bg-slate-200"
+              >
+                {submitting ? "Reopening…" : "Reopen for Edits"}
+              </button>
+            )}
+
+            {classStatus === "approved" && (
+              <div className="flex-1 py-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold rounded-2xl text-center text-sm">
+                ✓ Approved — locked
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // ── PROFILE TAB ──
+  const renderProfile = () => (
+    <div className="p-4 space-y-4 pb-24">
+      <header className="pt-[env(safe-area-inset-top)]">
+        <h1 className="text-2xl font-bold text-slate-900">Profile</h1>
+      </header>
+
+      <div className="p-4 bg-white rounded-2xl border border-slate-200">
+        <p className="font-bold text-slate-900">{teacherName || "Teacher"}</p>
+        <p className="text-xs text-slate-500 mt-0.5">{userEmail}</p>
       </div>
+
+      <button
+        onClick={() => setShowPasswordForm((v) => !v)}
+        className="w-full p-4 bg-white rounded-2xl border border-slate-200 flex items-center justify-between active:bg-slate-50"
+      >
+        <span className="font-semibold text-slate-900">Change Password</span>
+        <ChevronRight
+          className={`w-5 h-5 text-slate-400 transition-transform ${
+            showPasswordForm ? "rotate-90" : ""
+          }`}
+        />
+      </button>
+
+      {showPasswordForm && (
+        <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">
+              Current Password
+            </label>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-3 py-3 text-base outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter current password"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">
+              New Password
+            </label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-3 py-3 text-base outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter new password"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">
+              Confirm New Password
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full border border-slate-300 rounded-xl px-3 py-3 text-base outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Confirm new password"
+            />
+          </div>
+          {passwordMessage && (
+            <p
+              className={`text-sm ${
+                passwordMessage.type === "success" ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {passwordMessage.text}
+            </p>
+          )}
+          <button
+            onClick={handlePasswordChange}
+            disabled={passwordLoading}
+            className="w-full py-3.5 bg-blue-600 text-white font-bold rounded-2xl active:bg-blue-700 disabled:opacity-50"
+          >
+            {passwordLoading ? "Updating…" : "Update Password"}
+          </button>
+        </div>
+      )}
+
+      <button
+        onClick={handleLogout}
+        className="w-full p-4 bg-red-50 border border-red-200 rounded-2xl text-left font-semibold text-red-600 active:bg-red-100"
+      >
+        Sign Out
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <main className="max-w-lg mx-auto">
+        {mobileTab === "home" && renderHome()}
+        {mobileTab === "scores" && renderScores()}
+        {mobileTab === "profile" && renderProfile()}
+      </main>
+
+      {/* Bottom nav */}
+      <nav className="fixed bottom-0 left-0 right-0 z-20 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
+        <div className="max-w-lg mx-auto flex">
+          {(
+            [
+              { key: "home", label: "Home", Icon: Home },
+              { key: "scores", label: "Scores", Icon: ClipboardCheck },
+              { key: "profile", label: "Profile", Icon: User },
+            ] as const
+          ).map(({ key, label, Icon }) => {
+            const active = mobileTab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setMobileTab(key)}
+                className={`flex-1 py-2.5 flex flex-col items-center gap-0.5 transition ${
+                  active ? "text-blue-600" : "text-slate-400"
+                }`}
+              >
+                <Icon className="w-6 h-6" strokeWidth={active ? 2.5 : 2} />
+                <span
+                  className={`text-[11px] ${
+                    active ? "font-bold" : "font-medium"
+                  }`}
+                >
+                  {label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
