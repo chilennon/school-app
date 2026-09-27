@@ -7,7 +7,13 @@ export default serwist({
   globDirectory: ".",
   globPatterns: [
     "public/**/*.{png,svg,ico,json,webmanifest}",
-    ".next/static/**/*.{js,css,woff2}",
+    ".next/static/**/*.{js,css,woff2,png,svg,ico,json}",
+  ],
+  globIgnores: [
+    "**/node_modules/**",
+    ".next/server/**",
+    ".next/cache/**",
+    ".next/**/*.map",
   ],
   modifyURLPrefix: {
     "public/": "/",
