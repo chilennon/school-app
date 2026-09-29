@@ -85,10 +85,10 @@ export default function TeacherDashboardPage() {
       age: student.age || "",
       enrolment_id: student.enrolment_id,
       assessment: student.assessment || {
-        schoolName: "House Of Angels School",
-        schoolAddress: "10, Albert Okolo St, Jakande Estate, Lagos, Nigeria",
+        schoolName: config?.name || "",
+        schoolAddress: config?.address || "",
         schoolEmail: "",
-        schoolPhone: "08033848328",
+        schoolPhone: config?.phone || "",
         daysOpened: "",
         daysPresent: "",
         daysAbsent: "",
@@ -214,7 +214,7 @@ export default function TeacherDashboardPage() {
     const items: ReportCardInput[] = roster.students.map((s) => {
       const asm = s.assessment || {};
       return {
-        schoolName: asm.schoolName || config?.name || "House Of Angels School",
+        schoolName: asm.schoolName || config?.name || "",
         schoolAddress: asm.schoolAddress || config?.address || "",
         schoolEmail: asm.schoolEmail || "",
         schoolPhone: asm.schoolPhone || config?.phone || "",

@@ -37,14 +37,19 @@ export function useTeacherSession(): TeacherSession {
       setUserId(user.id);
       setUserEmail(user.email || "");
 
-      const [profileRes, schoolRes] = await Promise.all([
-        supabase.from("profiles").select("name").eq("id", user.id).single(),
-        supabase.from("schools").select("id").limit(1).single(),
-      ]);
+      // school_id comes from the user's own profile — not from
+      // "the first school in the table"
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name, school_id")
+        .eq("id", user.id)
+        .single();
 
       if (cancelled) return;
-      if (profileRes.data) setTeacherName(profileRes.data.name);
-      if (schoolRes.data) setSchoolId(schoolRes.data.id);
+      if (profile) {
+        setTeacherName(profile.name);
+        setSchoolId(profile.school_id);
+      }
 
       setLoading(false);
     })();

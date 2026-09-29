@@ -14,61 +14,93 @@ interface Result {
   error: string | null;
 }
 
-let cached: SessionWithTerms[] = [];
-let cachedAt = 0;
+// Cache keyed by school_id
+let cachedBySchool: Record<
+  string,
+  { sessions: SessionWithTerms[]; at: number }
+> = {};
 const CACHE_TTL = 5 * 60 * 1000;
 
 export function useSessionsAndTerms(): Result {
-  const [sessions, setSessions] = useState<SessionWithTerms[]>(cached);
-  const [loading, setLoading] = useState(cached.length === 0);
+  const [sessions, setSessions] = useState<SessionWithTerms[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fresh = Date.now() - cachedAt < CACHE_TTL;
-    if (fresh && cached.length > 0) {
-      setSessions(cached);
-      setLoading(false);
-      return;
-    }
-
     let cancelled = false;
+
     const load = async () => {
       setLoading(true);
       setError(null);
 
-      const { data: sess, error: sessErr } = await supabase
-        .from("sessions")
-        .select("*")
-        .order("name", { ascending: false });
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      if (sessErr) {
+      if (!user) {
         if (!cancelled) {
-          setError(sessErr.message);
+          setError("Not signed in");
           setLoading(false);
         }
         return;
       }
 
-      const { data: trms, error: trmErr } = await supabase
-        .from("terms")
-        .select("*")
-        .order("sequence", { ascending: true });
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("school_id")
+        .eq("id", user.id)
+        .single();
 
-      if (trmErr) {
+      if (!profile?.school_id) {
         if (!cancelled) {
-          setError(trmErr.message);
+          setError("No school assigned to your account.");
           setLoading(false);
         }
         return;
       }
 
-      const grouped: SessionWithTerms[] = (sess || []).map((s) => ({
+      const schoolId = profile.school_id;
+
+      const cached = cachedBySchool[schoolId];
+      if (cached && Date.now() - cached.at < CACHE_TTL) {
+        if (!cancelled) {
+          setSessions(cached.sessions);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const [sessRes, trmsRes] = await Promise.all([
+        supabase
+          .from("sessions")
+          .select("*")
+          .eq("school_id", schoolId)
+          .order("name", { ascending: false }),
+        supabase
+          .from("terms")
+          .select("*")
+          .eq("school_id", schoolId)
+          .order("sequence", { ascending: true }),
+      ]);
+
+      if (sessRes.error || trmsRes.error) {
+        if (!cancelled) {
+          setError(
+            sessRes.error?.message || trmsRes.error?.message || "Load failed"
+          );
+          setLoading(false);
+        }
+        return;
+      }
+
+      const grouped: SessionWithTerms[] = (sessRes.data || []).map((s) => ({
         ...(s as Session),
-        terms: (trms || []).filter((t) => t.session_id === s.id) as Term[],
+        terms: ((trmsRes.data || []) as Term[]).filter(
+          (t) => t.session_id === s.id
+        ),
       }));
 
-      cached = grouped;
-      cachedAt = Date.now();
+      cachedBySchool[schoolId] = { sessions: grouped, at: Date.now() };
 
       if (!cancelled) {
         setSessions(grouped);
@@ -77,7 +109,9 @@ export function useSessionsAndTerms(): Result {
     };
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return { sessions, loading, error };

@@ -11,34 +11,67 @@ interface UseCurrentTermResult {
   error: string | null;
 }
 
-let cachedSession: Session | null = null;
-let cachedTerm: Term | null = null;
-let cachedAt = 0;
+let cachedBySchool: Record<
+  string,
+  { session: Session; term: Term; at: number }
+> = {};
 const CACHE_TTL = 5 * 60 * 1000;
 
 export function useCurrentTerm(): UseCurrentTermResult {
-  const [session, setSession] = useState<Session | null>(cachedSession);
-  const [term, setTerm] = useState<Term | null>(cachedTerm);
-  const [loading, setLoading] = useState(!cachedSession || !cachedTerm);
+  const [session, setSession] = useState<Session | null>(null);
+  const [term, setTerm] = useState<Term | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fresh = Date.now() - cachedAt < CACHE_TTL;
-    if (fresh && cachedSession && cachedTerm) {
-      setSession(cachedSession);
-      setTerm(cachedTerm);
-      setLoading(false);
-      return;
-    }
-
     let cancelled = false;
+
     const load = async () => {
       setLoading(true);
       setError(null);
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        if (!cancelled) {
+          setError("Not signed in");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const { data: profile, error: profileErr } = await supabase
+        .from("profiles")
+        .select("school_id")
+        .eq("id", user.id)
+        .single();
+
+      if (profileErr || !profile?.school_id) {
+        if (!cancelled) {
+          setError(profileErr?.message || "No school assigned to your account.");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const schoolId = profile.school_id;
+
+      const cached = cachedBySchool[schoolId];
+      if (cached && Date.now() - cached.at < CACHE_TTL) {
+        if (!cancelled) {
+          setSession(cached.session);
+          setTerm(cached.term);
+          setLoading(false);
+        }
+        return;
+      }
+
       const { data: sess, error: sessErr } = await supabase
         .from("sessions")
         .select("*")
+        .eq("school_id", schoolId)
         .eq("is_current", true)
         .limit(1)
         .maybeSingle();
@@ -54,6 +87,7 @@ export function useCurrentTerm(): UseCurrentTermResult {
       const { data: trm, error: trmErr } = await supabase
         .from("terms")
         .select("*")
+        .eq("school_id", schoolId)
         .eq("session_id", sess.id)
         .eq("is_current", true)
         .limit(1)
@@ -67,19 +101,23 @@ export function useCurrentTerm(): UseCurrentTermResult {
         return;
       }
 
-      cachedSession = sess as Session;
-      cachedTerm = trm as Term;
-      cachedAt = Date.now();
+      cachedBySchool[schoolId] = {
+        session: sess as Session,
+        term: trm as Term,
+        at: Date.now(),
+      };
 
       if (!cancelled) {
-        setSession(cachedSession);
-        setTerm(cachedTerm);
+        setSession(sess as Session);
+        setTerm(trm as Term);
         setLoading(false);
       }
     };
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return { session, term, loading, error };

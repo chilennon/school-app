@@ -159,14 +159,13 @@ export default function AdminDashboardPage() {
   };
 
   const handleDeleteSubject = async (id: string, name: string) => {
-    const first = await callAdminApi("delete-subject", { id }).catch(
-      (err) => ({ error: err.message, requiresForce: true }),
-    );
+    const first = await callAdminApi("delete-subject", { id }).catch((err) => ({
+      error: err.message,
+      requiresForce: true,
+    }));
     if (first?.error && first?.requiresForce) {
       if (
-        !confirm(
-          `"${name}" is used in classes and has scores. Delete anyway?`,
-        )
+        !confirm(`"${name}" is used in classes and has scores. Delete anyway?`)
       )
         return;
       await callAdminApi("delete-subject", { id, force: true });
@@ -208,7 +207,9 @@ export default function AdminDashboardPage() {
   };
 
   const handleDeleteClass = async (id: string) => {
-    if (!confirm("Delete this class? Students and teachers will be unassigned."))
+    if (
+      !confirm("Delete this class? Students and teachers will be unassigned.")
+    )
       return;
     await callAdminApi("delete-class", { id });
     await data.refresh();
@@ -323,24 +324,34 @@ export default function AdminDashboardPage() {
     try {
       const { classId, termId, sessionId } = current;
 
-      const [schoolRes, bandsRes, classRes, termRes] = await Promise.all([
-        supabase.from("schools").select("*").limit(1).single(),
-        supabase.from("grade_bands").select("*").order("display_order"),
+      // Fetch the class first so we know which school we're printing for
+      const { data: cls } = await supabase
+        .from("classes")
+        .select("id, name, session, school_id")
+        .eq("id", classId)
+        .single();
+
+      if (!cls || !cls.school_id) {
+        alert("Could not load class or class has no school.");
+        return;
+      }
+
+      const [schoolRes, bandsRes, termRes] = await Promise.all([
+        supabase.from("schools").select("*").eq("id", cls.school_id).single(),
         supabase
-          .from("classes")
-          .select("id, name, session")
-          .eq("id", classId)
-          .single(),
+          .from("grade_bands")
+          .select("*")
+          .eq("school_id", cls.school_id)
+          .order("display_order"),
         supabase.from("terms").select("name").eq("id", termId).maybeSingle(),
       ]);
 
       const school = schoolRes.data;
       const gradeBands = bandsRes.data || [];
-      const cls = classRes.data;
       const termName = termRes.data?.name ? `${termRes.data.name} Term` : "";
 
-      if (!school || !cls || gradeBands.length === 0) {
-        alert("Could not load school config or class.");
+      if (!school || gradeBands.length === 0) {
+        alert("Could not load school config.");
         return;
       }
 
@@ -471,9 +482,7 @@ export default function AdminDashboardPage() {
               psychomotor[t.trait_key] = String(t.rating ?? "");
           });
 
-        const record = records.find(
-          (r: any) => r.enrolment_id === enrolmentId,
-        );
+        const record = records.find((r: any) => r.enrolment_id === enrolmentId);
 
         const thisEnrolTotals = perEnrolment[enrolmentId] || {};
         const studentTotal = Object.values(thisEnrolTotals).reduce(
@@ -651,10 +660,7 @@ export default function AdminDashboardPage() {
     return (
       <div className="min-h-screen bg-slate-50">
         <div className="max-w-lg mx-auto">
-          <SectionHeader
-            title="Settings"
-            onBack={() => setView("more")}
-          />
+          <SectionHeader title="Settings" onBack={() => setView("more")} />
           <div className="p-4">
             <SettingsTab callAdminApi={callAdminApi} />
           </div>

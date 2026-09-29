@@ -17,11 +17,17 @@ export async function fetchResultForView(
 
   const { data: cls } = await supabase
     .from("classes")
-    .select("id, name, session, session_id")
+    .select("id, name, session, session_id, school_id")
     .eq("id", classId)
     .single();
 
   if (!cls) return null;
+
+    const { data: schoolRow } = await supabase
+    .from("schools")
+    .select("name, address, phone")
+    .eq("id", cls.school_id)
+    .single();
 
   const { data: termRow } = await supabase
     .from("terms")
@@ -218,10 +224,10 @@ export async function fetchResultForView(
       age: studentData.age || "",
       enrolment_id: enrolmentId,
       assessment: {
-        schoolName: "House Of Angels School",
-        schoolAddress: "10, Albert Okolo St, Jakande Estate, Lagos, Nigeria",
+        schoolName: schoolRow?.name || "",
+        schoolAddress: schoolRow?.address || "",
         schoolEmail: "",
-        schoolPhone: "08033848328",
+        schoolPhone: schoolRow?.phone || "",
         daysOpened:
           record?.days_opened != null ? String(record.days_opened) : "",
         daysPresent:

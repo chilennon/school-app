@@ -12,78 +12,123 @@ interface UseSchoolConfigResult {
   gradeFor: (score: number | null) => { g: string; remark: string };
 }
 
-let cachedConfig: SchoolConfig | null = null;
-let cachedBands: GradeBand[] = [];
-let cachedAt = 0;
+// Cache keyed by school_id — a signed-out user's cache doesn't
+// leak into another user's session.
+let cachedBySchool: Record<
+  string,
+  { config: SchoolConfig; bands: GradeBand[]; at: number }
+> = {};
 const CACHE_TTL = 5 * 60 * 1000;
 
 export function useSchoolConfig(): UseSchoolConfigResult {
-  const [config, setConfig] = useState<SchoolConfig | null>(cachedConfig);
-  const [gradeBands, setGradeBands] = useState<GradeBand[]>(cachedBands);
-  const [loading, setLoading] = useState(!cachedConfig);
+  const [config, setConfig] = useState<SchoolConfig | null>(null);
+  const [gradeBands, setGradeBands] = useState<GradeBand[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fresh = Date.now() - cachedAt < CACHE_TTL;
-    if (fresh && cachedConfig) {
-      setConfig(cachedConfig);
-      setGradeBands(cachedBands);
-      setLoading(false);
-      return;
-    }
-
     let cancelled = false;
+
     const load = async () => {
       setLoading(true);
       setError(null);
 
-      const { data: schoolRow, error: schoolErr } = await supabase
-        .from("schools")
-        .select("*")
-        .limit(1)
+      // 1. Get the caller's school_id from their profile
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        if (!cancelled) {
+          setError("Not signed in");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const { data: profile, error: profileErr } = await supabase
+        .from("profiles")
+        .select("school_id")
+        .eq("id", user.id)
         .single();
 
-      if (schoolErr || !schoolRow) {
+      if (profileErr || !profile?.school_id) {
         if (!cancelled) {
-          setError(schoolErr?.message || "No school config found.");
+          setError(profileErr?.message || "No school assigned to your account.");
           setLoading(false);
         }
         return;
       }
 
-      const { data: bands, error: bandsErr } = await supabase
-        .from("grade_bands")
-        .select("*")
-        .eq("school_id", schoolRow.id)
-        .order("display_order", { ascending: true });
+      const schoolId = profile.school_id;
 
-      if (bandsErr) {
+      // 2. Serve from cache if fresh
+      const cached = cachedBySchool[schoolId];
+      if (cached && Date.now() - cached.at < CACHE_TTL) {
         if (!cancelled) {
-          setError(bandsErr.message);
+          setConfig(cached.config);
+          setGradeBands(cached.bands);
           setLoading(false);
         }
         return;
       }
 
-      cachedConfig = schoolRow as SchoolConfig;
-      cachedBands = (bands || []) as GradeBand[];
-      cachedAt = Date.now();
+      // 3. Fetch this school's row + bands
+      const [schoolRes, bandsRes] = await Promise.all([
+        supabase.from("schools").select("*").eq("id", schoolId).single(),
+        supabase
+          .from("grade_bands")
+          .select("*")
+          .eq("school_id", schoolId)
+          .order("display_order", { ascending: true }),
+      ]);
+
+      if (schoolRes.error || !schoolRes.data) {
+        if (!cancelled) {
+          setError(schoolRes.error?.message || "School config not found.");
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (bandsRes.error) {
+        if (!cancelled) {
+          setError(bandsRes.error.message);
+          setLoading(false);
+        }
+        return;
+      }
+
+      const schoolConfig = schoolRes.data as SchoolConfig;
+      const bands = (bandsRes.data || []) as GradeBand[];
+
+      cachedBySchool[schoolId] = {
+        config: schoolConfig,
+        bands,
+        at: Date.now(),
+      };
 
       if (!cancelled) {
-        setConfig(cachedConfig);
-        setGradeBands(cachedBands);
+        setConfig(schoolConfig);
+        setGradeBands(bands);
         setLoading(false);
       }
     };
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const gradeFor = (score: number | null) => {
     if (score === null || isNaN(score)) return { g: "—", remark: "—" };
-    const band = gradeBands.find((b) => score >= b.min_score && score <= b.max_score);
-    return band ? { g: band.grade, remark: band.remark } : { g: "—", remark: "—" };
+    const band = gradeBands.find(
+      (b) => score >= b.min_score && score <= b.max_score
+    );
+    return band
+      ? { g: band.grade, remark: band.remark }
+      : { g: "—", remark: "—" };
   };
 
   return { config, gradeBands, loading, error, gradeFor };
