@@ -6,12 +6,14 @@ import { QuickActions } from "../QuickActions";
 import type { AdminView } from "../../_lib/types";
 
 export function HomeTab({
+  schoolName,
   adminName,
   termLabel,
   stats,
   pendingCount,
   onNavigate,
 }: {
+  schoolName: string;
   adminName: string;
   termLabel: string;
   stats: { students: number; teachers: number; classes: number };
@@ -22,7 +24,7 @@ export function HomeTab({
     <div className="p-4 space-y-5">
       <header className="pt-[env(safe-area-inset-top)]">
         <p className="text-[11px] font-bold uppercase tracking-wider text-blue-600">
-          House Of Angels School
+          {schoolName}
         </p>
         <h1 className="text-2xl font-bold text-slate-900 mt-0.5">
           Welcome, {adminName || "Admin"}

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "House Of Angels School Portal",
+    title: "School Portal",
   description: "School management system for teachers and admins.",
   manifest: "/manifest.json",
   icons: {

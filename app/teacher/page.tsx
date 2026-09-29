@@ -313,6 +313,7 @@ export default function TeacherDashboardPage() {
       <main className="max-w-lg mx-auto">
         {mobileTab === "home" && (
           <HomeTab
+            schoolName={config?.name || ""}
             teacherName={session.teacherName}
             selectedClass={roster.selectedClass}
             selectedTermName={selectedTermName}

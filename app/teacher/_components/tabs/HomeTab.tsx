@@ -4,6 +4,7 @@ import { ChevronRight, ClipboardCheck } from "lucide-react";
 import type { ClassInfo } from "../../_lib/types";
 
 export function HomeTab({
+  schoolName,
   teacherName,
   selectedClass,
   selectedTermName,
@@ -11,6 +12,7 @@ export function HomeTab({
   onOpenScores,
   onSelectClass,
 }: {
+  schoolName: string;
   teacherName: string;
   selectedClass: ClassInfo | null;
   selectedTermName: string;
@@ -22,7 +24,7 @@ export function HomeTab({
     <div className="p-4 space-y-5">
       <header className="pt-[env(safe-area-inset-top)]">
         <p className="text-[11px] font-bold uppercase tracking-wider text-blue-600">
-          House Of Angels School
+          {schoolName}
         </p>
         <h1 className="text-2xl font-bold text-slate-900 mt-0.5">
           Welcome, {teacherName || "Teacher"}

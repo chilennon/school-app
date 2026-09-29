@@ -75,10 +75,10 @@ export default function StaffSignInPage() {
         {/* Header */}
         <div className="flex flex-col items-center text-center">
           <div className="w-14 h-14 sm:w-16 sm:h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center font-bold text-xl sm:text-2xl shadow-md mb-3">
-            HOA
+            SCH
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">
-            House Of Angels School
+                        Staff Portal
           </h1>
           <p className="text-xs text-slate-500 font-medium">
             K-12 School Management System

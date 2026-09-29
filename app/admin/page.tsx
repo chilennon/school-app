@@ -7,6 +7,7 @@ import ResultsPage from "../teacher/results/page";
 import SettingsTab from "./SettingsTab";
 import { generateBatchReportCards, ReportCardInput } from "@/lib/reportCardPdf";
 import { useCurrentTerm } from "@/hooks/useCurrentTerm";
+import { useSchoolConfig } from "@/hooks/useSchoolConfig";
 import { computeTermAverages } from "@/lib/termAverages";
 
 import { useAdminData } from "./_hooks/useAdminData";
@@ -30,6 +31,7 @@ const MAIN_TABS: AdminView[] = ["home", "students", "approvals", "more"];
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { session: currentSession, term: currentTerm } = useCurrentTerm();
+  const { config } = useSchoolConfig();
   const data = useAdminData();
   const approvals = useApprovals();
 
@@ -700,6 +702,7 @@ export default function AdminDashboardPage() {
       <main className="max-w-lg mx-auto">
         {view === "home" && (
           <HomeTab
+            schoolName={config?.name || ""}
             adminName={adminName}
             termLabel={termLabel}
             stats={{
