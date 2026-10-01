@@ -141,6 +141,15 @@ export default function StaffSignInPage() {
             >
               {loading ? "Signing In..." : "Sign In to Portal"}
             </button>
+                      <p className="text-center text-sm text-slate-500 pt-2">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/signup/school"
+              className="text-blue-600 font-semibold"
+            >
+              Sign up your school
+            </Link>
+          </p>
           </form>
         </div>
       </div>

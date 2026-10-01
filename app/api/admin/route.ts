@@ -384,18 +384,42 @@ export async function POST(req: NextRequest) {
             email,
             password: tempPassword,
             email_confirm: true,
-            user_metadata: {
-              name,
+            user_metadata: { name },
+            app_metadata: {
               role: "teacher",
               school_id: callerSchoolId,
             },
           });
 
         if (createUserError || !newUser.user) {
+          console.error("create-teacher auth error:", createUserError);
           return NextResponse.json(
             {
               error: createUserError?.message || "User creation failed",
             },
+            { status: 500 }
+          );
+        }
+
+        // Explicitly insert the profile row (no trigger involved)
+        const { error: profileErr } = await supabaseAdmin
+          .from("profiles")
+          .insert([
+            {
+              id: newUser.user.id,
+              name,
+              email,
+              role: "teacher",
+              school_id: callerSchoolId,
+            },
+          ]);
+
+        if (profileErr) {
+          console.error("create-teacher profile error:", profileErr);
+          // Roll back: delete the auth user so we don't leave an orphan
+          await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+          return NextResponse.json(
+            { error: profileErr.message },
             { status: 500 }
           );
         }

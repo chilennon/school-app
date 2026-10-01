@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import "./SchoolResult.css";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { useSchoolConfig } from "@/hooks/useSchoolConfig";
 import { generateSingleReportCard } from "@/lib/reportCardPdf";
 
@@ -19,271 +20,162 @@ import { CumulativeCard } from "./_components/CumulativeCard";
 import { Step4Traits } from "./_components/Step4Traits";
 import { Step5Remarks } from "./_components/Step5Remarks";
 import { ExportRow } from "./_components/ExportRow";
-import { Toast } from "./_components/Toast";
 
 import type {
-  GradeResult,
-  ResultsPageProps,
-  StudentAssessment,
-  ToastState,
+  GradeResult, ResultsPageProps, StudentAssessment,
 } from "./_lib/types";
 
 export type {
-  Subject,
-  ProcessedSubject,
-  StudentAssessment,
-  ResultsPageProps,
+  Subject, ProcessedSubject, StudentAssessment, ResultsPageProps,
 } from "./_lib/types";
 
 export default function ResultsPage({
-  initialStudent,
-  initialClass,
-  term: initialTerm,
-  availableSubjects = [],
-  onAddSubject,
-  onSaveDraft,
-  onComplete,
-  readOnly = false,
+  initialStudent, initialClass, term: initialTerm,
+  availableSubjects = [], onAddSubject, onSaveDraft, onComplete, readOnly = false,
 }: ResultsPageProps) {
   const { config, gradeBands, gradeFor } = useSchoolConfig();
-
-  const { form, setField, clearAll } = useCompilerForm(
-    initialStudent,
-    initialClass,
-    initialTerm,
-    config,
-  );
-  const { subjects, replaceAll, removeRow, updateRow, addRow } = useSubjectRows(
-    initialStudent,
-  );
-
-  const [toast, setToast] = useState<ToastState>({
-    message: "",
-    type: "",
-    show: false,
-  });
+  const { form, setField, clearAll } = useCompilerForm(initialStudent, initialClass, initialTerm, config);
+  const { subjects, replaceAll, removeRow, updateRow, addRow } = useSubjectRows(initialStudent);
 
   const caWeight = config?.ca_weight ?? 40;
   const examWeight = config?.exam_weight ?? 60;
-
   const grade = (score: number | null): GradeResult => gradeFor(score);
 
-  // Derived
-  const processed = useMemo(
-    () => collectSubjects(subjects, grade),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [subjects, config],
-  );
-  const summary = useMemo(
-    () => calculateSummary(processed, grade),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [processed, config],
-  );
-
-  const showToast = (msg: string, type: "success" | "error" = "success") => {
-    setToast({ message: msg, type, show: true });
-    setTimeout(() => setToast((prev) => ({ ...prev, show: false })), 3500);
-  };
+  const processed = useMemo(() => collectSubjects(subjects, grade), [subjects, config]);
+  const summary = useMemo(() => calculateSummary(processed, grade), [processed, config]);
 
   const handleSaveDraft = async (markCompleted = false) => {
     const updatedAssessment: StudentAssessment = {
-      schoolName: form.schoolName,
-      schoolAddress: form.schoolAddress,
-      schoolEmail: form.schoolEmail,
-      schoolPhone: form.schoolPhone,
-      daysOpened: form.daysOpened,
-      daysPresent: form.daysPresent,
-      daysAbsent: form.daysAbsent,
-      subjects,
-      affective: form.affective,
-      psychomotor: form.psychomotor,
-      teacherName: form.teacherName,
-      headTeacherName: form.headTeacherName,
-      teacherRemark: form.teacherRemark,
-      headRemark: form.headRemark,
-      nextTerm: form.nextTerm,
-      promotion: form.promotion,
-      classAvg: form.classAvg,
+      schoolName: form.schoolName, schoolAddress: form.schoolAddress,
+      schoolEmail: form.schoolEmail, schoolPhone: form.schoolPhone,
+      daysOpened: form.daysOpened, daysPresent: form.daysPresent, daysAbsent: form.daysAbsent,
+      subjects, affective: form.affective, psychomotor: form.psychomotor,
+      teacherName: form.teacherName, headTeacherName: form.headTeacherName,
+      teacherRemark: form.teacherRemark, headRemark: form.headRemark,
+      nextTerm: form.nextTerm, promotion: form.promotion, classAvg: form.classAvg,
       status: markCompleted ? "completed" : "draft",
     };
-
     const updatedStudent = {
-      ...initialStudent,
-      id: initialStudent.id,
+      ...initialStudent, id: initialStudent.id,
       reg_no: initialStudent.reg_no || form.studentId || initialStudent.id,
-      name: form.studentName,
-      gender: form.sex,
-      age: form.age,
+      name: form.studentName, gender: form.sex, age: form.age,
       assessment: updatedAssessment,
     };
-
     try {
-      if (markCompleted) {
-        await onComplete?.(updatedStudent);
-      } else {
-        await onSaveDraft?.(updatedStudent);
-      }
-      showToast(
-        markCompleted
-          ? "Result saved & finalized!"
-          : "Draft progress saved successfully!",
-        "success",
-      );
+      if (markCompleted) await onComplete?.(updatedStudent);
+      else await onSaveDraft?.(updatedStudent);
+      toast.success(markCompleted ? "Result saved & finalized!" : "Draft progress saved successfully!");
     } catch (err: any) {
       console.error("Save threw:", err);
-      showToast(err.message || "Save failed. Please try again.", "error");
+      toast.error(err.message || "Save failed. Please try again.");
     }
   };
 
   const exportPDF = () => {
-    if (!form.studentName) {
-      showToast("Please enter the student name.", "error");
-      return;
-    }
-    if (processed.length === 0) {
-      showToast("Please add at least one subject with scores.", "error");
-      return;
-    }
-
+    if (!form.studentName) return toast.error("Please enter the student name.");
+    if (processed.length === 0) return toast.error("Please add at least one subject with scores.");
     try {
       const doc = generateSingleReportCard({
-        schoolName: form.schoolName,
-        schoolAddress: form.schoolAddress,
-        schoolEmail: form.schoolEmail,
-        schoolPhone: form.schoolPhone,
-        studentName: form.studentName,
-        studentId: form.studentId,
-        sex: form.sex,
-        age: form.age,
-        className: form.className,
-        session: form.session,
-        term: form.term,
-        classAvg: form.classAvg,
-        daysOpened: form.daysOpened,
-        daysPresent: form.daysPresent,
-        daysAbsent: form.daysAbsent,
-        subjects,
-        affective: form.affective,
-        psychomotor: form.psychomotor,
-        teacherName: form.teacherName,
-        headTeacherName: form.headTeacherName,
-        teacherRemark: form.teacherRemark,
-        headRemark: form.headRemark,
-        nextTerm: form.nextTerm,
-        promotion: form.promotion,
-        positions: form.positions
-          ? {
-              position: form.positions.position,
-              classSize: form.positions.classSize,
-              average: form.positions.average,
-              subjects: form.positions.subjects,
-            }
-          : undefined,
-        termAverages: form.termAverages,
-        cumulativeAverage: form.cumulativeAverage,
+        schoolName: form.schoolName, schoolAddress: form.schoolAddress,
+        schoolEmail: form.schoolEmail, schoolPhone: form.schoolPhone,
+        studentName: form.studentName, studentId: form.studentId,
+        sex: form.sex, age: form.age, className: form.className,
+        session: form.session, term: form.term, classAvg: form.classAvg,
+        daysOpened: form.daysOpened, daysPresent: form.daysPresent, daysAbsent: form.daysAbsent,
+        subjects, affective: form.affective, psychomotor: form.psychomotor,
+        teacherName: form.teacherName, headTeacherName: form.headTeacherName,
+        teacherRemark: form.teacherRemark, headRemark: form.headRemark,
+        nextTerm: form.nextTerm, promotion: form.promotion,
+        positions: form.positions ? {
+          position: form.positions.position, classSize: form.positions.classSize,
+          average: form.positions.average, subjects: form.positions.subjects,
+        } : undefined,
+        termAverages: form.termAverages, cumulativeAverage: form.cumulativeAverage,
         gradeBands: gradeBands || [],
       });
-
       const fname = `${(form.studentName || "Student").replace(/\s+/g, "_")}_${(form.term || "Report").replace(/\s+/g, "_")}${form.session ? "_" + form.session : ""}.pdf`;
       doc.save(fname);
-      showToast("✅ PDF exported successfully!", "success");
-    } catch (err: any) {
+      toast.success("PDF exported successfully!");
+    } catch (err) {
       console.error(err);
-      showToast("Failed to export PDF.", "error");
+      toast.error("Failed to export PDF.");
     }
   };
 
   const handleAddFromCatalog = async (id: string, name: string) => {
     if (!onAddSubject) return;
     const classSubjectId = await onAddSubject(id, name);
-    if (classSubjectId) {
-      addRow(name);
-    }
+    if (classSubjectId) addRow(name);
   };
 
   const handleClearAll = () => {
     clearAll();
-    replaceAll(
-      Array.from({ length: 8 }, (_, i) => ({
-        id: i,
-        sub: "",
-        ca: "",
-        exam: "",
-        sa: "",
-      })),
-    );
-    showToast("Cleared compiler inputs.", "success");
+    replaceAll(Array.from({ length: 8 }, (_, i) => ({ id: i, sub: "", ca: "", exam: "", sa: "" })));
+    toast.success("Cleared compiler inputs.");
   };
 
+  // meta line for the top header
+  const meta = [form.studentId, form.className, form.term].filter(Boolean).join(" · ");
+
   return (
-    <div className={`school-result ${readOnly ? "readonly" : ""}`}>
-      <header>
-        <div className="logo">🎓</div>
-        <div>
-          <h1>Result Compiler</h1>
-          <p>
-            {readOnly ? "Viewing" : "Editing"}: {form.studentName}
-          </p>
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-3xl px-4 pt-4 pb-32">
+        {/* Page-level header — matches image 3 */}
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-600 mb-0.5">
+              Result Compiler
+            </p>
+            <h1 className="text-xl font-bold text-slate-900 truncate">
+              {form.studentName || "New Result"}
+            </h1>
+            {meta && <p className="text-xs text-slate-500 mt-0.5">{meta}</p>}
+          </div>
+          <Badge variant="secondary" className="shrink-0">
+            {readOnly ? "Viewing" : "Draft"}
+          </Badge>
         </div>
-      </header>
 
-      <div className="container">
-        <ActionRow
-          readOnly={readOnly}
-          onSaveDraft={() => handleSaveDraft(false)}
-          onExport={exportPDF}
-        />
+        <ActionRow readOnly={readOnly} onExport={exportPDF} />
 
-        <StepHeader>Step 1 — School & Student Details</StepHeader>
+        <StepHeader>Step 1 — School &amp; Student Details</StepHeader>
         <Step1StudentDetails form={form} setField={setField} readOnly={readOnly} />
 
         <StepHeader>Step 2 — Attendance</StepHeader>
         <Step2Attendance form={form} setField={setField} readOnly={readOnly} />
 
-        <StepHeader>
-          Step 3 — Cognitive Domain (Subjects & Scores)
-        </StepHeader>
+        <StepHeader>Step 3 — Cognitive Domain</StepHeader>
         <Step3Subjects
           subjects={subjects}
           subjectStats={form.positions?.subjects || {}}
           availableSubjects={availableSubjects}
-          caWeight={caWeight}
-          examWeight={examWeight}
-          readOnly={readOnly}
-          grade={grade}
-          onUpdate={updateRow}
-          onRemove={removeRow}
+          caWeight={caWeight} examWeight={examWeight}
+          readOnly={readOnly} grade={grade}
+          onUpdate={updateRow} onRemove={removeRow}
           onAddFromCatalog={handleAddFromCatalog}
         />
-
         <SummaryStrip
           summary={summary}
           studentPosition={form.positions?.position ?? null}
           classSize={form.positions?.classSize ?? null}
         />
-
         <CumulativeCard
           termAverages={form.termAverages}
           cumulativeAverage={form.cumulativeAverage}
         />
 
-        <StepHeader>
-          Step 4 — Affective Domain & Psychomotor Skills
-        </StepHeader>
+        <StepHeader>Step 4 — Affective &amp; Psychomotor</StepHeader>
         <Step4Traits form={form} setField={setField} readOnly={readOnly} />
 
-        <StepHeader>Step 5 — Remarks & Next Term</StepHeader>
+        <StepHeader>Step 5 — Remarks &amp; Next Term</StepHeader>
         <Step5Remarks form={form} setField={setField} readOnly={readOnly} />
-
-        <ExportRow
-          readOnly={readOnly}
-          onClearAll={handleClearAll}
-          onSaveDraft={() => handleSaveDraft(false)}
-          onExport={exportPDF}
-        />
       </div>
 
-      <Toast toast={toast} />
+      <ExportRow
+        readOnly={readOnly}
+        onSaveDraft={() => handleSaveDraft(false)}
+        onSubmit={() => handleSaveDraft(true)}
+      />
     </div>
   );
 }

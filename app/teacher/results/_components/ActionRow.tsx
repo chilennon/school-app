@@ -1,27 +1,27 @@
 "use client";
 
+import { Download } from "lucide-react";
+
 export function ActionRow({
-  readOnly,
-  onSaveDraft,
-  onExport,
+  readOnly, onExport,
 }: {
   readOnly: boolean;
-  onSaveDraft: () => void;
   onExport: () => void;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-5">
-      <h2 className="text-lg font-bold text-slate-800">Assessment Compiler</h2>
-      <div className="flex flex-col sm:flex-row gap-2">
-        {!readOnly && (
-          <button className="btn btn-ghost" onClick={onSaveDraft}>
-            💾 Save Draft Progress
-          </button>
-        )}
-        <button className="btn btn-gold" onClick={onExport}>
-          ⬇ Export Full PDF Report
-        </button>
+    <div className="flex items-center justify-between mb-4">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">
+          Result Compiler
+        </p>
       </div>
+      <button
+        onClick={onExport}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900 active:bg-slate-100 rounded-md px-2 py-1.5"
+      >
+        <Download className="h-4 w-4" />
+        Export PDF
+      </button>
     </div>
   );
 }
