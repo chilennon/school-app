@@ -16,7 +16,7 @@ export interface StudentsTabProps {
     gender: string;
     age: string;
   }) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
+  onDelete: (id: string) => void | Promise<void>;
 }
 
 export function StudentsTab({

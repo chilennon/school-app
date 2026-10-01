@@ -10,6 +10,7 @@ export function TeachersSection({
   onCreate,
   onUpdate,
   onDelete,
+  onResetPassword,
   createdCredentials,
   clearCredentials,
 }: {
@@ -17,8 +18,14 @@ export function TeachersSection({
   onBack: () => void;
   onCreate: (name: string, email: string) => Promise<void>;
   onUpdate: (id: string, name: string, email: string) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
-  createdCredentials: { email: string; pin: string } | null;
+  onDelete: (id: string) => void | Promise<void>;
+  onResetPassword: (id: string, name: string) => void;
+  createdCredentials: {
+    email: string;
+    pin: string;
+    title: string;
+    description?: string;
+  } | null;
   clearCredentials: () => void;
 }) {
   const [name, setName] = useState("");
@@ -52,7 +59,11 @@ export function TeachersSection({
 
   return (
     <div>
-      <SectionHeader title="Teachers" subtitle={`${teachers.length} staff`} onBack={onBack} />
+      <SectionHeader
+        title="Teachers"
+        subtitle={`${teachers.length} staff`}
+        onBack={onBack}
+      />
       <div className="p-4 space-y-4">
         <button
           onClick={() => {
@@ -67,7 +78,7 @@ export function TeachersSection({
         {createdCredentials && (
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-1">
             <p className="font-bold text-emerald-800 text-sm">
-              Teacher Account Created
+              {createdCredentials.title}
             </p>
             <p className="text-slate-700 text-xs">
               <strong>Email:</strong> {createdCredentials.email}
@@ -75,6 +86,11 @@ export function TeachersSection({
             <p className="text-slate-700 text-xs">
               <strong>Passcode:</strong> {createdCredentials.pin}
             </p>
+            {createdCredentials.description && (
+              <p className="text-slate-500 text-[11px] pt-1">
+                {createdCredentials.description}
+              </p>
+            )}
             <button
               onClick={clearCredentials}
               className="mt-2 text-xs font-semibold text-emerald-700 underline"
@@ -140,7 +156,7 @@ export function TeachersSection({
               <p className="text-xs text-slate-500 mt-0.5 truncate">
                 {t.email}
               </p>
-              <div className="flex gap-2 mt-3">
+              <div className="grid grid-cols-3 gap-2 mt-3">
                 <button
                   onClick={() => {
                     setEditingId(t.id);
@@ -148,13 +164,19 @@ export function TeachersSection({
                     setEmail(t.email);
                     setFormOpen(true);
                   }}
-                  className="flex-1 py-2 text-xs font-semibold text-blue-600 bg-blue-50 rounded-lg active:bg-blue-100"
+                  className="py-2 text-xs font-semibold text-blue-600 bg-blue-50 rounded-lg active:bg-blue-100"
                 >
                   Edit
                 </button>
                 <button
+                  onClick={() => onResetPassword(t.id, t.name)}
+                  className="py-2 text-xs font-semibold text-amber-700 bg-amber-50 rounded-lg active:bg-amber-100"
+                >
+                  Reset PIN
+                </button>
+                <button
                   onClick={() => onDelete(t.id)}
-                  className="flex-1 py-2 text-xs font-semibold text-red-600 bg-red-50 rounded-lg active:bg-red-100"
+                  className="py-2 text-xs font-semibold text-red-600 bg-red-50 rounded-lg active:bg-red-100"
                 >
                   Delete
                 </button>

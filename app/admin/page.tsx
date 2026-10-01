@@ -15,9 +15,11 @@ import { computeTermAverages } from "@/lib/termAverages";
 
 import { useAdminData } from "./_hooks/useAdminData";
 import { useApprovals } from "./_hooks/useApprovals";
+import { useActivityFeed } from "./_hooks/useActivityFeed";
 import { fetchResultForView } from "./_lib/fetchResultForView";
 
 import { AdminBottomNav } from "./_components/AdminBottomNav";
+import { ActivityFeed } from "./_components/ActivityFeed";
 import { SectionHeader } from "./_components/SectionHeader";
 import { HomeTab } from "./_components/tabs/HomeTab";
 import { StudentsTab } from "./_components/tabs/StudentsTab";
@@ -32,16 +34,105 @@ import type { AdminView, PendingClass, ReviewStudent } from "./_lib/types";
 
 const MAIN_TABS: AdminView[] = ["home", "students", "approvals", "more"];
 
+/**
+ * Every confirmation on the page is expressed as one of these.
+ * One state object → one ConfirmDialog. Add a case here, add a
+ * handler case in `runConfirm`, and it works everywhere.
+ */
+type ConfirmAction =
+  | { kind: "delete-student"; id: string }
+  | { kind: "delete-teacher"; id: string; name: string }
+  | { kind: "delete-class"; id: string; name: string }
+  | { kind: "force-delete-subject"; id: string; name: string }
+  | {
+      kind: "reopen-student";
+      enrolmentId: string;
+      termId: string;
+      name: string;
+    }
+  | { kind: "approve-all"; termId: string; count: number }
+  | { kind: "reset-password"; id: string; name: string };
+
+function describeConfirm(
+  action: ConfirmAction,
+  bulkComment: string,
+): {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  destructive: boolean;
+} {
+  switch (action.kind) {
+    case "delete-student":
+      return {
+        title: "Delete this student?",
+        description:
+          "Their enrolment and any scores recorded for them will be removed. This can't be undone.",
+        confirmLabel: "Delete",
+        destructive: true,
+      };
+    case "delete-teacher":
+      return {
+        title: "Delete this teacher?",
+        description:
+          "Their account and any class assignments will be removed. This can't be undone.",
+        confirmLabel: "Delete",
+        destructive: true,
+      };
+    case "delete-class":
+      return {
+        title: "Delete this class?",
+        description:
+          "Students and teachers in this class will be unassigned. This can't be undone.",
+        confirmLabel: "Delete",
+        destructive: true,
+      };
+    case "force-delete-subject":
+      return {
+        title: `Delete "${action.name}"?`,
+        description:
+          "This subject is used in classes and has recorded scores. Deleting it will remove those scores. This can't be undone.",
+        confirmLabel: "Delete Anyway",
+        destructive: true,
+      };
+    case "reopen-student":
+      return {
+        title: "Send this result back?",
+        description: `${action.name}'s result will return to draft so the teacher can edit it again.`,
+        confirmLabel: "Send Back",
+        destructive: true,
+      };
+    case "approve-all":
+      return {
+        title: "Approve all submitted results?",
+        description:
+          `You're about to approve ${action.count} submitted result${action.count === 1 ? "" : "s"}.` +
+          (bulkComment ? `\n\nHead teacher comment: "${bulkComment}"` : ""),
+        confirmLabel: "Approve All",
+        destructive: false,
+      };
+    case "reset-password":
+      return {
+        title: "Reset this person's password?",
+        description: `${action.name} will be signed out and given a new passcode. Their current password will stop working immediately. This cannot be undone.`,
+        confirmLabel: "Reset Password",
+        destructive: true,
+      };
+  }
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { session: currentSession, term: currentTerm } = useCurrentTerm();
   const { config } = useSchoolConfig();
   const data = useAdminData();
   const approvals = useApprovals();
+  const activity = useActivityFeed();
 
   const [adminName, setAdminName] = useState("");
   const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
   const [view, setView] = useState<AdminView>("home");
+  const [activityOpen, setActivityOpen] = useState(false);
   const [viewingStudent, setViewingStudent] = useState<{
     student: any;
     classRoom: any;
@@ -54,33 +145,13 @@ export default function AdminDashboardPage() {
   const [createdCredentials, setCreatedCredentials] = useState<{
     email: string;
     pin: string;
+    title: string;
+    description?: string;
   } | null>(null);
 
-  // ── ConfirmDialog state ──
-  const [pendingDeleteStudentId, setPendingDeleteStudentId] = useState<
-    string | null
-  >(null);
-  const [pendingDeleteTeacherId, setPendingDeleteTeacherId] = useState<
-    string | null
-  >(null);
-  const [pendingDeleteClassId, setPendingDeleteClassId] = useState<
-    string | null
-  >(null);
-  const [pendingForceDeleteSubject, setPendingForceDeleteSubject] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
-  const [pendingReopenStudent, setPendingReopenStudent] = useState<{
-    enrolmentId: string;
-    termId: string;
-    name: string;
-  } | null>(null);
-  const [pendingApproveAll, setPendingApproveAll] = useState<{
-    termId: string;
-    count: number;
-  } | null>(null);
-  const [approvingAll, setApprovingAll] = useState(false);
-  const [reopeningStudent, setReopeningStudent] = useState(false);
+  // One dialog, one state, one busy flag
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
   // Load admin name once
   useEffect(() => {
@@ -130,14 +201,13 @@ export default function AdminDashboardPage() {
     return res.json();
   };
 
-  // ── Handlers ──
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/sign-in/staff");
   };
 
-  // Students ──
+  // ── Immediate actions (no confirmation) ──
+
   const handleSaveStudent = async (input: {
     id?: string;
     name: string;
@@ -159,27 +229,14 @@ export default function AdminDashboardPage() {
     toast.success(input.id ? "Student updated." : "Student added.");
   };
 
-  const handleDeleteStudent = async (id: string) => {
-    setPendingDeleteStudentId(id);
-  };
-
-  const confirmDeleteStudent = async () => {
-    if (!pendingDeleteStudentId) return;
-    try {
-      await callAdminApi("delete-student", { id: pendingDeleteStudentId });
-      await data.refresh();
-      toast.success("Student deleted.");
-      setPendingDeleteStudentId(null);
-    } catch (err: any) {
-      toast.error(err.message || "Couldn't delete student");
-    }
-  };
-
-  // Teachers ──
   const handleCreateTeacher = async (name: string, email: string) => {
     try {
       const result = await callAdminApi("create-teacher", { name, email });
-      setCreatedCredentials({ email: result.email, pin: result.pin });
+      setCreatedCredentials({
+        email: result.email,
+        pin: result.pin,
+        title: "Teacher Account Created",
+      });
       await data.refresh();
       toast.success("Teacher account created.");
     } catch (err: any) {
@@ -201,27 +258,14 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleDeleteTeacher = async (id: string) => {
-    setPendingDeleteTeacherId(id);
-  };
-
-  const confirmDeleteTeacher = async () => {
-    if (!pendingDeleteTeacherId) return;
-    try {
-      await callAdminApi("delete-teacher", { id: pendingDeleteTeacherId });
-      await data.refresh();
-      toast.success("Teacher deleted.");
-      setPendingDeleteTeacherId(null);
-    } catch (err: any) {
-      toast.error(err.message || "Couldn't delete teacher");
-    }
-  };
-
-  // Admins ──
   const handleCreateAdmin = async (name: string, email: string) => {
     try {
       const result = await callAdminApi("create-admin", { name, email });
-      setCreatedCredentials({ email: result.email, pin: result.pin });
+      setCreatedCredentials({
+        email: result.email,
+        pin: result.pin,
+        title: "Admin Account Created",
+      });
       await data.refresh();
       toast.success("Admin account created.");
     } catch (err: any) {
@@ -229,7 +273,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Subjects ──
   const handleAddSubject = async (name: string) => {
     try {
       await callAdminApi("add-subject", { name });
@@ -246,7 +289,7 @@ export default function AdminDashboardPage() {
       requiresForce: true,
     }));
     if (first?.error && first?.requiresForce) {
-      setPendingForceDeleteSubject({ id, name });
+      setConfirmAction({ kind: "force-delete-subject", id, name });
       return;
     }
     if (first?.error) {
@@ -257,23 +300,6 @@ export default function AdminDashboardPage() {
     toast.success("Subject deleted.");
   };
 
-  const confirmForceDeleteSubject = async () => {
-    if (!pendingForceDeleteSubject) return;
-    try {
-      await callAdminApi("delete-subject", {
-        id: pendingForceDeleteSubject.id,
-        force: true,
-      });
-      await data.refresh();
-      toast.success(`"${pendingForceDeleteSubject.name}" deleted.`);
-    } catch (err: any) {
-      toast.error(err.message || "Couldn't delete subject");
-    } finally {
-      setPendingForceDeleteSubject(null);
-    }
-  };
-
-  // Classes ──
   const handleSaveClass = async (input: {
     id?: string;
     name: string;
@@ -305,22 +331,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleDeleteClass = async (id: string) => {
-    setPendingDeleteClassId(id);
-  };
-
-  const confirmDeleteClass = async () => {
-    if (!pendingDeleteClassId) return;
-    try {
-      await callAdminApi("delete-class", { id: pendingDeleteClassId });
-      await data.refresh();
-      toast.success("Class deleted.");
-      setPendingDeleteClassId(null);
-    } catch (err: any) {
-      toast.error(err.message || "Couldn't delete class");
-    }
-  };
-
   const handleAssignTeacher = async (classId: string, teacherId: string) => {
     try {
       await callAdminApi("assign-teacher", {
@@ -333,7 +343,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Approvals ──
   const handleApproveStudent = async (
     enrolmentId: string,
     termId: string,
@@ -366,44 +375,25 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleReopenStudent = (enrolmentId: string, termId: string) => {
-    const student = approvals.reviewStudents.find(
-      (s) => s.enrolmentId === enrolmentId,
-    );
-    setPendingReopenStudent({
-      enrolmentId,
-      termId,
-      name: student?.name || "this student",
-    });
-  };
+  // ── Confirmation triggers (set state; the single dialog does the work) ──
 
-  const confirmReopenStudent = async () => {
-    if (!pendingReopenStudent) return;
-    setReopeningStudent(true);
-    setBusyEnrolmentId(pendingReopenStudent.enrolmentId);
-    try {
-      await callAdminApi("reopen-student", {
-        enrolmentId: pendingReopenStudent.enrolmentId,
-        termId: pendingReopenStudent.termId,
-      });
-      approvals.setReviewStudents((prev) =>
-        prev.map((s) =>
-          s.enrolmentId === pendingReopenStudent.enrolmentId
-            ? { ...s, status: "draft", approvedAt: null }
-            : s,
-        ),
-      );
-      toast.success("Result sent back to teacher.");
-      setPendingReopenStudent(null);
-    } catch (err: any) {
-      toast.error(err.message || "Couldn't reopen result");
-    } finally {
-      setReopeningStudent(false);
-      setBusyEnrolmentId(null);
-    }
-  };
+  const askDeleteStudent = (id: string) =>
+    setConfirmAction({ kind: "delete-student", id });
 
-  const handleApproveAll = (termId: string) => {
+  const askDeleteTeacher = (id: string, name: string) =>
+    setConfirmAction({ kind: "delete-teacher", id, name });
+
+  const askDeleteClass = (id: string, name: string) =>
+    setConfirmAction({ kind: "delete-class", id, name });
+
+  const askReopenStudent = (
+    enrolmentId: string,
+    termId: string,
+    name: string,
+  ) =>
+    setConfirmAction({ kind: "reopen-student", enrolmentId, termId, name });
+
+  const askApproveAll = (termId: string) => {
     const toApprove = approvals.reviewStudents.filter(
       (s) => s.status === "submitted",
     );
@@ -411,43 +401,132 @@ export default function AdminDashboardPage() {
       toast.info("No submitted results to approve.");
       return;
     }
-    setPendingApproveAll({ termId, count: toApprove.length });
+    setConfirmAction({
+      kind: "approve-all",
+      termId,
+      count: toApprove.length,
+    });
   };
 
-  const confirmApproveAll = async () => {
-    if (!pendingApproveAll) return;
-    setApprovingAll(true);
+  const askResetPassword = (id: string, name: string) =>
+    setConfirmAction({ kind: "reset-password", id, name });
+
+  // ── Single dispatcher — runs the action, then closes ──
+
+  const runConfirm = async () => {
+    if (!confirmAction) return;
+    setConfirmBusy(true);
     try {
-      const toApprove = approvals.reviewStudents.filter(
-        (s) => s.status === "submitted",
-      );
-      for (const s of toApprove) {
-        await callAdminApi("approve-student", {
-          enrolmentId: s.enrolmentId,
-          termId: pendingApproveAll.termId,
-          headComment: bulkComment || null,
-        });
+      switch (confirmAction.kind) {
+        case "delete-student": {
+          await callAdminApi("delete-student", { id: confirmAction.id });
+          await data.refresh();
+          toast.success("Student deleted.");
+          break;
+        }
+        case "delete-teacher": {
+          await callAdminApi("delete-teacher", { id: confirmAction.id });
+          await data.refresh();
+          toast.success("Teacher deleted.");
+          break;
+        }
+        case "delete-class": {
+          await callAdminApi("delete-class", { id: confirmAction.id });
+          await data.refresh();
+          toast.success("Class deleted.");
+          break;
+        }
+        case "force-delete-subject": {
+          await callAdminApi("delete-subject", {
+            id: confirmAction.id,
+            force: true,
+          });
+          await data.refresh();
+          toast.success(`"${confirmAction.name}" deleted.`);
+          break;
+        }
+        case "reopen-student": {
+          await callAdminApi("reopen-student", {
+            enrolmentId: confirmAction.enrolmentId,
+            termId: confirmAction.termId,
+          });
+          approvals.setReviewStudents((prev) =>
+            prev.map((s) =>
+              s.enrolmentId === confirmAction.enrolmentId
+                ? { ...s, status: "draft", approvedAt: null }
+                : s,
+            ),
+          );
+          toast.success("Result sent back to teacher.");
+          break;
+        }
+        case "approve-all": {
+          const toApprove = approvals.reviewStudents.filter(
+            (s) => s.status === "submitted",
+          );
+          for (const s of toApprove) {
+            await callAdminApi("approve-student", {
+              enrolmentId: s.enrolmentId,
+              termId: confirmAction.termId,
+              headComment: bulkComment || null,
+            });
+          }
+          const current = approvals.pendingClasses.find(
+            (c) => c.classId === approvals.reviewClassId,
+          );
+          if (current) {
+            await approvals.openReview(
+              current.classId,
+              current.termId,
+              current.sessionId,
+            );
+          }
+          await approvals.load();
+          toast.success(
+            `Approved ${toApprove.length} result${toApprove.length === 1 ? "" : "s"}.`,
+          );
+          break;
+        }
+        case "reset-password": {
+          const result = await callAdminApi("reset-password", {
+            id: confirmAction.id,
+          });
+          setCreatedCredentials({
+            email: result.email,
+            pin: result.pin,
+            title: "Password Reset",
+            description: `Share the new passcode with ${confirmAction.name} privately. They can change it after signing in.`,
+          });
+          toast.success("Password reset.");
+          break;
+        }
       }
-      const current = approvals.pendingClasses.find(
-        (c) => c.classId === approvals.reviewClassId,
-      );
-      if (current) {
-        await approvals.openReview(
-          current.classId,
-          current.termId,
-          current.sessionId,
-        );
-      }
-      await approvals.load();
-      toast.success(
-        `Approved ${toApprove.length} result${toApprove.length === 1 ? "" : "s"}.`,
-      );
-      setPendingApproveAll(null);
+      setConfirmAction(null);
     } catch (err: any) {
-      toast.error(err.message || "Couldn't approve all");
+      toast.error(err.message || "Something went wrong");
     } finally {
-      setApprovingAll(false);
+      setConfirmBusy(false);
     }
+  };
+
+  // ── Approvals helpers ──
+
+  const handleViewResult = async (s: ReviewStudent) => {
+    const current = approvals.pendingClasses.find(
+      (c) => c.classId === approvals.reviewClassId,
+    );
+    if (!current) return;
+    const result = await fetchResultForView(
+      s.enrolmentId,
+      current.classId,
+      current.termId,
+      current.sessionId,
+    );
+    if (!result) {
+      toast.error("Could not load student.");
+      return;
+    }
+    setViewingStudent(result);
   };
 
   const handleBatchPrintReview = async () => {
@@ -699,25 +778,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleViewResult = async (s: ReviewStudent) => {
-    const current = approvals.pendingClasses.find(
-      (c) => c.classId === approvals.reviewClassId,
-    );
-    if (!current) return;
-    const result = await fetchResultForView(
-      s.enrolmentId,
-      current.classId,
-      current.termId,
-      current.sessionId,
-    );
-    if (!result) {
-      toast.error("Could not load student.");
-      return;
-    }
-    setViewingStudent(result);
-  };
-
-  // ── Read-only result view ──
+  // ── Full-screen read-only result view ──
   if (viewingStudent) {
     return (
       <div className="min-h-screen bg-slate-100">
@@ -740,90 +801,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  // ── Section views (open from More tab) ──
-  if (view === "teachers") {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-lg mx-auto">
-          <TeachersSection
-            teachers={data.teachers}
-            onBack={() => setView("more")}
-            onCreate={handleCreateTeacher}
-            onUpdate={handleUpdateTeacher}
-            onDelete={handleDeleteTeacher}
-            createdCredentials={createdCredentials}
-            clearCredentials={() => setCreatedCredentials(null)}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (view === "admins") {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-lg mx-auto">
-          <AdminsSection
-            admins={data.admins}
-            currentAdminId={currentAdminId}
-            onBack={() => setView("more")}
-            onCreate={handleCreateAdmin}
-            createdCredentials={createdCredentials}
-            clearCredentials={() => setCreatedCredentials(null)}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (view === "subjects") {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-lg mx-auto">
-          <SubjectsSection
-            subjects={data.subjects}
-            onBack={() => setView("more")}
-            onAdd={handleAddSubject}
-            onDelete={handleDeleteSubject}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (view === "classes") {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-lg mx-auto">
-          <ClassesSection
-            classes={data.classes}
-            subjects={data.subjects}
-            teachers={data.teachers}
-            classSubjectIds={data.classSubjectIds}
-            onBack={() => setView("more")}
-            onSave={handleSaveClass}
-            onDelete={handleDeleteClass}
-            onAssignTeacher={handleAssignTeacher}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  if (view === "settings") {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="max-w-lg mx-auto">
-          <SectionHeader title="Settings" onBack={() => setView("more")} />
-          <div className="p-4">
-            <SettingsTab callAdminApi={callAdminApi} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Main tabs ──
+  // ── Main tabs loading state ──
   if (data.loading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -853,7 +831,10 @@ export default function AdminDashboardPage() {
     0,
   );
 
-  const activeMainTab = MAIN_TABS.includes(view) ? view : "more";
+  const isMainTab = MAIN_TABS.includes(view);
+  const confirmMeta = confirmAction
+    ? describeConfirm(confirmAction, bulkComment)
+    : null;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -869,6 +850,8 @@ export default function AdminDashboardPage() {
               classes: data.classes.length,
             }}
             pendingCount={totalPending}
+            unreadActivityCount={activity.unreadCount}
+            onOpenActivity={() => setActivityOpen(true)}
             onNavigate={setView}
           />
         )}
@@ -878,7 +861,7 @@ export default function AdminDashboardPage() {
             students={data.students}
             classes={data.classes}
             onSave={handleSaveStudent}
-            onDelete={handleDeleteStudent}
+            onDelete={askDeleteStudent}
           />
         )}
 
@@ -904,7 +887,7 @@ export default function AdminDashboardPage() {
               const current = approvals.pendingClasses.find(
                 (c) => c.classId === approvals.reviewClassId,
               );
-              if (current) handleApproveAll(current.termId);
+              if (current) askApproveAll(current.termId);
             }}
             onCommentChange={(enrolmentId, v) =>
               approvals.setReviewStudents((prev) =>
@@ -925,7 +908,8 @@ export default function AdminDashboardPage() {
               const current = approvals.pendingClasses.find(
                 (c) => c.classId === approvals.reviewClassId,
               );
-              if (current) handleReopenStudent(s.enrolmentId, current.termId);
+              if (current)
+                askReopenStudent(s.enrolmentId, current.termId, s.name);
             }}
           />
         )}
@@ -933,93 +917,97 @@ export default function AdminDashboardPage() {
         {view === "more" && (
           <MoreTab onNavigate={setView} onLogout={handleLogout} />
         )}
+
+        {view === "teachers" && (
+          <TeachersSection
+            teachers={data.teachers}
+            onBack={() => setView("more")}
+            onCreate={handleCreateTeacher}
+            onUpdate={handleUpdateTeacher}
+            onDelete={(id) => {
+              const t = data.teachers.find((x) => x.id === id);
+              askDeleteTeacher(id, t?.name || "this teacher");
+            }}
+            onResetPassword={askResetPassword}
+            createdCredentials={createdCredentials}
+            clearCredentials={() => setCreatedCredentials(null)}
+          />
+        )}
+
+        {view === "admins" && (
+          <AdminsSection
+            admins={data.admins}
+            currentAdminId={currentAdminId}
+            onBack={() => setView("more")}
+            onCreate={handleCreateAdmin}
+            onResetPassword={askResetPassword}
+            createdCredentials={createdCredentials}
+            clearCredentials={() => setCreatedCredentials(null)}
+          />
+        )}
+
+        {view === "subjects" && (
+          <SubjectsSection
+            subjects={data.subjects}
+            onBack={() => setView("more")}
+            onAdd={handleAddSubject}
+            onDelete={handleDeleteSubject}
+          />
+        )}
+
+        {view === "classes" && (
+          <ClassesSection
+            classes={data.classes}
+            subjects={data.subjects}
+            teachers={data.teachers}
+            classSubjectIds={data.classSubjectIds}
+            onBack={() => setView("more")}
+            onSave={handleSaveClass}
+            onDelete={(id) => {
+              const c = data.classes.find((x) => x.id === id);
+              askDeleteClass(id, c?.name || "this class");
+            }}
+            onAssignTeacher={handleAssignTeacher}
+          />
+        )}
+
+        {view === "settings" && (
+          <>
+            <SectionHeader title="Settings" onBack={() => setView("more")} />
+            <div className="p-4">
+              <SettingsTab callAdminApi={callAdminApi} />
+            </div>
+          </>
+        )}
       </main>
 
-      {!approvals.reviewClassId && (
+      {isMainTab && !approvals.reviewClassId && (
         <AdminBottomNav
-          active={activeMainTab}
+          active={view}
           pendingCount={totalPending}
           onChange={setView}
         />
       )}
 
-      {/* ── Confirm dialogs ── */}
-
+      {/* One dialog for everything */}
       <ConfirmDialog
-        open={pendingDeleteStudentId !== null}
-        onOpenChange={(open) => !open && setPendingDeleteStudentId(null)}
-        title="Delete this student?"
-        description="Their enrolment and any scores recorded for them will be removed. This can't be undone."
-        confirmLabel="Delete"
-        destructive
-        onConfirm={confirmDeleteStudent}
+        open={confirmAction !== null}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title={confirmMeta?.title || ""}
+        description={confirmMeta?.description || ""}
+        confirmLabel={confirmMeta?.confirmLabel || "Confirm"}
+        destructive={confirmMeta?.destructive}
+        loading={confirmBusy}
+        onConfirm={runConfirm}
       />
 
-      <ConfirmDialog
-        open={pendingDeleteTeacherId !== null}
-        onOpenChange={(open) => !open && setPendingDeleteTeacherId(null)}
-        title="Delete this teacher?"
-        description="Their account and any class assignments will be removed. This can't be undone."
-        confirmLabel="Delete"
-        destructive
-        onConfirm={confirmDeleteTeacher}
-      />
-
-      <ConfirmDialog
-        open={pendingDeleteClassId !== null}
-        onOpenChange={(open) => !open && setPendingDeleteClassId(null)}
-        title="Delete this class?"
-        description="Students and teachers in this class will be unassigned. This can't be undone."
-        confirmLabel="Delete"
-        destructive
-        onConfirm={confirmDeleteClass}
-      />
-
-      <ConfirmDialog
-        open={pendingForceDeleteSubject !== null}
-        onOpenChange={(open) => !open && setPendingForceDeleteSubject(null)}
-        title={
-          pendingForceDeleteSubject
-            ? `Delete "${pendingForceDeleteSubject.name}"?`
-            : "Delete subject?"
-        }
-        description="This subject is used in classes and has recorded scores. Deleting it will remove those scores. This can't be undone."
-        confirmLabel="Delete Anyway"
-        destructive
-        onConfirm={confirmForceDeleteSubject}
-      />
-
-      <ConfirmDialog
-        open={pendingReopenStudent !== null}
-        onOpenChange={(open) => !open && setPendingReopenStudent(null)}
-        title="Send this result back?"
-        description={
-          pendingReopenStudent
-            ? `${pendingReopenStudent.name}'s result will return to draft so the teacher can edit it again.`
-            : "The result will return to draft so the teacher can edit it."
-        }
-        confirmLabel="Send Back"
-        destructive
-        loading={reopeningStudent}
-        onConfirm={confirmReopenStudent}
-      />
-
-      <ConfirmDialog
-        open={pendingApproveAll !== null}
-        onOpenChange={(open) => !open && setPendingApproveAll(null)}
-        title="Approve all submitted results?"
-        description={
-          pendingApproveAll
-            ? `You're about to approve ${pendingApproveAll.count} submitted result${pendingApproveAll.count === 1 ? "" : "s"}.${
-                bulkComment
-                  ? `\n\nHead teacher comment: "${bulkComment}"`
-                  : ""
-              }`
-            : ""
-        }
-        confirmLabel="Approve All"
-        loading={approvingAll}
-        onConfirm={confirmApproveAll}
+      {/* Activity drawer — mounted once, works from any view */}
+      <ActivityFeed
+        open={activityOpen}
+        onClose={() => setActivityOpen(false)}
+        activities={activity.activities}
+        loading={activity.loading}
+        onSeen={activity.markSeen}
       />
     </div>
   );

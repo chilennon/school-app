@@ -26,7 +26,7 @@ export function ClassesSection({
     session: string;
     subjectIds: string[];
   }) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
+  onDelete: (id: string) => void | Promise<void>;
   onAssignTeacher: (classId: string, teacherId: string) => Promise<void>;
 }) {
   const [formOpen, setFormOpen] = useState(false);

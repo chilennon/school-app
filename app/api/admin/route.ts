@@ -474,6 +474,61 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ email, pin: tempPassword });
       }
 
+
+      // Password
+
+            case "reset-password": {
+        const { id } = body;
+        if (!id) {
+          return NextResponse.json({ error: "Missing id" }, { status: 400 });
+        }
+
+        // Verify target belongs to caller's school
+        const { data: target } = await supabaseAdmin
+          .from("profiles")
+          .select("id, name, email, role")
+          .eq("id", id)
+          .eq("school_id", callerSchoolId)
+          .maybeSingle();
+
+        if (!target) {
+          return NextResponse.json(
+            { error: "User not found in this school" },
+            { status: 404 }
+          );
+        }
+
+        const tempPin = Math.floor(
+          100000 + Math.random() * 900000
+        ).toString();
+        const tempPassword = `Reset#${tempPin}`;
+
+        const { error: updateErr } =
+          await supabaseAdmin.auth.admin.updateUserById(id, {
+            password: tempPassword,
+          });
+
+        if (updateErr) {
+          console.error("reset-password error:", updateErr);
+          return NextResponse.json(
+            { error: updateErr.message || "Password reset failed" },
+            { status: 500 }
+          );
+        }
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "password.reset",
+          targetTable: "profiles",
+          targetId: id,
+          targetLabel: `${target.name} (${target.role})`,
+        });
+
+        return NextResponse.json({ email: target.email, pin: tempPassword });
+      }
+
       // ──────────────────────────────────────────────────────────
       // TEACHERS
       // ──────────────────────────────────────────────────────────
