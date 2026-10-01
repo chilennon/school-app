@@ -31,6 +31,7 @@ export type AdminView =
   | "approvals"
   | "more"
   | "teachers"
+  | "admins"
   | "subjects"
   | "classes"
   | "settings";

@@ -1,7 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ChangePasswordCard } from "./_components/ChangePasswordCard";
 
 interface Term {
   id: string;
@@ -31,6 +34,8 @@ export default function SettingsTab({ callAdminApi }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
 
+  const [pendingCurrentSessionId, setPendingCurrentSessionId] = useState<string | null>(null);
+
   const [termEdits, setTermEdits] = useState<
     Record<string, { next_term_begins: string; days_opened: string }>
   >({});
@@ -56,7 +61,6 @@ export default function SettingsTab({ callAdminApi }: Props) {
 
     setSessions(grouped);
 
-    // Initialize term edits
     const edits: Record<string, { next_term_begins: string; days_opened: string }> = {};
     (terms || []).forEach((t: any) => {
       edits[t.id] = {
@@ -81,26 +85,30 @@ export default function SettingsTab({ callAdminApi }: Props) {
       await callAdminApi("create-session", { name: newSessionName.trim() });
       setNewSessionName("");
       await fetchSessions();
+      toast.success("Session created.");
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Couldn't create session");
     } finally {
       setCreating(false);
     }
   };
 
-  const handleSetCurrentSession = async (sessionId: string) => {
-    if (
-      !confirm(
-        "Make this the current session? Teachers and dashboards will reflect this immediately."
-      )
-    )
-      return;
-    setBusyId(sessionId);
+  // Opens dialog
+  const handleSetCurrentSession = (sessionId: string) => {
+    setPendingCurrentSessionId(sessionId);
+  };
+
+  // Does the work
+  const confirmSetCurrentSession = async () => {
+    if (!pendingCurrentSessionId) return;
+    setBusyId(pendingCurrentSessionId);
     try {
-      await callAdminApi("set-current-session", { sessionId });
+      await callAdminApi("set-current-session", { sessionId: pendingCurrentSessionId });
       await fetchSessions();
+      toast.success("Current session updated.");
+      setPendingCurrentSessionId(null);
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Couldn't change session");
     } finally {
       setBusyId(null);
     }
@@ -111,8 +119,9 @@ export default function SettingsTab({ callAdminApi }: Props) {
     try {
       await callAdminApi("set-current-term", { termId });
       await fetchSessions();
+      toast.success("Current term updated.");
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Couldn't change term");
     } finally {
       setBusyId(null);
     }
@@ -128,8 +137,9 @@ export default function SettingsTab({ callAdminApi }: Props) {
         days_opened: edit.days_opened,
       });
       await fetchSessions();
+      toast.success("Term details saved.");
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Couldn't save term");
     } finally {
       setBusyId(null);
     }
@@ -144,6 +154,10 @@ export default function SettingsTab({ callAdminApi }: Props) {
   }
 
   const currentSession = sessions.find((s) => s.is_current);
+
+  const pendingSessionName = pendingCurrentSessionId
+    ? sessions.find((s) => s.id === pendingCurrentSessionId)?.name ?? "this session"
+    : "";
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -183,7 +197,7 @@ export default function SettingsTab({ callAdminApi }: Props) {
             onChange={(e) => setNewSessionName(e.target.value)}
             placeholder="e.g. 2026/2027"
             required
-            className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-base outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             type="submit"
@@ -210,7 +224,6 @@ export default function SettingsTab({ callAdminApi }: Props) {
                 isCurrent ? "border-blue-500 ring-2 ring-blue-500/20" : "border-slate-200"
               }`}
             >
-              {/* Session header row */}
               <button
                 onClick={() => setExpandedSessionId(expanded ? null : sess.id)}
                 className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-slate-50 transition"
@@ -236,7 +249,6 @@ export default function SettingsTab({ callAdminApi }: Props) {
                 </span>
               </button>
 
-              {/* Expanded terms */}
               {expanded && (
                 <div className="border-t border-slate-100 p-4 sm:p-5 space-y-3 bg-slate-50">
                   {!isCurrent && (
@@ -304,7 +316,7 @@ export default function SettingsTab({ callAdminApi }: Props) {
                                   },
                                 }))
                               }
-                              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-base outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
                           <div>
@@ -324,7 +336,7 @@ export default function SettingsTab({ callAdminApi }: Props) {
                                   },
                                 }))
                               }
-                              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500"
+                              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-base outline-none focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
                         </div>
@@ -345,6 +357,22 @@ export default function SettingsTab({ callAdminApi }: Props) {
           );
         })}
       </div>
+
+      <ChangePasswordCard />
+
+      <ConfirmDialog
+        open={pendingCurrentSessionId !== null}
+        onOpenChange={(open) => !open && setPendingCurrentSessionId(null)}
+        title="Make this the current session?"
+        description={
+          pendingSessionName
+            ? `${pendingSessionName} will become the active session. Teachers and dashboards will reflect this immediately.`
+            : "Teachers and dashboards will reflect this immediately."
+        }
+        confirmLabel="Set Current"
+        loading={busyId === pendingCurrentSessionId}
+        onConfirm={confirmSetCurrentSession}
+      />
     </div>
   );
 }

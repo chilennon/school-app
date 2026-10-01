@@ -92,9 +92,9 @@ export function useCompilerForm(
     setFormState((prev) => ({ ...prev, ...updates }));
   }, []);
 
+  // Reset everything except identity fields. The confirm dialog that gates
+  // this lives in the page component, not here.
   const clearAll = useCallback(() => {
-    if (!window.confirm("Clear all data and start fresh for this student?"))
-      return;
     setFormState((prev) => ({
       ...prev,
       schoolName: "",

@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { ReviewRow } from "./ReviewRow";
 import type { ReviewStudent } from "../../_lib/types";
 
@@ -20,9 +21,29 @@ export function ReviewList({
   onApprove: (s: ReviewStudent) => void;
   onReopen: (s: ReviewStudent) => void;
 }) {
-    if (loading) {
+  if (loading) {
     return (
-      <div className="p-8 text-center text-sm text-slate-500">Loading…</div>
+      <div className="p-4 space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="p-3 rounded-2xl border border-slate-200 bg-white space-y-2"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 space-y-1.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+              <Skeleton className="h-3 w-16 flex-shrink-0" />
+            </div>
+            <Skeleton className="h-9 w-full rounded-lg" />
+            <div className="flex gap-2">
+              <Skeleton className="h-8 flex-1 rounded-lg" />
+              <Skeleton className="h-8 flex-1 rounded-lg" />
+            </div>
+          </div>
+        ))}
+      </div>
     );
   }
   if (students.length === 0) {

@@ -1,10 +1,18 @@
 "use client";
 
-import { ChevronRight, Users, BookOpen, School, Settings } from "lucide-react";
+import {
+  ChevronRight,
+  Users,
+  ShieldCheck,
+  BookOpen,
+  School,
+  Settings,
+} from "lucide-react";
 import type { AdminView } from "../../_lib/types";
 
 const ITEMS = [
   { key: "teachers", label: "Teachers", Icon: Users },
+  { key: "admins", label: "Admins", Icon: ShieldCheck },
   { key: "subjects", label: "Subjects", Icon: BookOpen },
   { key: "classes", label: "Classes", Icon: School },
   { key: "settings", label: "Settings", Icon: Settings },

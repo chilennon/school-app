@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { logAudit } from "@/lib/audit";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("role, school_id")
+      .select("role, school_id, name")
       .eq("id", user.id)
       .single();
 
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
     }
 
     const callerSchoolId = profile.school_id;
+    const callerName = profile.name || "Admin";
 
     switch (action) {
       // ──────────────────────────────────────────────────────────
@@ -50,16 +52,12 @@ export async function POST(req: NextRequest) {
       case "approve-student": {
         const { enrolmentId, termId, headComment } = body;
         if (!enrolmentId || !termId) {
-          return NextResponse.json(
-            { error: "Missing fields" },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: "Missing fields" }, { status: 400 });
         }
 
-        // Verify enrolment belongs to caller's school
         const { data: enrol } = await supabaseAdmin
           .from("enrolments")
-          .select("id")
+          .select("id, student:students (name)")
           .eq("id", enrolmentId)
           .eq("school_id", callerSchoolId)
           .maybeSingle();
@@ -89,21 +87,29 @@ export async function POST(req: NextRequest) {
 
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "result.approved",
+          targetTable: "term_records",
+          targetId: enrolmentId,
+          targetLabel: (enrol as any).student?.name || null,
+        });
+
         return NextResponse.json({ success: true });
       }
 
       case "reopen-student": {
         const { enrolmentId, termId } = body;
         if (!enrolmentId || !termId) {
-          return NextResponse.json(
-            { error: "Missing fields" },
-            { status: 400 }
-          );
+          return NextResponse.json({ error: "Missing fields" }, { status: 400 });
         }
 
         const { data: enrol } = await supabaseAdmin
           .from("enrolments")
-          .select("id")
+          .select("id, student:students (name)")
           .eq("id", enrolmentId)
           .eq("school_id", callerSchoolId)
           .maybeSingle();
@@ -129,6 +135,17 @@ export async function POST(req: NextRequest) {
 
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "result.reopened",
+          targetTable: "term_records",
+          targetId: enrolmentId,
+          targetLabel: (enrol as any).student?.name || null,
+        });
+
         return NextResponse.json({ success: true });
       }
 
@@ -175,32 +192,24 @@ export async function POST(req: NextRequest) {
         }
 
         const { error: termErr } = await supabaseAdmin.from("terms").insert([
-          {
-            school_id: callerSchoolId,
-            session_id: newSession.id,
-            name: "First",
-            sequence: 1,
-            is_current: false,
-          },
-          {
-            school_id: callerSchoolId,
-            session_id: newSession.id,
-            name: "Second",
-            sequence: 2,
-            is_current: false,
-          },
-          {
-            school_id: callerSchoolId,
-            session_id: newSession.id,
-            name: "Third",
-            sequence: 3,
-            is_current: false,
-          },
+          { school_id: callerSchoolId, session_id: newSession.id, name: "First", sequence: 1, is_current: false },
+          { school_id: callerSchoolId, session_id: newSession.id, name: "Second", sequence: 2, is_current: false },
+          { school_id: callerSchoolId, session_id: newSession.id, name: "Third", sequence: 3, is_current: false },
         ]);
 
         if (termErr) {
           return NextResponse.json({ error: termErr.message }, { status: 500 });
         }
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "session.created",
+          targetTable: "sessions",
+          targetId: newSession.id,
+          targetLabel: trimmed,
+        });
 
         return NextResponse.json({ session: newSession });
       }
@@ -214,10 +223,9 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Verify session belongs to caller's school
         const { data: targetSession } = await supabaseAdmin
           .from("sessions")
-          .select("id")
+          .select("id, name")
           .eq("id", sessionId)
           .eq("school_id", callerSchoolId)
           .maybeSingle();
@@ -229,7 +237,6 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Clear current flag — scoped to this school only
         const { error: clearErr } = await supabaseAdmin
           .from("sessions")
           .update({ is_current: false })
@@ -251,7 +258,6 @@ export async function POST(req: NextRequest) {
         if (setErr)
           return NextResponse.json({ error: setErr.message }, { status: 500 });
 
-        // If no term inside this session is current yet, mark First as current
         const { data: currentTerms } = await supabaseAdmin
           .from("terms")
           .select("id")
@@ -277,6 +283,16 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "session.current_changed",
+          targetTable: "sessions",
+          targetId: sessionId,
+          targetLabel: targetSession.name,
+        });
+
         return NextResponse.json({ success: true });
       }
 
@@ -291,7 +307,7 @@ export async function POST(req: NextRequest) {
 
         const { data: term } = await supabaseAdmin
           .from("terms")
-          .select("id, session_id")
+          .select("id, session_id, name")
           .eq("id", termId)
           .eq("school_id", callerSchoolId)
           .maybeSingle();
@@ -321,6 +337,16 @@ export async function POST(req: NextRequest) {
         if (setErr)
           return NextResponse.json({ error: setErr.message }, { status: 500 });
 
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "term.current_changed",
+          targetTable: "terms",
+          targetId: termId,
+          targetLabel: `${term.name} Term`,
+        });
+
         return NextResponse.json({ success: true });
       }
 
@@ -348,6 +374,13 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ success: true });
         }
 
+        const { data: term } = await supabaseAdmin
+          .from("terms")
+          .select("name")
+          .eq("id", termId)
+          .eq("school_id", callerSchoolId)
+          .maybeSingle();
+
         const { error } = await supabaseAdmin
           .from("terms")
           .update(updates)
@@ -356,7 +389,89 @@ export async function POST(req: NextRequest) {
 
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "term.updated",
+          targetTable: "terms",
+          targetId: termId,
+          targetLabel: term?.name ? `${term.name} Term` : null,
+        });
+
         return NextResponse.json({ success: true });
+      }
+
+      // ──────────────────────────────────────────────────────────
+      // ADMINS
+      // ──────────────────────────────────────────────────────────
+      case "create-admin": {
+        const { name, email } = body;
+        if (!name || !email) {
+          return NextResponse.json(
+            { error: "Name and email required" },
+            { status: 400 }
+          );
+        }
+
+        const tempPin = Math.floor(
+          100000 + Math.random() * 900000
+        ).toString();
+        const tempPassword = `Admin#${tempPin}`;
+
+        const { data: newUser, error: createUserError } =
+          await supabaseAdmin.auth.admin.createUser({
+            email,
+            password: tempPassword,
+            email_confirm: true,
+            user_metadata: { name },
+            app_metadata: {
+              role: "admin",
+              school_id: callerSchoolId,
+            },
+          });
+
+        if (createUserError || !newUser.user) {
+          console.error("create-admin auth error:", createUserError);
+          return NextResponse.json(
+            { error: createUserError?.message || "User creation failed" },
+            { status: 500 }
+          );
+        }
+
+        const { error: profileErr } = await supabaseAdmin
+          .from("profiles")
+          .insert([
+            {
+              id: newUser.user.id,
+              name,
+              email,
+              role: "admin",
+              school_id: callerSchoolId,
+            },
+          ]);
+
+        if (profileErr) {
+          console.error("create-admin profile error:", profileErr);
+          await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+          return NextResponse.json(
+            { error: profileErr.message },
+            { status: 500 }
+          );
+        }
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "admin.created",
+          targetTable: "profiles",
+          targetId: newUser.user.id,
+          targetLabel: name,
+        });
+
+        return NextResponse.json({ email, pin: tempPassword });
       }
 
       // ──────────────────────────────────────────────────────────
@@ -376,9 +491,6 @@ export async function POST(req: NextRequest) {
         ).toString();
         const tempPassword = `Teacher#${tempPin}`;
 
-        // CRITICAL: pass school_id + role in metadata so the trigger
-        // creates the profile correctly. Without this, signup fails
-        // because profiles.school_id is NOT NULL.
         const { data: newUser, error: createUserError } =
           await supabaseAdmin.auth.admin.createUser({
             email,
@@ -394,14 +506,11 @@ export async function POST(req: NextRequest) {
         if (createUserError || !newUser.user) {
           console.error("create-teacher auth error:", createUserError);
           return NextResponse.json(
-            {
-              error: createUserError?.message || "User creation failed",
-            },
+            { error: createUserError?.message || "User creation failed" },
             { status: 500 }
           );
         }
 
-        // Explicitly insert the profile row (no trigger involved)
         const { error: profileErr } = await supabaseAdmin
           .from("profiles")
           .insert([
@@ -416,13 +525,22 @@ export async function POST(req: NextRequest) {
 
         if (profileErr) {
           console.error("create-teacher profile error:", profileErr);
-          // Roll back: delete the auth user so we don't leave an orphan
           await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
           return NextResponse.json(
             { error: profileErr.message },
             { status: 500 }
           );
         }
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "teacher.created",
+          targetTable: "profiles",
+          targetId: newUser.user.id,
+          targetLabel: name,
+        });
 
         return NextResponse.json({ email, pin: tempPassword });
       }
@@ -444,6 +562,17 @@ export async function POST(req: NextRequest) {
 
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "teacher.updated",
+          targetTable: "profiles",
+          targetId: id,
+          targetLabel: name,
+        });
+
         return NextResponse.json({ success: true });
       }
 
@@ -452,10 +581,9 @@ export async function POST(req: NextRequest) {
         if (!id)
           return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-        // Verify teacher belongs to caller's school
         const { data: target } = await supabaseAdmin
           .from("profiles")
-          .select("id")
+          .select("id, name")
           .eq("id", id)
           .eq("school_id", callerSchoolId)
           .maybeSingle();
@@ -470,6 +598,17 @@ export async function POST(req: NextRequest) {
         const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "teacher.deleted",
+          targetTable: "profiles",
+          targetId: id,
+          targetLabel: target.name,
+        });
+
         return NextResponse.json({ success: true });
       }
 
@@ -499,6 +638,17 @@ export async function POST(req: NextRequest) {
 
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "subject.created",
+          targetTable: "subjects",
+          targetId: data.id,
+          targetLabel: name.trim(),
+        });
+
         return NextResponse.json({ subject: data });
       }
 
@@ -507,10 +657,9 @@ export async function POST(req: NextRequest) {
         if (!id)
           return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
-        // Verify subject belongs to caller's school
         const { data: subject } = await supabaseAdmin
           .from("subjects")
-          .select("id")
+          .select("id, name")
           .eq("id", id)
           .eq("school_id", callerSchoolId)
           .maybeSingle();
@@ -522,7 +671,6 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Check how many classes use it
         const { count } = await supabaseAdmin
           .from("class_subjects")
           .select("id", { count: "exact", head: true })
@@ -571,6 +719,17 @@ export async function POST(req: NextRequest) {
 
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "subject.deleted",
+          targetTable: "subjects",
+          targetId: id,
+          targetLabel: subject.name,
+        });
+
         return NextResponse.json({ success: true });
       }
 
@@ -588,7 +747,7 @@ export async function POST(req: NextRequest) {
 
         const { data: cls } = await supabaseAdmin
           .from("classes")
-          .select("id, session_id")
+          .select("id, session_id, name")
           .eq("id", classId)
           .eq("school_id", callerSchoolId)
           .maybeSingle();
@@ -648,6 +807,16 @@ export async function POST(req: NextRequest) {
             .eq("id", row.id);
         }
 
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "class.subjects_changed",
+          targetTable: "classes",
+          targetId: classId,
+          targetLabel: cls.name,
+        });
+
         return NextResponse.json({ success: true });
       }
 
@@ -665,7 +834,6 @@ export async function POST(req: NextRequest) {
 
         const trimmedSession = String(sessionName).trim();
 
-        // Find or create session
         let sessionId: string;
         const { data: existingSession } = await supabaseAdmin
           .from("sessions")
@@ -698,27 +866,9 @@ export async function POST(req: NextRequest) {
           sessionId = newSession.id;
 
           await supabaseAdmin.from("terms").insert([
-            {
-              school_id: callerSchoolId,
-              session_id: sessionId,
-              name: "First",
-              sequence: 1,
-              is_current: false,
-            },
-            {
-              school_id: callerSchoolId,
-              session_id: sessionId,
-              name: "Second",
-              sequence: 2,
-              is_current: false,
-            },
-            {
-              school_id: callerSchoolId,
-              session_id: sessionId,
-              name: "Third",
-              sequence: 3,
-              is_current: false,
-            },
+            { school_id: callerSchoolId, session_id: sessionId, name: "First", sequence: 1, is_current: false },
+            { school_id: callerSchoolId, session_id: sessionId, name: "Second", sequence: 2, is_current: false },
+            { school_id: callerSchoolId, session_id: sessionId, name: "Third", sequence: 3, is_current: false },
           ]);
         }
 
@@ -767,6 +917,16 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "class.created",
+          targetTable: "classes",
+          targetId: createdClass.id,
+          targetLabel: name,
+        });
+
         return NextResponse.json({ class: createdClass });
       }
 
@@ -781,7 +941,6 @@ export async function POST(req: NextRequest) {
 
         const trimmedSession = String(sessionName).trim();
 
-        // Verify class belongs to caller's school
         const { data: existingClass } = await supabaseAdmin
           .from("classes")
           .select("id")
@@ -828,27 +987,9 @@ export async function POST(req: NextRequest) {
           sessionId = newSession.id;
 
           await supabaseAdmin.from("terms").insert([
-            {
-              school_id: callerSchoolId,
-              session_id: sessionId,
-              name: "First",
-              sequence: 1,
-              is_current: false,
-            },
-            {
-              school_id: callerSchoolId,
-              session_id: sessionId,
-              name: "Second",
-              sequence: 2,
-              is_current: false,
-            },
-            {
-              school_id: callerSchoolId,
-              session_id: sessionId,
-              name: "Third",
-              sequence: 3,
-              is_current: false,
-            },
+            { school_id: callerSchoolId, session_id: sessionId, name: "First", sequence: 1, is_current: false },
+            { school_id: callerSchoolId, session_id: sessionId, name: "Second", sequence: 2, is_current: false },
+            { school_id: callerSchoolId, session_id: sessionId, name: "Third", sequence: 3, is_current: false },
           ]);
         }
 
@@ -864,6 +1005,17 @@ export async function POST(req: NextRequest) {
 
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "class.updated",
+          targetTable: "classes",
+          targetId: id,
+          targetLabel: name,
+        });
+
         return NextResponse.json({ success: true });
       }
 
@@ -871,6 +1023,13 @@ export async function POST(req: NextRequest) {
         const { id } = body;
         if (!id)
           return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+        const { data: target } = await supabaseAdmin
+          .from("classes")
+          .select("id, name")
+          .eq("id", id)
+          .eq("school_id", callerSchoolId)
+          .maybeSingle();
 
         const { error } = await supabaseAdmin
           .from("classes")
@@ -880,6 +1039,17 @@ export async function POST(req: NextRequest) {
 
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "class.deleted",
+          targetTable: "classes",
+          targetId: id,
+          targetLabel: target?.name || null,
+        });
+
         return NextResponse.json({ success: true });
       }
 
@@ -891,10 +1061,9 @@ export async function POST(req: NextRequest) {
             { status: 400 }
           );
 
-        // Verify class belongs to caller's school
         const { data: cls } = await supabaseAdmin
           .from("classes")
-          .select("id")
+          .select("id, name")
           .eq("id", classId)
           .eq("school_id", callerSchoolId)
           .maybeSingle();
@@ -906,11 +1075,11 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // If assigning a teacher, verify they belong to same school
+        let teacherName: string | null = null;
         if (teacherId) {
           const { data: teacher } = await supabaseAdmin
             .from("profiles")
-            .select("id")
+            .select("id, name")
             .eq("id", teacherId)
             .eq("school_id", callerSchoolId)
             .maybeSingle();
@@ -921,6 +1090,7 @@ export async function POST(req: NextRequest) {
               { status: 404 }
             );
           }
+          teacherName = teacher.name;
         }
 
         const { error } = await supabaseAdmin
@@ -931,6 +1101,19 @@ export async function POST(req: NextRequest) {
 
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "class.teacher_assigned",
+          targetTable: "classes",
+          targetId: classId,
+          targetLabel: teacherName
+            ? `${cls.name} ← ${teacherName}`
+            : `${cls.name} (unassigned)`,
+        });
+
         return NextResponse.json({ success: true });
       }
 
@@ -988,6 +1171,16 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "student.created",
+          targetTable: "students",
+          targetId: student.id,
+          targetLabel: name,
+        });
+
         return NextResponse.json({ student });
       }
 
@@ -1039,6 +1232,16 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "student.updated",
+          targetTable: "students",
+          targetId: id,
+          targetLabel: name,
+        });
+
         return NextResponse.json({ success: true });
       }
 
@@ -1046,6 +1249,13 @@ export async function POST(req: NextRequest) {
         const { id } = body;
         if (!id)
           return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+        const { data: target } = await supabaseAdmin
+          .from("students")
+          .select("id, name")
+          .eq("id", id)
+          .eq("school_id", callerSchoolId)
+          .maybeSingle();
 
         const { error } = await supabaseAdmin
           .from("students")
@@ -1055,6 +1265,17 @@ export async function POST(req: NextRequest) {
 
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "student.deleted",
+          targetTable: "students",
+          targetId: id,
+          targetLabel: target?.name || null,
+        });
+
         return NextResponse.json({ success: true });
       }
 

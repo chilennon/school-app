@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 import { ClassRoom } from "@/types/school";
 import { generateBatchReportCards, ReportCardInput } from "@/lib/reportCardPdf";
 import { useSchoolConfig } from "@/hooks/useSchoolConfig";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 import { useTeacherSession } from "./_hooks/useTeacherSession";
 import { useTeacherClasses } from "./_hooks/useTeacherClasses";
@@ -36,6 +39,9 @@ export default function TeacherDashboardPage() {
     student: any;
     classRoom: ClassRoom;
   } | null>(null);
+
+  const [confirmSubmitOpen, setConfirmSubmitOpen] = useState(false);
+  const [confirmReopenOpen, setConfirmReopenOpen] = useState(false);
 
   const getAccessToken = async () => {
     const { data } = await supabase.auth.getSession();
@@ -69,11 +75,11 @@ export default function TeacherDashboardPage() {
 
     const st = student.assessment?.status || "draft";
     if (st === "submitted") {
-      alert("This student's result has already been submitted for approval.");
+      toast.info("This student's result has already been submitted for approval.");
       return;
     }
     if (st === "approved") {
-      alert("This student's result has been approved and locked.");
+      toast.info("This student's result has been approved and locked.");
       return;
     }
 
@@ -136,24 +142,20 @@ export default function TeacherDashboardPage() {
       }
       return null;
     } catch (err: any) {
-      alert(`Error adding subject: ${err.message}`);
+      toast.error(err.message || "Couldn't add subject");
       return null;
     }
   };
 
-  const handleSubmitClassResults = async () => {
+  // Open dialog
+  const handleSubmitClassResults = () => {
     if (!roster.selectedClass || !roster.selectedTermId) return;
-    const termName =
-      roster.classTerms.find((t) => t.id === roster.selectedTermId)?.name ||
-      "this term";
+    setConfirmSubmitOpen(true);
+  };
 
-    if (
-      !confirm(
-        `Submit ${roster.selectedClass.name} — ${termName} Term results for review?\n\n` +
-          `Once submitted, you cannot edit scores until the head teacher either approves them or reopens the class.`,
-      )
-    )
-      return;
+  // Actually do it (called from dialog's onConfirm)
+  const confirmSubmitClassResults = async () => {
+    if (!roster.selectedClass || !roster.selectedTermId) return;
 
     setSubmitting(true);
     try {
@@ -162,22 +164,24 @@ export default function TeacherDashboardPage() {
         termId: roster.selectedTermId,
       });
       await roster.refresh();
-      alert("Results submitted for approval.");
+      toast.success("Results submitted for approval.");
+      setConfirmSubmitOpen(false);
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Submit failed");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleReopenClassResults = async () => {
+  // Open dialog
+  const handleReopenClassResults = () => {
     if (!roster.selectedClass || !roster.selectedTermId) return;
-    if (
-      !confirm(
-        "Reopen this class for editing? This will send results back to draft.",
-      )
-    )
-      return;
+    setConfirmReopenOpen(true);
+  };
+
+  // Actually do it
+  const confirmReopenClassResults = async () => {
+    if (!roster.selectedClass || !roster.selectedTermId) return;
 
     setSubmitting(true);
     try {
@@ -186,8 +190,10 @@ export default function TeacherDashboardPage() {
         termId: roster.selectedTermId,
       });
       await roster.refresh();
+      toast.success("Class reopened for editing.");
+      setConfirmReopenOpen(false);
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Couldn't reopen class");
     } finally {
       setSubmitting(false);
     }
@@ -201,9 +207,7 @@ export default function TeacherDashboardPage() {
     )
       return;
     if (!classesData.gradeBands || classesData.gradeBands.length === 0) {
-      alert(
-        "School config not loaded yet. Please wait a moment and try again.",
-      );
+      toast.info("School config not loaded yet. Please wait a moment and try again.");
       return;
     }
 
@@ -274,13 +278,15 @@ export default function TeacherDashboardPage() {
 
   if (session.loading || classesData.loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-sm text-slate-500 font-medium">
-            Loading your workspace…
-          </p>
-        </div>
+      <div className="min-h-screen bg-slate-50">
+        <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-7 w-52" />
+          <Skeleton className="h-16 w-full rounded-2xl" />
+          <Skeleton className="h-3 w-24 mt-6" />
+          <Skeleton className="h-20 w-full rounded-2xl" />
+          <Skeleton className="h-20 w-full rounded-2xl" />
+        </main>
       </div>
     );
   }
@@ -307,6 +313,10 @@ export default function TeacherDashboardPage() {
 
   const selectedTermName =
     roster.classTerms.find((t) => t.id === roster.selectedTermId)?.name || "";
+
+  const submitDescription = roster.selectedClass
+    ? `Submit ${roster.selectedClass.name} — ${selectedTermName || "this"} Term results for review?\n\nOnce submitted, you cannot edit scores until the head teacher either approves them or reopens the class.`
+    : "";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -352,6 +362,27 @@ export default function TeacherDashboardPage() {
       </main>
 
       <TeacherBottomNav active={mobileTab} onChange={setMobileTab} />
+
+      <ConfirmDialog
+        open={confirmSubmitOpen}
+        onOpenChange={setConfirmSubmitOpen}
+        title="Submit results for approval?"
+        description={submitDescription}
+        confirmLabel="Submit"
+        onConfirm={confirmSubmitClassResults}
+        loading={submitting}
+      />
+
+      <ConfirmDialog
+        open={confirmReopenOpen}
+        onOpenChange={setConfirmReopenOpen}
+        title="Reopen this class?"
+        description="This will send all submitted results back to draft so you can edit scores again."
+        confirmLabel="Reopen"
+        destructive
+        onConfirm={confirmReopenClassResults}
+        loading={submitting}
+      />
     </div>
   );
 }

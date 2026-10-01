@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import ResultsPage from "../teacher/results/page";
 import SettingsTab from "./SettingsTab";
 import { generateBatchReportCards, ReportCardInput } from "@/lib/reportCardPdf";
@@ -21,6 +24,7 @@ import { StudentsTab } from "./_components/tabs/StudentsTab";
 import { ApprovalsTab } from "./_components/tabs/ApprovalsTab";
 import { MoreTab } from "./_components/tabs/MoreTab";
 import { TeachersSection } from "./_components/sections/TeachersSection";
+import { AdminsSection } from "./_components/sections/AdminsSection";
 import { SubjectsSection } from "./_components/sections/SubjectsSection";
 import { ClassesSection } from "./_components/sections/ClassesSection";
 
@@ -36,6 +40,7 @@ export default function AdminDashboardPage() {
   const approvals = useApprovals();
 
   const [adminName, setAdminName] = useState("");
+  const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
   const [view, setView] = useState<AdminView>("home");
   const [viewingStudent, setViewingStudent] = useState<{
     student: any;
@@ -50,6 +55,32 @@ export default function AdminDashboardPage() {
     email: string;
     pin: string;
   } | null>(null);
+
+  // ── ConfirmDialog state ──
+  const [pendingDeleteStudentId, setPendingDeleteStudentId] = useState<
+    string | null
+  >(null);
+  const [pendingDeleteTeacherId, setPendingDeleteTeacherId] = useState<
+    string | null
+  >(null);
+  const [pendingDeleteClassId, setPendingDeleteClassId] = useState<
+    string | null
+  >(null);
+  const [pendingForceDeleteSubject, setPendingForceDeleteSubject] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [pendingReopenStudent, setPendingReopenStudent] = useState<{
+    enrolmentId: string;
+    termId: string;
+    name: string;
+  } | null>(null);
+  const [pendingApproveAll, setPendingApproveAll] = useState<{
+    termId: string;
+    count: number;
+  } | null>(null);
+  const [approvingAll, setApprovingAll] = useState(false);
+  const [reopeningStudent, setReopeningStudent] = useState(false);
 
   // Load admin name once
   useEffect(() => {
@@ -67,6 +98,7 @@ export default function AdminDashboardPage() {
         .eq("id", user.id)
         .single();
       if (profile) setAdminName(profile.name);
+      setCurrentAdminId(user.id);
     })();
   }, [router]);
 
@@ -105,7 +137,7 @@ export default function AdminDashboardPage() {
     router.push("/sign-in/staff");
   };
 
-  // Students
+  // Students ──
   const handleSaveStudent = async (input: {
     id?: string;
     name: string;
@@ -124,19 +156,35 @@ export default function AdminDashboardPage() {
       age: input.age,
     });
     await data.refresh();
+    toast.success(input.id ? "Student updated." : "Student added.");
   };
 
   const handleDeleteStudent = async (id: string) => {
-    if (!confirm("Delete this student?")) return;
-    await callAdminApi("delete-student", { id });
-    await data.refresh();
+    setPendingDeleteStudentId(id);
   };
 
-  // Teachers
+  const confirmDeleteStudent = async () => {
+    if (!pendingDeleteStudentId) return;
+    try {
+      await callAdminApi("delete-student", { id: pendingDeleteStudentId });
+      await data.refresh();
+      toast.success("Student deleted.");
+      setPendingDeleteStudentId(null);
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't delete student");
+    }
+  };
+
+  // Teachers ──
   const handleCreateTeacher = async (name: string, email: string) => {
-    const result = await callAdminApi("create-teacher", { name, email });
-    setCreatedCredentials({ email: result.email, pin: result.pin });
-    await data.refresh();
+    try {
+      const result = await callAdminApi("create-teacher", { name, email });
+      setCreatedCredentials({ email: result.email, pin: result.pin });
+      await data.refresh();
+      toast.success("Teacher account created.");
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't create teacher");
+    }
   };
 
   const handleUpdateTeacher = async (
@@ -144,20 +192,52 @@ export default function AdminDashboardPage() {
     name: string,
     email: string,
   ) => {
-    await callAdminApi("update-teacher", { id, name, email });
-    await data.refresh();
+    try {
+      await callAdminApi("update-teacher", { id, name, email });
+      await data.refresh();
+      toast.success("Teacher updated.");
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't update teacher");
+    }
   };
 
   const handleDeleteTeacher = async (id: string) => {
-    if (!confirm("Delete this teacher?")) return;
-    await callAdminApi("delete-teacher", { id });
-    await data.refresh();
+    setPendingDeleteTeacherId(id);
   };
 
-  // Subjects
+  const confirmDeleteTeacher = async () => {
+    if (!pendingDeleteTeacherId) return;
+    try {
+      await callAdminApi("delete-teacher", { id: pendingDeleteTeacherId });
+      await data.refresh();
+      toast.success("Teacher deleted.");
+      setPendingDeleteTeacherId(null);
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't delete teacher");
+    }
+  };
+
+  // Admins ──
+  const handleCreateAdmin = async (name: string, email: string) => {
+    try {
+      const result = await callAdminApi("create-admin", { name, email });
+      setCreatedCredentials({ email: result.email, pin: result.pin });
+      await data.refresh();
+      toast.success("Admin account created.");
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't create admin");
+    }
+  };
+
+  // Subjects ──
   const handleAddSubject = async (name: string) => {
-    await callAdminApi("add-subject", { name });
-    await data.refresh();
+    try {
+      await callAdminApi("add-subject", { name });
+      await data.refresh();
+      toast.success("Subject added.");
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't add subject");
+    }
   };
 
   const handleDeleteSubject = async (id: string, name: string) => {
@@ -166,66 +246,94 @@ export default function AdminDashboardPage() {
       requiresForce: true,
     }));
     if (first?.error && first?.requiresForce) {
-      if (
-        !confirm(`"${name}" is used in classes and has scores. Delete anyway?`)
-      )
-        return;
-      await callAdminApi("delete-subject", { id, force: true });
-      await data.refresh();
+      setPendingForceDeleteSubject({ id, name });
       return;
     }
     if (first?.error) {
-      alert(`Error: ${first.error}`);
+      toast.error(first.error);
       return;
     }
     await data.refresh();
+    toast.success("Subject deleted.");
   };
 
-  // Classes
+  const confirmForceDeleteSubject = async () => {
+    if (!pendingForceDeleteSubject) return;
+    try {
+      await callAdminApi("delete-subject", {
+        id: pendingForceDeleteSubject.id,
+        force: true,
+      });
+      await data.refresh();
+      toast.success(`"${pendingForceDeleteSubject.name}" deleted.`);
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't delete subject");
+    } finally {
+      setPendingForceDeleteSubject(null);
+    }
+  };
+
+  // Classes ──
   const handleSaveClass = async (input: {
     id?: string;
     name: string;
     session: string;
     subjectIds: string[];
   }) => {
-    if (input.id) {
-      await callAdminApi("update-class", {
-        id: input.id,
-        name: input.name,
-        session: input.session,
-      });
-      await callAdminApi("set-class-subjects", {
-        classId: input.id,
-        subjectIds: input.subjectIds,
-      });
-    } else {
-      await callAdminApi("create-class", {
-        name: input.name,
-        session: input.session,
-        subject_ids: input.subjectIds,
-      });
+    try {
+      if (input.id) {
+        await callAdminApi("update-class", {
+          id: input.id,
+          name: input.name,
+          session: input.session,
+        });
+        await callAdminApi("set-class-subjects", {
+          classId: input.id,
+          subjectIds: input.subjectIds,
+        });
+      } else {
+        await callAdminApi("create-class", {
+          name: input.name,
+          session: input.session,
+          subject_ids: input.subjectIds,
+        });
+      }
+      await data.refresh();
+      toast.success(input.id ? "Class updated." : "Class created.");
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't save class");
     }
-    await data.refresh();
   };
 
   const handleDeleteClass = async (id: string) => {
-    if (
-      !confirm("Delete this class? Students and teachers will be unassigned.")
-    )
-      return;
-    await callAdminApi("delete-class", { id });
-    await data.refresh();
+    setPendingDeleteClassId(id);
+  };
+
+  const confirmDeleteClass = async () => {
+    if (!pendingDeleteClassId) return;
+    try {
+      await callAdminApi("delete-class", { id: pendingDeleteClassId });
+      await data.refresh();
+      toast.success("Class deleted.");
+      setPendingDeleteClassId(null);
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't delete class");
+    }
   };
 
   const handleAssignTeacher = async (classId: string, teacherId: string) => {
-    await callAdminApi("assign-teacher", {
-      classId,
-      teacherId: teacherId || null,
-    });
-    await data.refresh();
+    try {
+      await callAdminApi("assign-teacher", {
+        classId,
+        teacherId: teacherId || null,
+      });
+      await data.refresh();
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't assign teacher");
+    }
   };
 
-  // Approvals
+  // Approvals ──
   const handleApproveStudent = async (
     enrolmentId: string,
     termId: string,
@@ -250,52 +358,73 @@ export default function AdminDashboardPage() {
             : s,
         ),
       );
+      toast.success("Result approved.");
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Couldn't approve result");
     } finally {
       setBusyEnrolmentId(null);
     }
   };
 
-  const handleReopenStudent = async (enrolmentId: string, termId: string) => {
-    if (!confirm("Send this student's result back to the teacher?")) return;
-    setBusyEnrolmentId(enrolmentId);
+  const handleReopenStudent = (enrolmentId: string, termId: string) => {
+    const student = approvals.reviewStudents.find(
+      (s) => s.enrolmentId === enrolmentId,
+    );
+    setPendingReopenStudent({
+      enrolmentId,
+      termId,
+      name: student?.name || "this student",
+    });
+  };
+
+  const confirmReopenStudent = async () => {
+    if (!pendingReopenStudent) return;
+    setReopeningStudent(true);
+    setBusyEnrolmentId(pendingReopenStudent.enrolmentId);
     try {
-      await callAdminApi("reopen-student", { enrolmentId, termId });
+      await callAdminApi("reopen-student", {
+        enrolmentId: pendingReopenStudent.enrolmentId,
+        termId: pendingReopenStudent.termId,
+      });
       approvals.setReviewStudents((prev) =>
         prev.map((s) =>
-          s.enrolmentId === enrolmentId
+          s.enrolmentId === pendingReopenStudent.enrolmentId
             ? { ...s, status: "draft", approvedAt: null }
             : s,
         ),
       );
+      toast.success("Result sent back to teacher.");
+      setPendingReopenStudent(null);
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Couldn't reopen result");
     } finally {
+      setReopeningStudent(false);
       setBusyEnrolmentId(null);
     }
   };
 
-  const handleApproveAll = async (termId: string) => {
+  const handleApproveAll = (termId: string) => {
     const toApprove = approvals.reviewStudents.filter(
       (s) => s.status === "submitted",
     );
     if (toApprove.length === 0) {
-      alert("No submitted results to approve.");
+      toast.info("No submitted results to approve.");
       return;
     }
-    if (
-      !confirm(
-        `Approve all ${toApprove.length} submitted result${toApprove.length > 1 ? "s" : ""}?` +
-          (bulkComment ? `\n\nHead teacher comment: "${bulkComment}"` : ""),
-      )
-    )
-      return;
+    setPendingApproveAll({ termId, count: toApprove.length });
+  };
+
+  const confirmApproveAll = async () => {
+    if (!pendingApproveAll) return;
+    setApprovingAll(true);
     try {
+      const toApprove = approvals.reviewStudents.filter(
+        (s) => s.status === "submitted",
+      );
       for (const s of toApprove) {
         await callAdminApi("approve-student", {
           enrolmentId: s.enrolmentId,
-          termId,
+          termId: pendingApproveAll.termId,
           headComment: bulkComment || null,
         });
       }
@@ -310,8 +439,14 @@ export default function AdminDashboardPage() {
         );
       }
       await approvals.load();
+      toast.success(
+        `Approved ${toApprove.length} result${toApprove.length === 1 ? "" : "s"}.`,
+      );
+      setPendingApproveAll(null);
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Couldn't approve all");
+    } finally {
+      setApprovingAll(false);
     }
   };
 
@@ -326,7 +461,6 @@ export default function AdminDashboardPage() {
     try {
       const { classId, termId, sessionId } = current;
 
-      // Fetch the class first so we know which school we're printing for
       const { data: cls } = await supabase
         .from("classes")
         .select("id, name, session, school_id")
@@ -334,7 +468,7 @@ export default function AdminDashboardPage() {
         .single();
 
       if (!cls || !cls.school_id) {
-        alert("Could not load class or class has no school.");
+        toast.error("Could not load class or class has no school.");
         return;
       }
 
@@ -353,7 +487,7 @@ export default function AdminDashboardPage() {
       const termName = termRes.data?.name ? `${termRes.data.name} Term` : "";
 
       if (!school || gradeBands.length === 0) {
-        alert("Could not load school config.");
+        toast.error("Could not load school config.");
         return;
       }
 
@@ -380,7 +514,7 @@ export default function AdminDashboardPage() {
         .eq("status", "active");
 
       if (!enrols || enrols.length === 0) {
-        alert("No students in this class.");
+        toast.error("No students in this class.");
         return;
       }
 
@@ -556,9 +690,10 @@ export default function AdminDashboardPage() {
       const doc = generateBatchReportCards(items);
       const safe = (s: string) => s.replace(/\s+/g, "_");
       doc.save(`${safe(cls.name)}_${safe(termName)}_ReportCards.pdf`);
+      toast.success("Report cards generated.");
     } catch (err) {
       console.error("Batch print failed:", err);
-      alert("Failed to generate report cards.");
+      toast.error("Failed to generate report cards.");
     } finally {
       setBatchPrinting(false);
     }
@@ -576,7 +711,7 @@ export default function AdminDashboardPage() {
       current.sessionId,
     );
     if (!result) {
-      alert("Could not load student.");
+      toast.error("Could not load student.");
       return;
     }
     setViewingStudent(result);
@@ -616,6 +751,23 @@ export default function AdminDashboardPage() {
             onCreate={handleCreateTeacher}
             onUpdate={handleUpdateTeacher}
             onDelete={handleDeleteTeacher}
+            createdCredentials={createdCredentials}
+            clearCredentials={() => setCreatedCredentials(null)}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (view === "admins") {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-lg mx-auto">
+          <AdminsSection
+            admins={data.admins}
+            currentAdminId={currentAdminId}
+            onBack={() => setView("more")}
+            onCreate={handleCreateAdmin}
             createdCredentials={createdCredentials}
             clearCredentials={() => setCreatedCredentials(null)}
           />
@@ -674,13 +826,19 @@ export default function AdminDashboardPage() {
   // ── Main tabs ──
   if (data.loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-3 text-sm text-slate-500 font-medium">
-            Loading admin console…
-          </p>
-        </div>
+      <div className="min-h-screen bg-slate-50">
+        <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-7 w-56" />
+          <Skeleton className="h-3 w-44" />
+          <div className="grid grid-cols-3 gap-3 mt-6">
+            <Skeleton className="h-20 rounded-2xl" />
+            <Skeleton className="h-20 rounded-2xl" />
+            <Skeleton className="h-20 rounded-2xl" />
+          </div>
+          <Skeleton className="h-14 w-full rounded-2xl mt-3" />
+          <Skeleton className="h-14 w-full rounded-2xl" />
+        </main>
       </div>
     );
   }
@@ -784,6 +942,85 @@ export default function AdminDashboardPage() {
           onChange={setView}
         />
       )}
+
+      {/* ── Confirm dialogs ── */}
+
+      <ConfirmDialog
+        open={pendingDeleteStudentId !== null}
+        onOpenChange={(open) => !open && setPendingDeleteStudentId(null)}
+        title="Delete this student?"
+        description="Their enrolment and any scores recorded for them will be removed. This can't be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmDeleteStudent}
+      />
+
+      <ConfirmDialog
+        open={pendingDeleteTeacherId !== null}
+        onOpenChange={(open) => !open && setPendingDeleteTeacherId(null)}
+        title="Delete this teacher?"
+        description="Their account and any class assignments will be removed. This can't be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmDeleteTeacher}
+      />
+
+      <ConfirmDialog
+        open={pendingDeleteClassId !== null}
+        onOpenChange={(open) => !open && setPendingDeleteClassId(null)}
+        title="Delete this class?"
+        description="Students and teachers in this class will be unassigned. This can't be undone."
+        confirmLabel="Delete"
+        destructive
+        onConfirm={confirmDeleteClass}
+      />
+
+      <ConfirmDialog
+        open={pendingForceDeleteSubject !== null}
+        onOpenChange={(open) => !open && setPendingForceDeleteSubject(null)}
+        title={
+          pendingForceDeleteSubject
+            ? `Delete "${pendingForceDeleteSubject.name}"?`
+            : "Delete subject?"
+        }
+        description="This subject is used in classes and has recorded scores. Deleting it will remove those scores. This can't be undone."
+        confirmLabel="Delete Anyway"
+        destructive
+        onConfirm={confirmForceDeleteSubject}
+      />
+
+      <ConfirmDialog
+        open={pendingReopenStudent !== null}
+        onOpenChange={(open) => !open && setPendingReopenStudent(null)}
+        title="Send this result back?"
+        description={
+          pendingReopenStudent
+            ? `${pendingReopenStudent.name}'s result will return to draft so the teacher can edit it again.`
+            : "The result will return to draft so the teacher can edit it."
+        }
+        confirmLabel="Send Back"
+        destructive
+        loading={reopeningStudent}
+        onConfirm={confirmReopenStudent}
+      />
+
+      <ConfirmDialog
+        open={pendingApproveAll !== null}
+        onOpenChange={(open) => !open && setPendingApproveAll(null)}
+        title="Approve all submitted results?"
+        description={
+          pendingApproveAll
+            ? `You're about to approve ${pendingApproveAll.count} submitted result${pendingApproveAll.count === 1 ? "" : "s"}.${
+                bulkComment
+                  ? `\n\nHead teacher comment: "${bulkComment}"`
+                  : ""
+              }`
+            : ""
+        }
+        confirmLabel="Approve All"
+        loading={approvingAll}
+        onConfirm={confirmApproveAll}
+      />
     </div>
   );
 }

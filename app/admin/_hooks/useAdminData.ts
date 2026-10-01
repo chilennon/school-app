@@ -8,6 +8,7 @@ import type { SubjectRow } from "../_lib/types";
 export interface AdminData {
   loading: boolean;
   teachers: User[];
+  admins: User[];
   classes: ClassRoom[];
   students: Student[];
   subjects: SubjectRow[];
@@ -18,6 +19,7 @@ export interface AdminData {
 export function useAdminData(): AdminData {
   const [loading, setLoading] = useState(true);
   const [teachers, setTeachers] = useState<User[]>([]);
+  const [admins, setAdmins] = useState<User[]>([]);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [subjects, setSubjects] = useState<SubjectRow[]>([]);
@@ -28,18 +30,36 @@ export function useAdminData(): AdminData {
   const refresh = useCallback(async () => {
     setLoading(true);
 
-    const [teachersRes, classesRes, studentsRes, subjectsRes, classSubsRes] =
-      await Promise.all([
-        supabase.from("profiles").select("*").eq("role", "teacher"),
-        supabase.from("classes").select("*"),
-        supabase.from("students").select("*"),
-        supabase.from("subjects").select("*").order("name"),
-        supabase.from("class_subjects").select("class_id, subject_id"),
-      ]);
+    const [
+      teachersRes,
+      adminsRes,
+      classesRes,
+      studentsRes,
+      subjectsRes,
+      classSubsRes,
+    ] = await Promise.all([
+      supabase.from("profiles").select("*").eq("role", "teacher"),
+      supabase.from("profiles").select("*").eq("role", "admin"),
+      supabase.from("classes").select("*"),
+      supabase.from("students").select("*"),
+      supabase.from("subjects").select("*").order("name"),
+      supabase.from("class_subjects").select("class_id, subject_id"),
+    ]);
 
     if (teachersRes.data) {
       setTeachers(
         teachersRes.data.map((t) => ({
+          id: t.id,
+          name: t.name,
+          email: t.email,
+          role: t.role,
+        })),
+      );
+    }
+
+    if (adminsRes.data) {
+      setAdmins(
+        adminsRes.data.map((t) => ({
           id: t.id,
           name: t.name,
           email: t.email,
@@ -93,6 +113,7 @@ export function useAdminData(): AdminData {
   return {
     loading,
     teachers,
+    admins,
     classes,
     students,
     subjects,
