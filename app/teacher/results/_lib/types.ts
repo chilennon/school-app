@@ -107,6 +107,7 @@ export interface ResultsPageProps {
   ) => Promise<string | null>;
   onSaveDraft?: (updatedStudent: any) => void | Promise<void>;
   onComplete?: (updatedStudent: any) => void | Promise<void>;
+  onExit?: () => void;
   readOnly?: boolean;
 }
 
