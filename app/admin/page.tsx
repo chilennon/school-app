@@ -132,6 +132,7 @@ export default function AdminDashboardPage() {
   const [adminName, setAdminName] = useState("");
   const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
   const [view, setView] = useState<AdminView>("home");
+  const [previousView, setPreviousView] = useState<AdminView>("home");
   const [activityOpen, setActivityOpen] = useState(false);
   const [viewingStudent, setViewingStudent] = useState<{
     student: any;
@@ -150,7 +151,9 @@ export default function AdminDashboardPage() {
   } | null>(null);
 
   // One dialog, one state, one busy flag
-  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
+    null,
+  );
   const [confirmBusy, setConfirmBusy] = useState(false);
 
   // Load admin name once
@@ -390,8 +393,7 @@ export default function AdminDashboardPage() {
     enrolmentId: string,
     termId: string,
     name: string,
-  ) =>
-    setConfirmAction({ kind: "reopen-student", enrolmentId, termId, name });
+  ) => setConfirmAction({ kind: "reopen-student", enrolmentId, termId, name });
 
   const askApproveAll = (termId: string) => {
     const toApprove = approvals.reviewStudents.filter(
@@ -835,6 +837,7 @@ export default function AdminDashboardPage() {
   const confirmMeta = confirmAction
     ? describeConfirm(confirmAction, bulkComment)
     : null;
+  const isOwner = data.callerRole === "owner";
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -849,10 +852,21 @@ export default function AdminDashboardPage() {
               teachers: data.teachers.length,
               classes: data.classes.length,
             }}
-            pendingCount={totalPending}
-            unreadActivityCount={activity.unreadCount}
+            pendingApprovals={totalPending}
+            unreadActivity={activity.unreadCount}
+            unassignedStudents={
+              data.students.filter((s) => !s.currentClassId).length
+            }
+            isOwner={isOwner}
+            // Framework slots — wire these when the features ship
+            feeSummary={null}
+            teacherAbsence={null}
             onOpenActivity={() => setActivityOpen(true)}
-            onNavigate={setView}
+            onOpenFees={() => setView("fees")}
+            onNavigate={(v) => {
+              setPreviousView("home");
+              setView(v);
+            }}
           />
         )}
 
@@ -913,15 +927,21 @@ export default function AdminDashboardPage() {
             }}
           />
         )}
-
         {view === "more" && (
-          <MoreTab onNavigate={setView} onLogout={handleLogout} />
+          <MoreTab
+            isOwner={data.callerRole === "owner"}
+            onNavigate={(v) => {
+              setPreviousView("more");
+              setView(v);
+            }}
+            onLogout={handleLogout}
+          />
         )}
 
         {view === "teachers" && (
           <TeachersSection
             teachers={data.teachers}
-            onBack={() => setView("more")}
+            onBack={() => setView(previousView)}
             onCreate={handleCreateTeacher}
             onUpdate={handleUpdateTeacher}
             onDelete={(id) => {
@@ -938,7 +958,7 @@ export default function AdminDashboardPage() {
           <AdminsSection
             admins={data.admins}
             currentAdminId={currentAdminId}
-            onBack={() => setView("more")}
+            onBack={() => setView(previousView)}
             onCreate={handleCreateAdmin}
             onResetPassword={askResetPassword}
             createdCredentials={createdCredentials}
@@ -949,7 +969,7 @@ export default function AdminDashboardPage() {
         {view === "subjects" && (
           <SubjectsSection
             subjects={data.subjects}
-            onBack={() => setView("more")}
+            onBack={() => setView(previousView)}
             onAdd={handleAddSubject}
             onDelete={handleDeleteSubject}
           />
@@ -961,7 +981,7 @@ export default function AdminDashboardPage() {
             subjects={data.subjects}
             teachers={data.teachers}
             classSubjectIds={data.classSubjectIds}
-            onBack={() => setView("more")}
+            onBack={() => setView(previousView)}
             onSave={handleSaveClass}
             onDelete={(id) => {
               const c = data.classes.find((x) => x.id === id);

@@ -1,0 +1,46 @@
+# Real-Time Data Framework — Adenubi & Oyenuga (2025)
+
+## 1. Citation & topic
+**Title:** "A Framework for Real-Time Data-Driven Decision Making in Nigerian Public Basic School System." **Authors:** *Ademola Olaide Adenubi (corresponding), Ayodeji Oyesola Oyenuga — Computer Science Education; Educational Technology, Tai Solarin University of Education, Ijagun, Nigeria. **Journal:** FUDMA Journal of Sciences 9(7), July 2025, pp. 45–48; DOI 10.33003/fjs-2025-0907-3580; CC BY 4.0. **Type:** design-science / sequential mixed-methods framework study (p.1–2).
+
+## 2. Core thesis
+Manual paper-based collection yields 9–12-month reporting lag, aggregation that hides school-level variation, and self-reported enrollment inconsistencies up to 37%. Data should emerge organically from routine school operations rather than as a separate reporting burden, via an activity-driven layered architecture with automated validation and dynamic analytics. Evidence is Ogun State's DiPER (Digital Platform for Education Revitalization), 2021–2023. (p.1–2)
+
+## 3. Method
+Three phases: (1) systematic review of 78 global EMIS implementations 2015–2025 (thematic synthesis, grounded theory); (2) embedded case study of DiPER 2021–2023; (3) Delphi validation with 15 education-technology experts. Ogun State, Nigeria. Sample: quality metrics from **1,200 schools**; **42** stakeholders (administrators n=18, teachers n=15, policymakers n=9), 45-minute interviews. Instruments: system logs via automated SQL queries over **12 predefined performance metrics** (upload frequency, error rates, login patterns) validated against server-side audit logs; pre-tested questionnaire (Cronbach's α = 0.79); 7 policy documents plus 23 DiPER meeting minutes, coded a priori against UNESCO's EMIS assessment framework. Analysis: completeness/accuracy/timeliness indices via World Bank EMIS Assessment Framework (2020) formulas; uptime and response time from **AWS CloudWatch logs at 5-minute intervals over 24 months**; adoption via multilevel regression in STATA 17 with urban/rural and location fixed effects. Qualitative: Braun & Clarke six-phase thematic analysis in NVivo 14, deductive + inductive coding, Krippendorff's α = 0.82 on a 20% sample; documents via directed content analysis using Ostrom's (2011) framework. Rigor: triangulation, ISO/IEC 25010 benchmarking, intercoder checks. (p.2)
+
+## 4. The proposed framework/architecture
+Figure 1 ("Activity-Driven Framework for Real-Time Education Data Metric", p.2) shows a **Governance System Layer** spanning **Federal · Data Capture Zone · State · Data Analysis · Data Process · School**.
+
+**Five design principles (p.3):** Activity-Based Data Generation (metrics emerge from user interactions, not dedicated reporting); Real-Time Processing (continuous flows enabling immediate analysis); Modular Interoperability (API-driven components that integrate rather than replace); Progressive Enhancement (basic functionality first); Contextual Adaptability (urban to remote-rural).
+
+**Layer 1 — Data Capture (school level, p.3):** an integrated school platform recording daily activity without disrupting workflows. *Attendance*: biometric teacher verification plus automated class register; check-ins create timestamped records, and algorithms flag suspicious patterns such as bulk registrations. *Learning Management*: digital lesson plans with embedded competency frameworks; assessment scores auto-generate longitudinal learner/class trajectories. *Resource Tracking*: barcode/RFID for textbook distribution, lab-equipment usage and infrastructure condition, via image recognition. *Financial Transactions*: payment gateways recording fee collections and expenditure approvals with audit trails.
+
+**Layer 2 — Data Processing (p.3):** *Validation Engine* — rule-based checks (range validation, cross-field consistency) plus ML anomaly detection; suspicious entries trigger verification workflows before entering datasets. *Normalization Protocols* — map local school terminologies to standardized national codes. *Entity Resolution* — cross-module matching, e.g. teacher qualifications to classroom assignments, infrastructure condition to student performance.
+
+**Layer 3 — Analytics (p.3):** *Descriptive Dashboards* — real-time user-configurable indicators (enrollment trends, attendance, performance). *Predictive Models* — ML forecasts of dropout risk, resource shortages, learning gaps. *Prescriptive Analytics* — recommended interventions (teacher redeployment, prioritized infrastructure upgrades) via pattern recognition and scenario modeling.
+
+**Governance (p.3):** school-level **data champions** (trained teachers) handle daily operations and first-line validation → **Zonal Offices** monitor aggregate quality and troubleshoot → **State Ministry** units use analytics for decisions and allocation → **Federal Agencies** set standards and share best practice.
+
+**Real-time mechanism:** continuous point-of-activity capture, automated validation/normalization, then dashboards and predictive analytics replace periodic paper aggregation. Multi-modal capture supports **online, offline and SMS-based inputs**, with local-language interfaces and progressive rollout. (p.4)
+
+## 5. Key quantitative findings
+Accuracy **58% → 93%** (+35 points); completeness **62% → 97%**; timeliness **3–6 month delays → real-time**, called "100% improvement in data currency" (p.3). Abstract claims **63%** accuracy enhancement, **89%** processing-time reduction, **45%** faster interventions (p.1) — inconsistent with p.3. Policy outcomes: **127 urban schools** overstaffed; GIS prioritized **43 high-need locations**; early warning flagged **12,500 at-risk students** (p.3). Delphi completeness **4.7/5**, scalability concerns in least-resourced regions, minimum **1.5%** of education spending recommended for EMIS (p.4). Background: ~**27 million** students in public primary/JSS (UBEC 2022), **9–12 months** manual processing, up to **37%** enrollment inconsistency (p.1).
+
+## 6. Documented EMIS / school-data failure modes
+**Latency:** 9–12 months collection-to-use (Nwosu & Eke 2022). **Manual aggregation:** paper processes; aggregation masks school-level variation (Akinsola & Okebukola 2021). **Data quality:** 37% enrollment inconsistencies (Ibrahim & Bala 2023); errors, manipulation, implausible bulk registrations. **Coverage:** no student-level visibility; rural teacher shortages; delayed response to learning gaps. **Infrastructure:** rural connectivity gaps (Okeke & Nwachukwu 2021), hardware budget constraints, phased rollout needed. **Capacity:** administrator resistance to abandoning manual processes; continuous retraining. **Sustainability:** gains decay after initial phases (Suleiman & Ibrahim 2022). (p.1, p.3–4)
+
+## 7. Product implications (offline-first, mobile-first, Nigeria)
+1. **(inference)** Offline capture must be first-class, not an error state — the paper credits "robust offline functionality with automatic synchronization" as the rural connectivity fix (p.3).
+2. **(inference)** SMS/USSD should share one canonical schema with the mobile client as a co-equal ingest channel (p.4).
+3. **(inference)** Use the three layers as module boundaries so validation rules ship in the client for offline pre-validation and re-run server-side on sync.
+4. **(inference)** Activity-generated timestamped records are naturally append-only event logs (device + actor IDs, monotonic sequence), sidestepping most merge conflicts.
+5. **(inference)** Conflict resolution: CRDT/append-only for attendance and timestamps; last-write-wins only for low-risk profile fields; conflicting assessment edits surface to the school data champion rather than merging silently.
+6. **(inference)** Entity resolution needs client-generated stable IDs plus server-side reconciliation/dedupe, since linking spans teacher→assignment and infrastructure→performance (p.3).
+7. **(inference)** Keep ML anomaly detection server-side; offline devices apply rule checks only and receive flagged-record queues on reconnect.
+8. **(inference)** Promise "available on next sync," not "real-time" — the paper's real-time claim rests on always-connected AWS infrastructure (p.2), contradicting its own rural connectivity finding.
+9. **(inference)** Encode school→zonal→state→federal as data scopes/permissions with zonal aggregate-quality monitoring (p.3).
+10. **(inference)** Given budget constraints, design for shared devices, multi-actor logins, and feature flags so basic capture never depends on analytics modules.
+
+## 8. Caveats
+**Stated:** scalability concerns in the most under-resourced regions (p.4); budget and training burden (p.3–4); sustainability risk post-implementation (p.1). No limitation on sample size or generalizability stated. **Extraction noise:** p.2–3 prose is interleaved across columns (Cronbach's α, NVivo 14 and document-analysis sentences detached from their paragraphs); Figure 1 is not rendered — only its label and isolated box words survive, so layer-to-component mapping is partly reconstructed. **Internal inconsistency:** abstract figures (63%/89%/45%) do not reconcile with p.3 (58%→93%; 3–6 months→real-time); no statistical tests, effect sizes, CIs or p-values reported. No ethics approval statement appears in the extracted text.

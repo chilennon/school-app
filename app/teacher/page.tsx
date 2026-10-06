@@ -13,13 +13,16 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useTeacherSession } from "./_hooks/useTeacherSession";
 import { useTeacherClasses } from "./_hooks/useTeacherClasses";
 import { useClassRoster } from "./_hooks/useClassRoster";
+import { useAttendance } from "./_hooks/useAttendance";
 import { saveResultToSupabase } from "./_hooks/useSaveResult";
 
 import { TeacherBottomNav } from "./_components/TeacherBottomNav";
 import { HomeTab } from "./_components/tabs/HomeTab";
 import { ScoresTab } from "./_components/tabs/ScoresTab";
+import { AttendanceTab } from "./_components/tabs/AttendanceTab";
 import { ProfileTab } from "./_components/tabs/ProfileTab";
 import { CompilerView } from "./_components/CompilerView";
+import { RollCallScreen } from "./_components/attendance/RollCallScreen";
 
 import type { MobileTab, StudentInfo } from "./_lib/types";
 import { EMPTY_AFFECTIVE, EMPTY_PSYCHOMOTOR } from "./_lib/constants";
@@ -31,10 +34,13 @@ export default function TeacherDashboardPage() {
   const session = useTeacherSession();
   const classesData = useTeacherClasses(session.userId);
 
+  // IMPORTANT: roster must be defined BEFORE useAttendance reads from it.
   const roster = useClassRoster(classesData.classes);
+  const attendance = useAttendance(roster.selectedClass?.id ?? null);
 
   const [mobileTab, setMobileTab] = useState<MobileTab>("home");
   const [submitting, setSubmitting] = useState(false);
+  const [rollCallDate, setRollCallDate] = useState<string | null>(null);
   const [activeCompilerData, setActiveCompilerData] = useState<{
     student: any;
     classRoom: ClassRoom;
@@ -147,13 +153,39 @@ export default function TeacherDashboardPage() {
     }
   };
 
-  // Open dialog
+  // ── Attendance ──
+  const handleSaveAttendance = async (
+    statuses: Record<string, "present" | "absent">,
+  ): Promise<boolean> => {
+    if (!roster.selectedClass || !rollCallDate) return false;
+    try {
+      const entries = Object.entries(statuses).map(([enrolmentId, status]) => ({
+        enrolmentId,
+        status,
+      }));
+
+      await callTeacherApi("save-attendance", {
+        classId: roster.selectedClass.id,
+        date: rollCallDate,
+        entries,
+      });
+
+      toast.success("Attendance saved.");
+      await attendance.refresh();
+      setRollCallDate(null);
+      return true;
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't save attendance");
+      return false;
+    }
+  };
+
+  // ── Submit / Reopen ──
   const handleSubmitClassResults = () => {
     if (!roster.selectedClass || !roster.selectedTermId) return;
     setConfirmSubmitOpen(true);
   };
 
-  // Actually do it (called from dialog's onConfirm)
   const confirmSubmitClassResults = async () => {
     if (!roster.selectedClass || !roster.selectedTermId) return;
 
@@ -173,13 +205,11 @@ export default function TeacherDashboardPage() {
     }
   };
 
-  // Open dialog
   const handleReopenClassResults = () => {
     if (!roster.selectedClass || !roster.selectedTermId) return;
     setConfirmReopenOpen(true);
   };
 
-  // Actually do it
   const confirmReopenClassResults = async () => {
     if (!roster.selectedClass || !roster.selectedTermId) return;
 
@@ -199,6 +229,7 @@ export default function TeacherDashboardPage() {
     }
   };
 
+  // ── Batch print ──
   const handleBatchPrint = () => {
     if (
       !roster.selectedClass ||
@@ -207,7 +238,9 @@ export default function TeacherDashboardPage() {
     )
       return;
     if (!classesData.gradeBands || classesData.gradeBands.length === 0) {
-      toast.info("School config not loaded yet. Please wait a moment and try again.");
+      toast.info(
+        "School config not loaded yet. Please wait a moment and try again.",
+      );
       return;
     }
 
@@ -291,6 +324,41 @@ export default function TeacherDashboardPage() {
     );
   }
 
+  // ── Roll call (full-screen, hides bottom nav) ──
+  if (rollCallDate && roster.selectedClass) {
+    const dateObj = new Date(rollCallDate + "T12:00:00");
+    const dateLabel = dateObj.toLocaleDateString("en-GB", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    });
+
+    const initialStatuses: Record<string, "present" | "absent"> = {};
+    attendance.rows
+      .filter((r) => r.date === rollCallDate)
+      .forEach((r) => {
+        initialStatuses[r.enrolmentId] = r.status;
+      });
+
+    const rollCallStudents = roster.students.map((s) => ({
+      enrolmentId: s.enrolment_id,
+      name: s.name,
+      regNo: s.reg_no,
+    }));
+
+    return (
+      <RollCallScreen
+        className={roster.selectedClass.name}
+        dateLabel={dateLabel}
+        students={rollCallStudents}
+        initialStatuses={initialStatuses}
+        onBack={() => setRollCallDate(null)}
+        onSave={handleSaveAttendance}
+      />
+    );
+  }
+
+  // ── Compiler (full-screen, hides bottom nav) ──
   if (activeCompilerData) {
     return (
       <CompilerView
@@ -335,6 +403,7 @@ export default function TeacherDashboardPage() {
             }}
           />
         )}
+
         {mobileTab === "scores" && (
           <ScoresTab
             assignedClasses={classesData.classes}
@@ -352,6 +421,18 @@ export default function TeacherDashboardPage() {
             onReopen={handleReopenClassResults}
           />
         )}
+
+        {mobileTab === "attendance" && (
+          <AttendanceTab
+            classes={classesData.classes}
+            selectedClass={roster.selectedClass}
+            onSelectClass={roster.selectClass}
+            students={roster.students}
+            attendanceRows={attendance.rows}
+            onStartRollCall={(date) => setRollCallDate(date)}
+          />
+        )}
+
         {mobileTab === "profile" && (
           <ProfileTab
             teacherName={session.teacherName}

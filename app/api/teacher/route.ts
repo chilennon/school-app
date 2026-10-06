@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { logAudit } from "@/lib/audit";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("role, school_id")
+      .select("role, school_id, name")
       .eq("id", user.id)
       .single();
 
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
     }
 
     const callerSchoolId = profile.school_id;
+    const callerName = profile.name || "Teacher";
 
     switch (action) {
       case "submit-class-results": {
@@ -134,6 +136,96 @@ export async function POST(req: NextRequest) {
         if (error)
           return NextResponse.json({ error: error.message }, { status: 500 });
         return NextResponse.json({ success: true, count: records.length });
+      }
+
+            case "save-attendance": {
+        const { classId, date, entries } = body as {
+          classId: string;
+          date: string;
+          entries: Array<{ enrolmentId: string; status: "present" | "absent" }>;
+        };
+
+        if (!classId || !date || !Array.isArray(entries)) {
+          return NextResponse.json(
+            { error: "Missing fields" },
+            { status: 400 }
+          );
+        }
+
+        // Verify class belongs to caller's school
+        const { data: cls } = await supabaseAdmin
+          .from("classes")
+          .select("id, teacher_id")
+          .eq("id", classId)
+          .eq("school_id", callerSchoolId)
+          .maybeSingle();
+
+        if (!cls) {
+          return NextResponse.json(
+            { error: "Class not found" },
+            { status: 404 }
+          );
+        }
+
+        if (profile.role === "teacher" && cls.teacher_id !== user.id) {
+          return NextResponse.json(
+            { error: "Not your class" },
+            { status: 403 }
+          );
+        }
+
+        // Verify all enrolments belong to this class
+        const enrolmentIds = entries.map((e) => e.enrolmentId);
+        const { data: validEnrols } = await supabaseAdmin
+          .from("enrolments")
+          .select("id")
+          .in("id", enrolmentIds)
+          .eq("class_id", classId)
+          .eq("school_id", callerSchoolId)
+          .eq("status", "active");
+
+        const validIds = new Set((validEnrols || []).map((e) => e.id));
+        const validEntries = entries.filter((e) =>
+          validIds.has(e.enrolmentId)
+        );
+
+        if (validEntries.length === 0) {
+          return NextResponse.json(
+            { error: "No valid enrolments" },
+            { status: 400 }
+          );
+        }
+
+        const rows = validEntries.map((e) => ({
+          school_id: callerSchoolId,
+          enrolment_id: e.enrolmentId,
+          date,
+          status: e.status,
+          recorded_by: user.id,
+          server_updated_at: new Date().toISOString(),
+        }));
+
+        const { error } = await supabaseAdmin
+          .from("attendance_logs")
+          .upsert(rows, { onConflict: "enrolment_id,date" });
+
+        if (error)
+          return NextResponse.json(
+            { error: error.message },
+            { status: 500 }
+          );
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "attendance.saved",
+          targetTable: "attendance_logs",
+          targetId: classId,
+          targetLabel: `${date} (${validEntries.length} students)`,
+        });
+
+        return NextResponse.json({ success: true, count: validEntries.length });
       }
 
       case "reopen-class-results": {

@@ -1,0 +1,354 @@
+
+
+===== PAGE 1 / 9 =====
+Kwasu International Journal of Educational Management and Leadership (KIJEMAL), vol. 2(1), 36-44: ISSN- 2360-8129
+Influence of Educational Management Information System (EMIS) on Effective
+Planning and Administration of Primary Schools in Osun State, Nigeria
+Oparinde, Olayiwola Raheef
+Department of Educational Management
+Faculty of Education
+Obafemi Awolowo Universities
+Ile-Ife, Nigeria
+ooparinde@oauife.edu.ng
++2348066530567
+Abstract
+The influence of Educational Management Information System (EMIS) on efficient planning
+and management of public elementary schools in Osun State, Nigeria, was investigated in this
+study. One hundred and ninety respondents selected from 10 schools sampled from the 3
+senatorial districts using the descriptive survey design constitute the sample size for the study.
+Questions were drawn from the objectives and used to gather information from respondents.
+Descriptive statistics of frequency counts and percentages were employed to analyse the data.
+The study revealed that EMIS aided in the management of teaching staff through promotion,
+transfer, and allocation decisions. The State Universal Basic Education Boards (SUBEB) and
+Local Government Education Authorities (LGEAs) extensively used information from EMIS for
+effective planning and policy implementation. There were adequate computer machines, data
+storage devices, and skilled personnel for operating EMIS in Osun State. However, the study
+found that many headteachers were not proficient with the use of EMIS because they lacked
+the confidence and skills to update or alter the system independently. Thus, the study concluded
+that EMIS had a positive significance on educational planning and administration in Osun
+State, Nigeria, although it was not embraced by school Administrators. The study
+recommended continued development of ICT and capacity-building programmes for effective
+utilization of EMIS to achieve sustainable educational planning and management in Nigeria.
+Keywords: Educational Management Information System (EMIS), School Administration,
+Educational Planning, Primary Education, Osun State
+Introduction
+Education planning and administration require information for decision-making processes. In
+view of this, Educational Management Information Systems (EMIS) have been widely used to
+gather, process, store, and distribute data in order to support the creation of policies, the
+distribution of resources, and the administration of schools (UNESCO, 2022). EMIS
+contributes to accountability, transparency, and efficient management of educational systems
+by offering data on staff deployment, student enrollment, facilities, and finances (World Bank,
+2021).
+EMIS was introduced to address the issues of inadequate record management, databases, and
+resource management in basic education (Umar & Aliyu, 2022). Through the State Universal
+Basic Education Boards (SUBEB), teachers’ management, infrastructure planning, monitoring,
+and policy implementation were achieved using EMIS (Adeoye & Adeoye, 2021). However,
+Page 36
+
+===== PAGE 2 / 9 =====
+Kwasu International Journal of Educational Management and Leadership (KIJEMAL), vol. 2(1), 36-44: ISSN- 2360-8129
+the utilization of EMIS for effective planning and administration faces challenges such as
+insufficient information communication technologies (ICT), resource inadequacy, and
+inadequate skills among school Administrators (Ogunode, 2020).
+Studies conducted in developed and developing countries showed that EMIS played a
+significant role in enhancing education planning and administration through improved
+decision-making and increased efficiency (Benavot & Lockheed, 2020; Alshammari, 2021).
+However, the lack of sufficient ICT facilities and trained personnel affects the effective
+adoption and utilization of EMIS (Kitainge & Wekesa, 2019). Similar problems were reported
+in Osun State, Nigeria, where despite the availability of resources for operating EMIS, little
+was known about the extent of its use for effective planning and administration.
+Although the State had fully embraced the use of EMIS through SUBEB, the lack of user
+competence in utilizing the system’s features limited the potential for achieving planning and
+administrative objectives. The essence of this study was to determine the influence of the
+Educational Management Information System (EMIS) on the planning and management of
+public primary schools in Osun State, Nigeria.
+Purpose of the Study
+The study specifically sought to:
+i. determined the advantages of EMIS on effective planning and administration of
+primary schools in Osun State in terms of personnel management.
+ii. investigated the utilization of data stored in EMIS for school planning and
+administration.
+iii. assessed the adequacy of resources available for EMIS officers in planning and
+administration.
+iv. determined the user-friendliness of EMIS among primary school heads in Osun State.
+v. investigated the influence of Educational Management Information System (EMIS) on
+effective planning and administration of primary schools in Osun State, Nigeria.
+Research Questions
+The study was guided by the following research questions:
+a. What advantages do EMIS have on effective planning and administration of primary
+schools in Osun State in terms of personnel management?
+b. How well are the data stored in EMIS utilized in the planning and administration of
+primary schools?
+c. What resources are available for EMIS officers in the planning and administration of
+primary schools in Osun State?
+d. How user-friendly is EMIS to primary school heads in Osun State?
+Page 37
+
+===== PAGE 3 / 9 =====
+Kwasu International Journal of Educational Management and Leadership (KIJEMAL), vol. 2(1), 36-44: ISSN- 2360-8129
+Hypothesis
+H₀: Educational Management Information System (personnel management, data utilization,
+resource adequacy, and user-friendliness) has no significant joint influence on effective
+planning and administration of primary schools in Osun State.
+Synthesis of Related Literature and Theoretical Framework
+By collecting, processing, analyzing, and disseminating data, the Educational Management
+Information System (EMIS) makes planning, monitoring, and decision-making in education
+easier (UNESCO, 2022). By providing information on enrollment, staffing, facilities, finances,
+and school performance, it encourages transparency and evidence-based education
+management (World Bank, 2021). According to Adeoye & Adeoye (2021), the implementation
+of EMIS requires both adequate information communication technologies (ICT) and user
+competency.
+Researches have demonstrated that EMIS has a major impact on staff management and
+resource allocation choices in the educational sector (Benavot & Lockheed, 2020; Alshammari,
+2021). Nonetheless, researchers have pointed out how system integration and data quality can
+improve EMIS's efficacy (Kitainge & Wekesa, 2019). Lack of ICT facilities and skills in
+Nigeria affects the utilization of EMIS in achieving efficient educational planning and
+administration (Ogunode, 2020). In contrast, the authorities in Osun State reported increased
+reliance on EMIS for effective policy implementation despite the challenges experienced in
+resource allocation and insufficient user training (Umar & Aliyu, 2022). Hence, the study was
+guided by the General Systems Theory and Transactive Memory System.
+The General Systems Theory explains how information from various components in the
+education system is managed to produce useful information for planning and decision-making
+(Skyttner, 2006). The Transactive Memory System, on the other hand, was used to establish
+how collaboration occurs among EMIS officers, headteachers, and other stakeholders in
+promoting effective planning and administration (Ren & Argote, 2011; Lewis & Herndon,
+2022).
+Methodology
+A descriptive survey research design was adopted for the study. The population comprised
+headteachers and teachers in public primary schools in Osun State, Nigeria. A 190 respondents
+50 head teachers and 140 instructors were chosen from ten public primary schools spread
+throughout the three senatorial districts using a multistage sample procedure. Using simple
+random sampling, one Local Government Area (LGA) was chosen at the first stage from each
+of Osun State's three senatorial districts, for a total of three LGAs. At the second stage, schools
+were selected proportionately from the sampled LGAs through simple random sampling to
+obtain a total of ten public primary schools. At the third stage, all headteachers in the selected
+schools were purposively included because they are directly responsible for school planning
+and administration, while teachers were selected using simple random sampling. This
+procedure resulted in a sample of 190 responders overall, comprising 50 head teachers and 140
+teachers.
+Page 38
+
+===== PAGE 4 / 9 =====
+Kwasu International Journal of Educational Management and Leadership (KIJEMAL), vol. 2(1), 36-44: ISSN- 2360-8129
+Data was collected using the researcher's own questionnaire, the Effectiveness of Educational
+Management Information System in Planning and Administration of Primary Schools
+Questionnaire (EEMISPAPSQ). The instrument was validated by experts in Educational
+Management and Measurement and Evaluation, and the test-retest method yielded reliability
+scores of 0.75 and 0.89. Descriptive statistics, such as frequency counts and percentages, were
+used to analyze the data. The research questions were analysed using multiple regression
+analysis to test the hypothesis at the 0.05 level of significance.
+Results
+Research Question One: What advantages do EMIS have on effective planning and
+administration of primary schools in Osun State in terms of personnel management?
+Table 1: Advantages of EMIS on effective planning and administration of primary
+schools in Osun State
+Items Agree/Strongly Agree
+(n)
+Percentage
+(%)
+Distribution of school materials is easier through
+EMIS 125 65.8
+EMIS is consulted when transferring teachers
+between schools 115 60.5
+Teachers receive timely promotion due to EMIS
+record-keeping 160 84.2
+Source: Field Survey, 2024
+Most respondents agreed that EMIS provided several benefits in managing teaching staff.
+Indeed, 84.2% of respondents agreed that EMIS records prompted timely promotions of
+teaching staff, and over 60% of respondents agreed that EMIS eased the transfer and
+distribution of materials among schools.
+Research Question Two: How well are the data stored in EMIS utilized in the planning and
+administration of primary schools?
+Table 2: Utilization of EMIS Data in Planning and Administration
+Items Agree/Strongly Agree
+(n)
+Percentage
+(%)
+EMIS officers collaborate with teachers and heads
+on data gathering 150 78.9
+SUBEB staff consult EMIS data for decision-
+making 135 71.1
+SUBEB planning department is carried along by
+EMIS unit 161 84.7
+Source: Field Survey, 2024
+Most respondents reported that EMIS data were effectively used for planning and
+administration. Specifically, 78.9% of respondents agreed that EMIS officers collaborated with
+Page 39
+
+===== PAGE 5 / 9 =====
+Kwasu International Journal of Educational Management and Leadership (KIJEMAL), vol. 2(1), 36-44: ISSN- 2360-8129
+teachers and headteachers in gathering relevant data for decision-making, while 84.7% of
+respondents stated that the planning department utilized the information from EMIS in
+implementing policies.
+Research Question Three: What resources are available for EMIS officers in the planning
+and administration of primary schools in Osun State?
+Table 3: Resources available for EMIS officers in the planning and administration of
+primary schools in Osun State
+Items Agree/Strongly Agree
+(n)
+Percentage
+(%)
+Adequate computers and storage devices are
+available 148 77.9
+EMIS departments exist in all LGEAs of SUBEB 170 89.5
+Essential facilities and materials are adequately
+provided 157 82.6
+EMIS units have experienced officers adequately
+equipped 150 78.9
+Source: Field Survey, 2024
+According to the findings in Table 3, EMIS was well-resourced in terms of essential facilities,
+materials, and skilled personnel. Indeed, over 80% of respondents agreed that EMIS had
+adequate storage devices, computers, and experienced personnel to support effective planning
+and administration. Moreover, respondents agreed that EMIS departments existed in all
+LGEAs and were adequately provided with materials and facilities to execute their functions.
+Research Question Four: How user-friendly is EMIS to primary school heads in Osun
+State?
+Table 4: User-Friendliness of EMIS for School Heads
+Items Agree/Strongly Agree
+(n)
+Percentage
+(%)
+Head teachers can update data at their school
+locations 20 40.0
+Some action plans are executed through EMIS
+without school visits 23 46.0
+Information dissemination from SUBEB is effective
+via EMIS 25 50.0
+Head teachers find EMIS training easy and friendly 23 46.0
+Source: Field Survey, 2024
+Based on the responses provided in Table 4, EMIS was not user-friendly because most
+headteachers lacked the skills to operate it. Only 40.0% of respondents agreed that headteachers
+could update data at their respective schools. Similarly, 46% of respondents agreed that
+although planning activities were executed through EMIS, the process was friendly and easy
+Page 40
+
+===== PAGE 6 / 9 =====
+Kwasu International Journal of Educational Management and Leadership (KIJEMAL), vol. 2(1), 36-44: ISSN- 2360-8129
+to utilize. Only half of the respondents thought that information dissemination through EMIS
+was effective, indicating that the system was not user-friendly. Overall, the results
+demonstrated that EMIS was not user-friendly, which hindered its usefulness for administrative
+and planning duties at the school level.
+Hypothesis Testing
+H₀: Educational Management Information System (Personnel Management, Data Utilization,
+Resource Adequacy, and User-friendliness) has no significant joint influence on effective
+planning and administration of primary schools in Osun State, Nigeria.
+Table 5: Model Summary
+Model R R Square Adjusted R Square Std. Error of Estimate
+1 .836 .699 .693 0.361
+Here the predictors Personnel Management, Data Utilization, Resource Adequacy, User-
+friendliness, while the dependent Variable is Effective Planning and Administration
+The model summary indicated a multiple correlation coefficient (R = .836), implying that the
+four independent variables predicted 69.9% of the variance in effective planning and
+administration of primary schools. Thus, the model fit was satisfactory for the study.
+Table 6: ANOVA
+Source Sum of Squares df Mean Square F Sig.
+Regression 62.140 4 15.535 119.54 .000*
+Residual 24.041 185 0.130
+Total 86.181 189
+p < .05
+The independent variables significantly jointly influenced the dependent variable, according to
+the ANOVA test: F(4,185) = 119.54, p <.001. This indicates that effective planning and
+administration were statistically significantly impacted by the four EMIS aspects taken
+together.
+Page 41
+
+===== PAGE 7 / 9 =====
+Kwasu International Journal of Educational Management and Leadership (KIJEMAL), vol. 2(1), 36-44: ISSN- 2360-8129
+Table 7: Multiple Regression Coefficients
+Predictor B Std. Error Beta (β) t Sig.
+Constant 0.958 0.218 — 4.39 .000
+Personnel Management 0.331 0.054 .365 6.13 .000*
+Data Utilization 0.289 0.049 .318 5.90 .000*
+Resource Adequacy 0.244 0.057 .247 4.28 .000*
+User-friendliness 0.167 0.046 .174 3.63 .001*
+Dependent Variable: Effective Planning and Administration
+p < .05
+The regression analysis results revealed that the four independent variables jointly significantly
+predicted effective planning and administration of primary schools (R = .836, R 2 = .699,
+F(4,185) = 119.54, p < .001). Specifically, the influence of resource adequacy (β = .247),
+personnel management (β = .365), data utilization (β = .318), and user-friendliness (β = .174)
+on effective planning and administration was statistically significant at p < .05. Thus, the null
+hypothesis was rejected, indicating that EMIS significantly influenced the effective planning
+and administration of public primary schools in Osun State.
+Discussion of Findings
+The findings demonstrate that Educational Management Information System (EMIS) has
+significantly enhanced the planning and administration of public primary schools in Osun State.
+The positive influence of EMIS on personnel management, data utilization, and resource
+adequacy suggests that the system has strengthened evidence-based decision-making and
+improved administrative efficiency. These findings are consistent with previous studies
+(Adeoye & Adeoye, 2021; Benavot & Lockheed, 2020; UNESCO, 2022), which reported that
+EMIS enhances transparency in teacher management, resource allocation, and educational
+planning.
+In addition, the study found that EMIS data utilization for policy implementation and planning
+had increased, supporting the evidence provided by Umar & Aliyu (2022) and Alshammari
+(2021). However, the study revealed that despite the availability of ICT facilities and skilled
+personnel, most headteachers lacked the confidence and skills to operate EMIS, corroborating
+the findings of Akinsola & Omotayo (2020).
+Conclusion
+The study concluded that Educational Management Information System had significantly
+improved the planning and administration of public primary schools in Osun State, Nigeria, by
+enhancing personnel management and providing adequate information for effective decision-
+making. Despite the numerous benefits associated with the system, the study recommended
+Page 42
+
+===== PAGE 8 / 9 =====
+Kwasu International Journal of Educational Management and Leadership (KIJEMAL), vol. 2(1), 36-44: ISSN- 2360-8129
+continued capacity-building of users on the effective utilization of EMIS for achieving
+sustainable educational planning and administration.
+Recommendations
+Based on the findings, this study recommended that
+- the State Universal Basic Education Board should strengthen continuous training of
+headteachers on how to embrace EMIS for efficient planning and administration.
+- the government should invest more in maintaining and upgrading existing ICT facilities
+for effective EMIS utilization in all Local Government Education Authorities.
+- EMIS should be made user-friendly by providing necessary accessibility at the school
+level to enhance its effective adoption for planning and administration.
+References
+Adeoye, F. A., & Adeoye, T. A. (2021). Educational management information systems and the
+administration of public secondary schools in Nigeria. Journal of Education and
+Practice, 12(4), 45–53. https://doi.org/10.7176/JEP
+Akinsola, A. O., & Omotayo, F. O. (2020). Challenges of adopting educational management
+information system (EMIS) in Nigerian schools. African Journal of Educational
+Technology, 7(2), 112–124.
+Alshammari, A. (2021). The role of educational management information systems in
+improving administrative decision-making in Gulf schools. International Journal of
+Educational Development, 81, 102331. https://doi.org/10.1016/j.ijedudev.2020.102331
+Benavot, A., & Lockheed, M. (2020). Data-driven decision-making in education: Lessons from
+global experiences. Comparative Education Review, 64(3), 389–412.
+https://doi.org/10.1086/709849
+Bernbaum, M., & Moses, K. (2011). Making education information systems work: Improving
+quality and use of data for decision-making. USAID.
+Buba, Y., & Onah, J. (2020). Information systems and educational planning in Nigeria: The
+case of primary education. Nigerian Journal of Educational Administration and
+Planning, 20(1), 76–91.
+Cassidy, T. (2006). Education management information system (EMIS) development in Latin
+America and the Caribbean: Lessons and challenges. Inter-American Development
+Bank.
+Demir, S. (2020). The impact of information systems on educational administration: A systems
+theory approach. International Journal of Educational Technology, 7(1), 15–28.
+Page 43
+
+===== PAGE 9 / 9 =====
+Kwasu International Journal of Educational Management and Leadership (KIJEMAL), vol. 2(1), 36-44: ISSN- 2360-8129
+Kitainge, K. M., & Wekesa, W. (2019). The effectiveness of education management
+information systems in Kenya: Achievements and challenges. African Research
+Journal of Education and Social Sciences, 6(2), 1–11.
+Lewis, K., & Herndon, B. (2022). Transactive memory systems: A review and directions for
+future research. Academy of Management Annals, 16(2), 479–512.
+https://doi.org/10.5465/annals.2020.0095
+Ogunode, N. J. (2020). Challenges facing education management information system (EMIS)
+in Nigerian education sector. International Journal of Research and Innovation in
+Social Science, 4(9), 234–239.
+Ren, Y., & Argote, L. (2011). Transactive memory systems 1985–2010: An integrative
+framework of key dimensions, antecedents, and consequences. Academy of
+Management Review, 36(2), 573–594. https://doi.org/10.5465/amr.2011.59330915
+Skyttner, L. (2006). General systems theory: Problems, perspectives, practice (2nd ed.). World
+Scientific.
+Umar, A. A., & Aliyu, M. (2022). Utilization of educational management information systems
+(EMIS) for planning and administration in Nigeria: Evidence from SUBEB. Journal of
+Education and Policy Review, 14(2), 33–47.
+UNESCO. (2022). Education management information systems: Guidelines for data
+collection, analysis, and use. UNESCO Institute for Statistics.
+World Bank. (2021). Data-driven education systems: Building effective EMIS for inclusive
+learning. World Bank Group.
+Page 44

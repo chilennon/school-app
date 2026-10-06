@@ -1,11 +1,12 @@
 "use client";
 
-import { Home, ClipboardCheck, User } from "lucide-react";
+import { Home, ClipboardCheck, CalendarCheck, User } from "lucide-react";
 import type { MobileTab } from "../_lib/types";
 
 const TABS = [
   { key: "home", label: "Home", Icon: Home },
   { key: "scores", label: "Scores", Icon: ClipboardCheck },
+  { key: "attendance", label: "Attend.", Icon: CalendarCheck },
   { key: "profile", label: "Profile", Icon: User },
 ] as const;
 

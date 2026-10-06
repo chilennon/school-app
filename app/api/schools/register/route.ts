@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
         email_confirm: true,
         user_metadata: { name: adminName.trim() },
         app_metadata: {
-          role: "admin",
+          role: "owner",
           school_id: schoolId,
         },
       });
@@ -177,7 +177,7 @@ export async function POST(req: NextRequest) {
           id: authUser.user.id,
           name: adminName.trim(),
           email: email.trim(),
-          role: "admin",
+          role: "owner",
           school_id: schoolId,
         },
       ]);

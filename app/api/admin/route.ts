@@ -38,12 +38,17 @@ export async function POST(req: NextRequest) {
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "admin" || !profile.school_id) {
+    if (
+      !profile ||
+      (profile.role !== "admin" && profile.role !== "owner") ||
+      !profile.school_id
+    ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const callerSchoolId = profile.school_id;
     const callerName = profile.name || "Admin";
+    const callerIsOwner = profile.role === "owner";
 
     switch (action) {
       // ──────────────────────────────────────────────────────────
@@ -404,9 +409,16 @@ export async function POST(req: NextRequest) {
       }
 
       // ──────────────────────────────────────────────────────────
-      // ADMINS
+      // ADMINS (owner-only)
       // ──────────────────────────────────────────────────────────
       case "create-admin": {
+        if (!callerIsOwner) {
+          return NextResponse.json(
+            { error: "Only the owner can create admins" },
+            { status: 403 }
+          );
+        }
+
         const { name, email } = body;
         if (!name || !email) {
           return NextResponse.json(
@@ -474,16 +486,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ email, pin: tempPassword });
       }
 
-
-      // Password
-
-            case "reset-password": {
+      // ──────────────────────────────────────────────────────────
+      // PASSWORD RESET
+      // ──────────────────────────────────────────────────────────
+      case "reset-password": {
         const { id } = body;
         if (!id) {
           return NextResponse.json({ error: "Missing id" }, { status: 400 });
         }
 
-        // Verify target belongs to caller's school
         const { data: target } = await supabaseAdmin
           .from("profiles")
           .select("id, name, email, role")
@@ -495,6 +506,17 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(
             { error: "User not found in this school" },
             { status: 404 }
+          );
+        }
+
+        // Admins can only reset teachers. Only owners can reset admins/owners.
+        if (
+          !callerIsOwner &&
+          (target.role === "admin" || target.role === "owner")
+        ) {
+          return NextResponse.json(
+            { error: "Only the owner can reset admin passwords" },
+            { status: 403 }
           );
         }
 

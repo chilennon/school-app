@@ -34,4 +34,6 @@ export type AdminView =
   | "admins"
   | "subjects"
   | "classes"
-  | "settings";
+  | "settings"
+  | "fees"
+  | "attendance";

@@ -36,13 +36,7 @@ export default function StaffSignInPage() {
       .eq("id", authData.user.id)
       .maybeSingle(); // <-- use maybeSingle so 0 rows is not an error
 
-    // TEMPORARY DEBUG — remove once the login works
-    console.log("=== LOGIN DEBUG ===");
-    console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-    console.log("Auth user id:", authData.user.id);
-    console.log("Auth user email:", authData.user.email);
-    console.log("Profile row:", profile);
-    console.log("Profile error:", profileError);
+
 
     if (profileError) {
       setErrorMessage(`Profile lookup failed: ${profileError.message}`);
@@ -58,8 +52,9 @@ export default function StaffSignInPage() {
       return;
     }
 
+
     // Step 3: route by role
-    if (profile.role === "admin") {
+    if (profile.role === "owner" || profile.role === "admin") {
       router.push("/admin");
     } else if (profile.role === "teacher") {
       router.push("/teacher");

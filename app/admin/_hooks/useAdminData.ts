@@ -7,6 +7,7 @@ import type { SubjectRow } from "../_lib/types";
 
 export interface AdminData {
   loading: boolean;
+  callerRole: "owner" | "admin" | "teacher" | null;
   teachers: User[];
   admins: User[];
   classes: ClassRoom[];
@@ -18,6 +19,9 @@ export interface AdminData {
 
 export function useAdminData(): AdminData {
   const [loading, setLoading] = useState(true);
+  const [callerRole, setCallerRole] = useState<
+    "owner" | "admin" | "teacher" | null
+  >(null);
   const [teachers, setTeachers] = useState<User[]>([]);
   const [admins, setAdmins] = useState<User[]>([]);
   const [classes, setClasses] = useState<ClassRoom[]>([]);
@@ -29,6 +33,22 @@ export function useAdminData(): AdminData {
 
   const refresh = useCallback(async () => {
     setLoading(true);
+
+    // Look up caller's role first
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+      if (profile?.role) {
+        setCallerRole(profile.role as "owner" | "admin" | "teacher");
+      }
+    }
 
     const [
       teachersRes,
@@ -119,5 +139,6 @@ export function useAdminData(): AdminData {
     subjects,
     classSubjectIds,
     refresh,
+    callerRole,
   };
 }

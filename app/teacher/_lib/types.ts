@@ -29,4 +29,4 @@ export interface CatalogSubject {
 
 export type ClassStatus = "draft" | "submitted" | "approved" | "mixed";
 
-export type MobileTab = "home" | "scores" | "profile";
+export type MobileTab = "home" | "scores" | "attendance" | "profile";

@@ -1,0 +1,406 @@
+
+
+===== PAGE 1 / 8 =====
+UGWUDE & UGWUDE: Challenges of Education Management Information Systems on Primary
+School Administration in Nsukka Local Government Education Authority of Enugu State
+CHALLENGES OF EDUCATION MANAGEMENT INFORMATION SYSTEMS ON
+PRIMARY SCHOOL ADMINISTRATION IN NSUKKA LOCAL GOVERNMENT
+EDUCATION AUTHORITY OF ENUGU STATE.
+by
+UGWUDE, Anthony Chudi (Ph. D)
+Department of Education Management and Policy
+Nnamdi Azikiwe University, Awka
+and
+UGWUDE, Doris Ifeoma (Ph. D)
+Department of Early Childhood and Primary Education
+Nnamdi Azikiwe University, Awka
+Abstract
+The purpose of this study was to determine the role of education management information
+systems on primary school administration in Nsukka Local Government Education Authority
+of Enugu State. Three research questions guided the study. The study adopted the descriptive
+survey design. The population consisted of all the 1155 public primary school teachers and
+134 head teachers from the 134 public primary schools in Nsukka Local Government
+Education Authority. Simple random sampling technique by balloting was used to select 10
+schools each from the three local education authorities. The sample consisted of 120
+respondents comprising of 90 teachers and 30 head teachers. Data were collected using a 30
+item questionnaire developed by the researchers and titled: EMIS and Primary School
+Administration (EMISPSAQ) Questionnaire. The instrument was validated by three experts.
+The reliability of the instrument was determined using Cronbach Alpha. The reliability
+coefficient obtained from the three clusters are 0.71, 0.87 and 0.89. The overall reliability
+obtained was 0.82. The data collected was analyzed using mean and standard deviation. The
+findings of the study revealed that the benefits of Education Management Information System
+(EMIS) on primary school administration include; EMIS helps in pupils’ attendance records
+and helping in examination management among others. Findings also revealed that lack of
+technical support, inadequate user-friendly software for analyzing test results at the school
+level, lack of ICT support center and lack of awareness among others are the challenges of
+EMIS on primary school administration. Again, the findings of this study showed that
+administrators seeking help and involving donors, awareness on the benefit of EMIS and
+organizing seminars and conferences on EMIS for teachers and school administrators are the
+solutions to the challenges of EMIS on primary school administration. Based on the findings,
+the researchers recommended among others that government should help in creating
+awareness to school administrators, teachers and the general public on the importance of
+EMIS.
+Keywords: Computer technology, Information Technology, Information and Communication
+Technology, Management Information Systems, Education Management
+Information Systems
+49
+
+===== PAGE 2 / 8 =====
+National Journal of Educational Leadership (NJOEL) Vol. 5 No. 2, 2020 (ISSN: 2251-0303)
+Introduction
+Computers plays an important role in every field. The computer technology has a deep
+impact on education and its advantages include an efficient storage and performance of
+information and quick information processing. Scientific and technological progress of the
+last few decades has brought not only the economy globalization and worldwide expansion of
+technologies but changes in social relations, culture and education. The development of
+information technology in the 21st century play important role in education. Information and
+communication technology is currently the main source of the powerful technologies used in
+the educational institutions around the world (Anderson & Dexter, 2005). With the help of
+information and communication technologies, education knowledge access is very easy and
+fast. ICT is the technology that is used for information processing, use of electronic
+computers, communication devices and software application to convert, store, protect,
+process, transmit and retrieve information.
+The use of information technology in educational management has rapidly increased due to
+its efficiency and effectiveness. School administrators and managers who used to spend large
+amount of time in solving complex problems and monitoring the school operations have now
+better options due to enhanced technology. Information technologies facilitate the
+decentralization of work tasks, allow for greater flexibility and interaction. For these to be
+achieved, Management Information System (MIS) becomes necessary. Telem (1999) defines
+MIS as an executive information system planned to match the structure, management task,
+instructional process and particular needs of the school. According to Obi (2003) MIS is also
+relevant in non-progammed decisions as it provides support by supplying information for the
+search, the analysis, the evaluation and the choice and implementation process of decision
+making. Gehlawat (2014), defines MIS as the term commonly used to refer to the study of
+how individuals, groups and organizations evaluate, design, implement, manage and utilize
+systems to generate information to improve efficiency and effectiveness of decision making.
+According to Moorty (2019), MIS is a decision-making instrument used by top management
+comprising of a set of controls.
+MIS provides administrators and managers with the information required to manage schools
+and organizations efficiently and effectively. MIS are being used by school administrators
+and managers to support a range of administrative activities such as financial management,
+staff allocation, timetable, attendance monitoring, clocking in and out, reporting, assessment
+records and resources. MIS has managed to ease the task of administrators, teachers, staff and
+others through a multi-function platform (Syifa, 2019). Also according to the author, the
+school system management also manage school’s interaction with the pupils and parents.
+This makes the communication between the three parties effective. For effective
+administration of the school, Education Management Information Systems (EMIS) becomes
+imperative.
+EMIS is a web which provides information to key stakeholders in the education sector,
+helping them with important data needed to improve education at all levels. Administrators
+within the education sector will settle comfortably on the platform with its simple, easy-to-
+understand interface and features that adequately equips them for precise human and resource
+planning, school mapping and important analytics for quality decision making. Gehlawat
+(2014), is of the view that EMIS provides information to manage the institution efficiently
+and effectively. They provide an objective system for recording and aggregating information
+and supports the institution’s strategic goals and direction. Since EMIS supplies the decision
+makers with facts, it supports and enhances the overall decision making process of the school.
+50
+
+===== PAGE 3 / 8 =====
+UGWUDE & UGWUDE: Challenges of Education Management Information Systems on Primary
+School Administration in Nsukka Local Government Education Authority of Enugu State
+According to Balram (2018), EMIS is specially designed to monitor the performance of
+education programmes offered by the institute and to manage the distribution and allocation
+of educational resources. EMIS is a system for collection, integration, processing,
+maintenance, dissemination of data and information to support planning, monitoring and
+management at all levels of education system. EMIS is a central data repository capable of
+not only gathering, organizing and storing data but also processing and analyzing it and
+generating various reports from it (Balram, 2018).
+EMIS increases effectiveness and efficiency by saving time and facilities development of
+alternative solutions for advanced problems. EMIS have force major changes in school roles
+as well as work styles of managers. Also it has changed school management in the areas of
+management, choice making, workload, human resources management, communication,
+responsibility and planning (Essay UK, 2018). According to Gehlawat (2014), EMIS not only
+ease the office work but also ensures the efficient functioning of the schools. The author
+further states that EMIS is a more effective way of storage and distribution of information.
+Therefore, realization of the importance of EMIS in schools and its successful
+implementation is a necessity.
+EMIS stores crucial learners’ data such as personal data, examination records and library
+details. It also keeps track of the day-to-day progress of learners which is eventually used to
+analyze and monitor the improvements or retrogression in pupils over time (Balram, 2018).
+Similarly, EMIS are helpful in managing overall functioning of the schools, that is making
+programmes more effective, making the teaching process and the changes in learning
+environment professional, enabling teachers to exchange their experiences in a more
+systematic way, working in teams, determining the needs of the learners (Gurr; Pegler cited
+in Gahlawat, 2014). Also, Telem and Buvitski cited in Gahlawat (2014) are of the view that
+EMIS helps in supporting the school managers and other staff in doing their duties,
+developing their performances, effectiveness and efficiencies. EMIS helps to track attendance
+and performance. More importantly, EMIS reduces the workload on teachers’ by providing
+quick access to data on any learner or a group of learners which can be drilled-down, filtered
+and arranged accordingly within a few clicks (Balram, 2018). Also, according to the author,
+EMIS ease tracking and analyzing resources distribution and expenditure. Additionally, the
+management can fully control which teacher and staff have access to what kind of data,
+looking the learners’ financial records from the other users and also the academic
+performance data of the learner can be hinder from the staff.
+Managing the school administration has changed with the introduction of EMIS over the last few
+years. Earlier, a lot of work was performed manually which resulted in flawed administration.
+Currently, schools have started to adopt the EMIS to manage the administration and academic
+activities, which is bringing a positive change in the schools. With the numerous benefits of
+EMIS in the education system it is still faced with a lot of challenges. Mumtaz; Kirkman, in Shah,
+(2014) posits a number of inhibitors to EMIS use as lack of time, lack of training, lack of ICT
+resources and lack of staff individual confidence and motivation. Some other barriers for ICT use
+in educational management are the lack of data analysis skills among administrators, lack of
+training in using ICT-based management tools, and lack of user-friendly software for analyzing
+test results at the school level (Carnoy, cited in Shah, 2014). Similarly, Nagar, Rahoo, Rehman
+and Arshad (2018), posits that the challenges of EMIS in primary school’s administration are;
+schools have no computers and computer laboratory, no internet connections, lack of technical
+support, problems regarding qualified computer software experts and schools not be able to
+purchase the school management software.
+51
+
+===== PAGE 4 / 8 =====
+National Journal of Educational Leadership (NJOEL) Vol. 5 No. 2, 2020 (ISSN: 2251-0303)
+To succeed in everyday tasks of schools, there is an emerging demand to modernize public
+education system with technologies to improve operational, administrative and management
+of the institution effectively. Against this backdrop therefore, the researchers sought to
+determine the role of EMIS on primary school administration in Nsukka Local Education
+Authority.
+Statement of the Problem
+EMIS is a relatively new concept particularly to those living in remote rural areas and in poor
+urban slums where this technology has not fully penetrated. Many of these individuals do not
+fully understand the potentials of EMIS. Some of these individuals perceived this new
+technology as simply advanced technologies that require a lot of resources and very advanced
+skills. Such perception make these people fail to appreciate EMIS as a means of creating
+efficiency and cost effective. Lack of awareness on EMIS and negative attitude create
+problem. When teacher hear of introduction of e-learning, it generates a lot of issues. Also,
+some administrators lack adequate ICT skills, they want to remain the way they are and do
+very little with technology. With such category of administrators, development and
+implementation of EMIS becomes very challenging. Again, simple technical support is
+lacking in schools, because some schools completely lack teachers or workers who possess
+simple computer application skills. Issues like installation, operation, maintenance, network
+administration and security, (where the EMIS are found) calls for the administrators to look
+for experts outside the education field. In such an environment, development and EMIS
+implementation is a big challenge.
+Purpose of the Study
+The purpose of this study is to determine the role of EMIS on primary school administration
+in Nsukka Local Government Education Authority. Specifically, the study sought to:
+1. Determine the benefits of EMIS on primary school administration in Nsukka Local
+Government Education Authority of Enugu State.
+2. Determine the challenges of EMIS on primary school administration in Nsukka Local
+Government Education Authority of Enugu State.
+3. Find out the possible solutions to the challenges of EMIS on primary school
+administration in Nsukka Local Government Education Authority of Enugu State.
+Research Questions
+The following research questions guided the study
+1. What are the benefits of EMIS on primary school administration in Nsukka Local
+Government Education Authority of Enugu State?
+2. What are the challenges of EMIS on primary school administration in Nsukka Local
+Government Education Authority of Enugu State?
+3. What are the possible solutions to the challenges of EMIS on primary school
+administration in Nsukka Local Government Education Authority of Enugu State?
+Method
+This study was carried out to determine the role of EMIS on primary school administration in
+Nsukka Local Government Education Authority of Enugu State. Three research questions
+guided the study. The study adopted the descriptive survey design. The population consisted
+of all the 1155 public primary school teachers and 134 head teachers from the 134 public
+primary schools in Nsukka Local Government Education Authority. Nsukka Local
+Government Education Authority has three local education authorities namely; Nsukka East,
+Nsukka West and Nsukka Central. Simple random sampling techniques by balloting was used
+52
+
+===== PAGE 5 / 8 =====
+UGWUDE & UGWUDE: Challenges of Education Management Information Systems on Primary
+School Administration in Nsukka Local Government Education Authority of Enugu State
+to select 10 schools each from the three local education authorities. Simple random sampling
+techniques by balloting was also used to select 30 teachers each from the 10 schools in each
+of the three local education authorities. This gives the total sample size of teachers to be 90.
+The total sample for this study consisted of 120 respondents comprising of 90 teachers and 30
+head teachers from the 10 schools selected each from the three local education authorities.
+Data were collected using a 30 item questionnaire developed by the researchers and titled:
+EMIS and Primary School Administration (EMISPSAQ) Questionnaire. The instrument was
+validated by one MIS expert, one expert in Administration and planning and one expert in
+childhood education all from University of Nigeria, Nsukka.
+The reliability of the instrument was carried out in Udenu local education authority which
+was outside the study area. The reliability of the instrument was determined using Cronbach
+Alpha. The reliability coefficient obtained from the three clusters are 0.71, 0.87 and 0.89. The
+overall reliability obtained was 0.82. The researchers with the help of one research assistant
+administered the questionnaire. 120 copies of the questionnaire were administered to the
+respondents. One the spot method was used whereby the questionnaire were administered to
+the respondents and was collected immediately after answering the items on the
+questionnaire. This is to reduce the rate of loss of questionnaire. The questionnaire
+administered were returned at 100% rate. A four-point rating scale of Strongly Agree (SA),
+Agree (A), Disagree (D) and Strongly Disagree (SD) weighted 4, 3, 2 and 1 was used to
+answer the research questions. Mean and standard deviation was used to analyze the research
+questions. Mean response of 2.50 and above were regarded as agreed while those below 2.50
+were regarded as disagreed.
+Results
+Research Question 1: What are the benefits of EMIS on primary school administration in
+Nsukka Local Government Education Authority of Enugu State.
+Table 1: Respondents mean and standard deviation rating on the benefits of EMIS on
+Primary School administration in Nsukka Local Government Education Authorityof
+Enugu State.
+SN ̅
+Benefits of EMIS on primary school administration are 𝑿
+SD Remarks
+1 EMIS helps in pupils attendance records 2.80 0.91 Agree
+2. For easy homework management 2.56 0.86 Agree
+3. Helps in examination management. 2.96 1.36 Agree
+4. Enables effective communication 2.76 1.05 Agree
+5. Ease in pupils admission 3.07 0.86 Agree
+6. Efficient staff management 3.13 0.75 Agree
+7. Workable inventory management 3.35 0.50 Agree
+8. Provides information for informed planning 2.98 1.22 Agree
+9. For policy making 2.89 1.07 Agree
+10. Efficient decision making 3.24 0.64 Agree
+11. Enables human resources management 3.11 0.95 Agree
+12. Efficient evaluation of staff performance 2.98 1.22 Agree
+13. Reduces work load 3.44 0.50 Agree
+Cluster mean 3.03 0.89 Agree
+Data in table 1 shows the mean and standard deviation scores on the benefit of EMIS on
+primary school administration in Nsukka Local Government Education Authority of Enugu
+State. The respondents agreed that all the items so listed are the benefits of EMIS. This is
+confirmed with the cluster mean of 3.03 with the standard deviation of 0.89.
+53
+
+===== PAGE 6 / 8 =====
+National Journal of Educational Leadership (NJOEL) Vol. 5 No. 2, 2020 (ISSN: 2251-0303)
+Research Question 2: What are the challenges of EMIS on the primary school
+administration in Nsukka Local Government Education Authority of Enugu State.
+Table 2: Mean and standard deviation rating on the challenges of EMIS on the primary
+school administration in Nsukka Local Government Education Authorityof Enugu
+State.
+SN ̅
+Challenges of EMIS on primary school administration are 𝑿
+14 Lack of technical support 2.88 0.88 Agree
+15 Inadequate user-friendly software for analyzing test results at
+2.72 1.45 Agree
+the school level
+16 Lack of ICT support center 3.33 0.99 Agree
+17 Lack of training on data analysis skills among administrators 3.18 0.74 Agree
+18 Inadequate training on using ICT based management tools 3.19 0.79 Agree
+19 Constant power interruption 3.35 0.62 Agree
+20 Insufficient computers 3.14 1.15 Agree
+21 Lack of adequate resources 3.09 1.20 Agree
+22 Lack of awareness 3.49 0.69 Agree
+23 Negative attitudes towards EMIS 3.27 0.70 Agree
+24 Cost of computer items 3.45 0.99 Agree
+Cluster Mean 3.19 0.92 Agree
+SD Remarks
+Data in table 2 reveals the challenges of EMIS on primary school administration in Nsukka
+Local Government Education Authority of Enugu State. The respondents agreed that all the
+items so stated are the challenges of EMIS on primary school administration in Nsukka Local
+Government Education Authority of Enugu State. This is confirmed with the cluster mean
+score of 3.19 with a standard deviation of 0.92.
+Research Question 3: What are the possible solutions to the challenges of EMIS on primary
+school administration in Nsukka Local Government Education Authority of Enugu State?
+Table 3: Mean and standard deviation rating on the solutions to the challenges of EMIS
+on the primary school administration in Nsukka Local Government Education
+Authorityof Enugu State.
+S/N Solutions to the challenges of EMIS on the primary school
+administration
+̅
+𝑿
+SD Remarks
+25 Administrators seeking help and involving donors 26 Awareness on the benefit of EMIS 27 Organizing seminars and conferences on EMIS for teachers and
+3.28 0.85 Agree
+3.08 0.80 Agree
+3.33 0.62 Agree
+school administrators
+28 Government helping schools in providing alternative power supply 3.15 0.98 Agree
+29 Providing competent ICT staff to support the system 3.35 0.69 Agree
+30 Training a few of staff on simple technical support 2.93 0.89 Agree
+Cluster Mean 3.18 0.80 Agree
+Table 3 above shows that the respondents agreed to all the items listed as the solution to the
+challenges of EMIS on the primary school administration in Nsukka Local Government
+Education Authority of Enugu State. This is confirmed with the cluster mean score of 3.18
+with a standard deviation of 0.80.
+Discussion
+The findings in table I showed that the benefits of EMIS on primary school administration.
+The benefits include; EMIS helps in pupils’ attendance records, for easy homework
+54
+
+===== PAGE 7 / 8 =====
+UGWUDE & UGWUDE: Challenges of Education Management Information Systems on Primary
+School Administration in Nsukka Local Government Education Authority of Enugu State
+management, helping in examination management, enabling effective communication and
+ease in pupils’ admission among others. The findings are in line with that of Gehlawat
+(2014), who posits that EMIS not only easy the office work but also ensures the efficient
+functioning of the schools. The author further states that EMIS is a more effective way of
+storage and distribution of information.
+The findings are also in consonance with the study carried out by Balram, (2018), who posits
+that EMIS reduces the workload on teachers’ by providing quick access to data on any
+learner or a group of learners which can be drilled-down, filtered and arranged accordingly
+within a few clicks. Also according to the author, EMIS ease tracking and analyzing
+resources distribution and expenditure. Additionally, the management can fully control which
+teacher and staff have access to what kind of data, looking the learners’ financial records
+from the other users and also the academic performance data of the learner can be hinder
+from the staff. The findings on the benefits of EMIS on primary school administration have
+implications for the primary school administrators, the primary school management board as
+well as the ministry of education to make available the different range of using data records.
+The findings in table 2 reveals that lack of technical support, inadequate user-friendly
+software for analyzing test results at the school level, lack of ICT support center, lack of
+training on data analysis skills among administrators, lack of awareness and cost of computer
+items among others are the challenges of EMIS on primary school administration. In
+consonance with the above findings, Mumtaz; Kirkman, in Shah (2014), posits a number of
+inhibitors to EMIS use as lack of time, lack of training, lack of ICT resources and lack of
+staff individual confidence and motivation. Also in agreement with the above findings,
+Carnoy, cited in Shah (2014), posits some other barriers for EMIS use in educational
+management as; lack of data analysis skills among administrators, lack of training in using
+ICT-based management tools, and lack of user-friendly software for analyzing test results at
+the school level. Similarly, Nagar, et. al. (2018), posits that the challenges of EMIS in
+primary schools’ administration are; schools have no computers and computer laboratory, no
+internet connections, lack of technical support, problems regarding qualified computer
+software experts and schools not able to purchase the school management software. Findings
+on this area of challenges have implication on the primary school administrators, primary
+school management board as well as the ministry of education as these are the areas that are
+showing the problems encountered for lack of effective use of EMIS in primary school
+administration.
+Findings in table 3 reveals that administrators seeking help and involving donors, awareness
+on the benefit of EMIS and organizing seminars and conferences on EMIS for teachers and
+school administrators are some of the possible solutions to the challenges of EMIS on
+primary school administration. The findings are in line with that of Mehdi and Jafar (2013),
+who posits that the solutions to the challenges of EMIS are creating change in attitude among
+managers and administrators, holding suitable conferences to develop the information system
+culture, absorbing the efficient and skillful employees and creating suitable motivation for the
+stability of the existing employees and holding good training courses and participation of the
+administrators and employees. The findings on the solution of EMIS on primary school
+administration has implication on primary school administrators, primary school management
+board and the ministry of education on the benefits of EMIS and as such monitory and
+creating awareness of EMIS activities in primary school to ensure provision and adequate use
+of data at all times.
+55
+
+===== PAGE 8 / 8 =====
+National Journal of Educational Leadership (NJOEL) Vol. 5 No. 2, 2020 (ISSN: 2251-0303)
+Conclusion
+The findings of this study clearly show that EMIS is essential for effective management and
+administration in primary schools. It was also clear that equipment for effective EMIS are
+inadequate. The available EMIS equipment are not sufficient to be utilized by teachers,
+administrators and administrative staff in primary school. To enhance administrative decision
+processes so that decision making, policy analysis, formulating, planning, monitoring and
+management at the primary level of education to become a reality, effective EMIS operations
+should be adequately available. Some challenges were encountered and these served as the
+obstacles to the effective use of EMIS and its utilization at the primary level of education.
+Recommendations
+Based on the findings, the following recommendations were made:
+1. Government should help in creating awareness to school administrators, teachers and
+the general public on the importance of EMIS.
+2. Government should help in organizing training, seminars and conferences on ICT
+matters frequently.
+3. Government should help in the procurement of computers and other software that are
+used for EMIS as well as employing competent ICT staff who will help in teaching
+the administrators and teachers on how to make use of EMIS.
+References
+Anderson, R.E., & Dexter, S. (2005). School technology leadership: An empirical investigation of
+prevalence and effect. Educational Administration Quarterly, 41(1), 49-82
+Balram, K. (2018). Role of MIS in education sector. Retrieved from www.iitms.co.in on 20/02/20
+Essays, UK. (2018). Management information systems (MIS) in schools. Retrieved 25th February,
+2020. From https://www.ukessays.com/essays/education/school-management-information-
+systems-in-primary-schools.php?vref=1
+Gehlawat, M. (2014). School management information systems: An effective tool for augmenting the
+school practices. New Frontiers in Education, 57-64.
+Mehdi, B. & Jafar, Baikzad (2013). Management information system: Challenges and solutions.
+European Online Journal of National and Social Sciences. 2(3), 374-381. ISSN 1805-3602.
+Moorty, S. (2019). The concept of management information systems. Bizfluent.com. retrieved from
+https://bizfluent.com. Retrieval date 25/11/2019.
+Nagar, M. A. K., Rahoo, L. A., Rehman, H. A. & Arshad, S. (2018). Education management
+information system in the primary schools in Sindh a case study of Hyderabad Division. IEEE
+5th International Conference on Engineering Technologies and Applied Sciences, 23-
+Obi E, (2003). Educational Management: Theory and Practice. Enugu: JAMOE Nigeria Enterprises.
+Shah, M. (2014). Impact of management information systems MIS on school administration: What the
+literature says. Procedia-Social and Behaviour Sciences 116, 2799-2804.
+Syifa, F. (2019). Reasons why school management system is important. Retrieved from www.uk
+essays.com/essays/education on 21/02/2020.
+Telem, M. (1999). A case of the impact of school administration computerization on the department
+head’s role. Journal of Research on Computing in Education, 31(4), 385-401.
+56

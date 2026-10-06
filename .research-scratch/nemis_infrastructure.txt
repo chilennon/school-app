@@ -1,0 +1,379 @@
+
+
+===== PAGE 1 / 9 =====
+12 Journal of the Nigerian Academy of Education Vol. 14, No. 2
+ADEQUACY OF INFRASTRUCTURAL FACILITIES
+REQUIRED FOR THE IMPLEMENTATION OF NIGERIA
+EDUCATION MANAGEMENT INFORMATION SYSTEM
+POLICY IN ANAMBRA STATE.
+Carol O. Ezeugbor PhD & Kingsley K.Obiekwe
+Department of Educational Management and Policy,
+Nnamdi Azikiwe University, Awka, Anambra State, Nigeria.
+Abstract
+This paper assessed the adequacy of infrastructural facilities required for the
+implementation of Nigeria Education Management Information System
+(NEMIS) policy in Anambra state. The study was guided by two research
+questions. A descriptive survey research design was adopted for the study.
+Two
+(NISN) were used. All the 21 NEMIS nodes at the local government level and
+1 node at the state level were used for the study. Data were analyzed using
+frequency and percentage. Findings indicated that of the nine NEMIS
+infrastructural facilities expected to be available at the state and local
+government nodes according to FME (2009), only 5 (55.6%) were available at
+the state level while none was available at the local government level. Among
+the recommendations made was that there is need for the state government to
+partner with various non-governmental and international development
+partners to be able to meet the challenges of funding and provision of
+adequate infrastructural facilities for proper implementation of NEMIS policy.
+Introduction
+Education is universally recognized as an instrument for social,
+political, scientific and technological development. In Nigeria, education is
+regarded as an instrument for the promotion of national development as well
+as effecting desirable social change (Federal Republic of Nigeria, 2009). This
+is the reason why no society can afford to toy with the education of its citizens
+as this could result in a snail speed development (Azikiwe, 2010).
+Considering the invaluable roles and contribution of education to
+meaningful individual, social and national development, its proper
+management and administration using an effective and efficient management
+information system should be a national concern. High standards of education
+in Nigeria call for effective management and administration of the education
+
+===== PAGE 2 / 9 =====
+Journal of the Nigerian Academy of Education Vol. 14, No. 2 13
+system by collecting, examining and rapid dissemination of information
+needed for educational planning and decision making. Education
+Management Information System (EMIS) does this by providing necessary
+data and information and by fostering an environment in which the demand for
+this information drives its use.
+EMIS is an organized group of information and documentation
+services that collects, stores, processes, analyzes and disseminates information
+for educational planning and management (Bernbaum and Moses, 2011). The
+United Nations Educational, Scientific and Cultural Organization (UNESCO,
+2015) stipulated that during the education management process, EMIS should
+inform the different actors and partners on the state of the sector, its internal
+and external efficacy among others. An EMIS is therefore critical in
+facilitating institutional arrangements and strategic planning to ensure access,
+equity, quality, rational sourcing and allocation of scarce resources (Federal
+Ministry of Education, 2007).
+Over the years, EMIS in Nigeria could not perform optimally; data were either
+not available or unreliable and could therefore not inform the basis for
+planning and decision making (FME, 2007). The data management situation
+appeared disorganized as operators in the system had different sets of data for
+such indications as enrolment, number of teachers and lots more.
+Different agencies and international development partners collected
+and used different and discordant sets of data on similar indicators.
+The result was that decision making was not evidence based and
+similarly no reasonable planning could be done. Moreover, the
+nation suffered embarrassments because it could not transmit data
+on critical indicators to such world bodies as the UNESCO Institute
+of Statistics. (FME, 2007 pp.v).
+Acknowledging this, Rufai, (2010) noted that the nation has
+consistently suffered embarrassments internationally and from within due to
+failure to provide information on education sector. Rufai attributed the
+situation to a number of factors among which are inadequate funding, weak
+capacity, poor infrastructure, skewed incentives among others. All these
+problems appeared to have complicated the data management situation in
+Nigeria and perhaps led to confusion and huge gaps in availability of data or
+the reliability of available data that is required for educational planning and
+decision making.
+This dearth of empirical data generated through a functional and
+carefully designed system apparently necessitated efforts to put in place the
+
+===== PAGE 3 / 9 =====
+14 Journal of the Nigerian Academy of Education Vol. 14, No. 2
+Nigeria Education Management Information System (NEMIS) Policy in
+December 2007. NEMIS is a database to support the effective management of
+the education system at the federal, state and local government levels to
+improve the performance of the education system as a whole and of students
+in particular (FME, 2007).The policy which decentralized the EMIS process is
+meant to enhance efficiency in the collection, management and dissemination
+of education information in Nigeria. It is to provide the basis for monitoring
+the effectiveness and efficiency of the educational system at all levels. The
+approval of the NEMIS Policy was followed by the approval of NEMIS policy
+implementation guidelines in 2009 which are intended to provide direction to
+the management of education information at different levels of the education
+system by specifying the roles of different stakeholders and requirement for
+NEMIS right from schools to the federal level.
+In decentralizing NEMIS which the policy promotes, all the states are
+required to set up, staff and equip education management information system
+for their respective states in line with the guidelines. One of the stipulations of
+the guideline is that states should make adequate provision of NEMIS
+infrastructural requirements. Infrastructure forms basic physical and
+organizational structures needed for the smooth operation of a society and
+organization or enterprise, or the services and facilities required for an
+economy to function effectively. It can be generally defined as the set of
+interconnected structural elements that provide framework supporting an
+entire structure of development. It is an important term for judging a country
+or region's development (Shahi, 2012).
+The following basic infrastructural requirements are recommended for each
+NEMIS node at the state and local government levels depending on their data
+needs according to FME, (2009):
+State Level
+One mid-range server with up-gradable capacity
+Minimum ten (10) computers for statisticians, analysts, programmers and
+data inputting.
+Three laptops (3) for database managers
+Three printers (3) to include a network printer
+Photocopier (2 different sizes)
+Scanners (2 different sizes)
+Internet connectivity with V-Sat facility
+24 hour UPS back-up power facility
+Strong back-up capability for database to be archived at external location
+Local Government Level
+One mini server with up-gradable capacity
+
+===== PAGE 4 / 9 =====
+Journal of the Nigerian Academy of Education Vol. 14, No. 2 15
+Minimum six (6) computers for data inputting
+One (1) laptop for database manager/analyst
+Two (2) printers to include desk jet printer
+Photocopier
+Scanner
+Internet connectivity with V-Sat facility
+24 hour UPS back-up power facility
+Strong back-up capability for database to be archived at external
+location
+It is believed that when these infrastructural facilities are adequately
+provided, data for educational planning and decision making will always be
+made available. Based on this, the study assessed the adequacy of NEMIS
+infrastructural facilities required for the implementation of NEMIS policy in
+Anambra State.
+The following two research questions guided the study:
+1. 2. Are NEMIS infrastructures at the local government nodes Adequate?
+Are NEMIS infrastructures at the state node adequate?
+Method
+The study adopted a descriptive esurvey design. This design, according
+to Fraenkel, Wallen and Hyun (2012) seeks to collect and analyse data from
+sample of a population in order to determine the current status of that
+population with respect of one or more variables. The design was deemed
+suitable for this study which collected data in order to determine the adequacy
+of NEMIS infrastructural facilities required for the implementation of NEMIS
+policy.
+The population was 22 consisting of 1 NEMIS node at the state
+ministry of education and 21 NEMIS nodes at the 21 local government areas
+of the state. These figures were based on records from the Department of
+Planning, Research and Statistics, Anambra State Ministry of Education,
+Awka (2017). The whole population was used as the study sample.
+The researchers made use of two observation checklists titled:
+of nine (9) items each meant to tap information on the availability of NEMIS
+infrastructures at the 21 local government nodes and at the state node.
+The checklists were completed through a direct observation conducted
+by the researchers at the state and local government NEMIS nodes located at
+
+===== PAGE 5 / 9 =====
+16 Journal of the Nigerian Academy of Education Vol. 14, No. 2
+the state Ministry of Education and at the 21 Local Government Area
+Headquarters in the state.
+Frequency and percentage were used to answer the research questions.
+A
+infrastructural specifications for each node at the state and local government
+level by FME (2009).
+Results
+Table 1. Percentages on adequacy of NEMIS infrastructures at the local
+government nodes
+Infrastructures to be provided
+at each local government node
+according to FME (2009)
+Number
+expected
+at the 21
+LGEA
+Number
+available
+%
+available Decision
+1. Mid-range server with
+21 0 0% NA*
+upgradable capacity
+2. Computers for statisticians,
+126 8 6.35% NA
+analysts, programmers and
+data inputting.
+3. Laptop for database
+21 0 0% NA
+manager/analyst
+4. Printers to include a
+42 13 30.95% NA
+network printer
+5. Photocopier 21 1 4.74% NA
+6. Scanner 21 0 0% NA
+7. Internet connectivity with
+V-Sat facility
+8. 24 hour UPS back-up
+power facility
+9. Strong back-up capability
+for database to be archived
+at external location
+21 0 0% NA
+21
+0
+0%
+NA
+21
+0
+0%
+NA
+Key- *NA- Not Adequate
+The result presented in table 1 shows that the infrastructural facilities
+available at the local government nodes are not adequate in relation to the
+specification by FME (2009). The analysis revealed that 1 mid-range server
+which is expected to be available at each of the 21 local government node in
+the state was not available in any of them. Out of the 126 computers expected
+
+===== PAGE 6 / 9 =====
+Journal of the Nigerian Academy of Education Vol. 14, No. 2 17
+to be available, only 8 (6.35%) were available. A total of 42 printers were
+expected to be available, just 13 (30.95%) were available, 21 photocopiers
+were expected to be available at the local government nodes, just 1 (4.74%)
+was available. Laptops, scanners, internet connectivity with V-sat facility,
+UPS, strong backup facility were not available in any of the 21 local
+government nodes.
+Table 2. Percentages on adequacy of NEMIS infrastructures at the state
+node
+Infrastructures to be
+provided at each local
+government node
+according to FME (2009)
+Number
+expected
+Number
+Available
+%
+available
+Decision
+1. Mid-range server with
+1 1 100% A*
+upgradable capacity
+2. Computers for
+10 10 100% A
+statisticians, analysts,
+programmers and data
+inputting.
+3. laptop for database
+3 3 100% A
+manager/analyst
+4. Printers to include a
+3 2 66.67% NA*
+network printer
+5. Photocopier 1 1 100% A
+6. Scanner 2 1 50% NA
+7. Internet connectivity
+with V-Sat facility
+8. 24 hour UPS back-up
+power facility
+9. Strong back-up
+capability for database
+to be archived at
+external location
+1 1 100% A
+1
+0
+0%
+NA
+1
+0
+0%
+NA
+Key- *A-Adequate, *NA-Not adequate
+The analysis of data from the state node displayed in table 2 shows that
+infrastructural facilities such as mid-range server with upgradable capacity,
+computers, laptops, photocopiers and internet connectivity were available in
+line with the specifications by FME (2009). On the other hand, other facilities
+
+===== PAGE 7 / 9 =====
+18 Journal of the Nigerian Academy of Education Vol. 14, No. 2
+were not available. These include such facilities like printers and scanners
+which had percentage availability of 66.6% and 50%; 24 hour UPS backup
+and strong back-up capacity for database which were not available at all in the
+state node.
+Of the nine NEMIS infrastructural facilities expected to be available
+according to FME (2009), only 5 (55.6%) were available at the state level
+while none was 100% available at the local government level. It was therefore
+decided that NEMIS infrastructural facilities were not adequate in Anambra
+State.
+Discussion
+The findings of this study shows that of the nine NEMIS infrastructural
+facilities expected to be available according to FME (2009), only 5 (55.6%)
+were available at the state level while none was available at the local
+government level . It was therefore deduced that NEMIS infrastructural
+facilities were not adequate in Anambra State. The reason for this could be as
+a result of the low level of funding of the NEMIS policy implementation
+process by the state government. It could also be because there is dearth of
+dedicated NEMIS nodes as observed by the researchers at the local
+government level. The supposed NEMIS data nodes at all the local
+government headquarters are embedded within other offices and departments.
+This may also have contributed to the inadequacy of NEMIS infrastructural
+facilities in the state.
+The finding of this study is in line with the findings of Adebola (2007),
+who found out that the infrastructural facilities for the successful execution of
+the Universal Basic Education (UBE) programme are provided but not
+adequate. This finding is supported by Ugwuanyi (2013), who found in his
+study that none of the available physical education equipment and supplies in
+the schools was adequate.
+In addition, Shehu (1996)reported that there was lack of equipment for
+instructional physical education in secondary schools in Nigeria. Also
+Humbert and Chad (1998) noted that there was lack of appropriate equipment
+for physical education classes in schools which constituted a problem. These
+findings are not surprising to the researchers because it appears that both the
+state and federal government in Nigeria are not doing enough in terms of
+funding of education and educational policies. Some government officials in
+most cases divert money meant for the procurement of educational facilities
+and supplies to other areas of needs.
+
+===== PAGE 8 / 9 =====
+Journal of the Nigerian Academy of Education Vol. 14, No. 2 19
+Conclusion
+The study concludes that the infrastructural facilities required at the
+state and local government NEMIS nodes for the implementation of NEMIS
+policy are not adequate in Anambra state. Proper funding, supervision and
+monitoring by the state government are therefore essential.
+Recommendations
+1. There is need for the state government to include NEMIS implementation
+cost in the annual budgets of concerned departments, ministries and
+agencies for them to be able to meet the cost implications of providing
+NEMIS facilities.
+2. There is also need for the state government to partner with various non-
+governmental and international development partners to be able to meet
+the challenges of funding and provision of adequate infrastructural
+facilities for proper implementation of this policy.
+3. The state government also should set up an effective monitoring
+mechanism to monitor the NEMIS policy implementation process. When
+the implementation process is not funded and monitored, achieving
+effective implementation is only but a mirage.
+4. There is need for the state government to isolate the NEMIS nodes at the
+local levels from other departments for increased efficiency.
+Adebola, O. J. (2007). Perceived impact of universal basic education on
+national development in Nigeria. International Journal of African &
+African American studies, 4(1), 20-36
+Azikiwe, V.C. (2010). The state of Nigerian education .The Tribune, p 24.
+Bernbaum, M., & Moses, K. (2011).Information systems for education
+management .International Journal of Technology for the
+Advancement of Knowledge and Learning, 2(3), 47-52.
+Federal Ministry of Education.(2007). Nigeria Education Management
+Information System Policy.
+Federal Ministry of Education.(2009). Implementation Guidelines for the
+Nigeria Education Management Information System Policy.
+Fraenkel, J.R., Wallen, N. E., & Hyun, H.H., (2012).How to design and
+evaluate research in education (8th ed). Boston: McGraw Hill.
+Humbert, W.C. and Chad, J. U. (1995).Worldwide Survey on the State and
+Status of physical education in schools. McGraw Hill companies.
+New York.
+Shashi, B. (2012). Impact of Infrastructure Development on Society: A Case
+Study of Narayan Municipality, Dailekh. A Thesis Submitted to the
+
+===== PAGE 9 / 9 =====
+20 Journal of the Nigerian Academy of Education Vol. 14, No. 2
+Central Department of Rural Development in Tribhuvan University,
+Kirtipur, Nepal.
+Shehu, J. (1996).Implementation of Nigeria secondary school physical
+education Curriculum; observations and Suggestions. International
+Council for Health Physical Education, Recreation, Sport and Dance
+32(2), 15-27
+Ugwuanyi, J.I (2013).Availability, adequacy and utilization of physical
+education teaching resources in secondary schools in Enugu state. A
+Thesis Submitted to the Department of Physical and Health Education,
+University of Nigeria, Nsukka.
+UNESCO.(2015). Educational Management Information System (EMIS).
+Retrieved from
+http:lwww.unesco.org/new/en/education/themes/planning-and-
+managing- education/policy-and-planing/emis/.

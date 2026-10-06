@@ -1,0 +1,524 @@
+
+
+===== PAGE 1 / 15 =====
+01P R O D U C T & G O - T O - M A R K E T B L U E P R I N T
+NaijaSchool OS
+A real-time, offline-first school data platform designed
+to make every EMIS failure documented in Nigerian
+education research structurally impossible — built
+mobile-first, for phones teachers already own, with
+zero server infrastructure required at the school.
+RESEARCH-GROUNDED MOBILE-FIRST OFFLINE-FIRST NEXT.JS + SUPABASE
+GO-TO-MARKET INCLUDED
+Prepared for
+Phocus (John Chibuike) — Lagos, Nigeria
+Grounded in
+5 peer-reviewed EMIS studies (2020–2026)
+
+===== PAGE 2 / 15 =====
+C O N T E N T S
+What's in this blueprint
+1. Executive Summary 2. Research Synthesis — what 5 studies actually found 3. The Five Failure Patterns every past EMIS repeats 4. Product Philosophy — the inversion strategy 5. Technical Blueprint — architecture & data model 6. The Roadmap — four phases from one classroom to one state 7. Go-to-Market — marketing, distribution, awareness 8. Monetization & Sustainability 9. Risk Register 10. Source Papers The 100x thesis in one page
+Findings table + root causes
+And why they repeat
+Turning each failure into a design law
+Built on your existing Next.js + Supabase stack
+MVP → School → District → State
+Teacher-first, bottom-up adoption engine
+Freemium → institutional → government
+What will try to kill this, and the counter
+Full reference list
+How to read this document: Section 2 is the evidence. Sections 3–4 turn that evidence into design rules. Sections 5–6 are what you
+actually build, in order. Sections 7–9 are how it survives contact with the real world — distribution, money, and risk. You already have the
+right instincts (mobile-first, offline-capable, Next.js/Supabase, teachers on low-end Androids) — this blueprint is the research proving those
+instincts correct, plus the parts most solo builders skip.
+NaijaSchool OS Blueprint • 2 / 15
+
+===== PAGE 3 / 15 =====
+S E C T I O N 1
+Executive Summary
+Five independent studies — spanning Ogun, Anambra, Lagos, Osun and Enugu States between 2020 and 2026 — converge on the same
+diagnosis of Nigeria's Education Management Information Systems (EMIS): the technology is not the bottleneck. The assumptions
+baked into the technology are.
+Every prior system — federal NEMIS, state platforms like Ogun's DiPER, and countless school-level tools — was designed around
+infrastructure Nigerian schools don't reliably have (servers, desktops, stable power, broadband) and workflows that treat data entry as an
+extra chore rather than something that happens automatically as teachers do their normal jobs. The result, confirmed across every paper
+reviewed here: data that takes 9–12 months to become usable, enrollment figures that are wrong by up to 37%, and infrastructure audits
+showing 0% server availability and 0% internet connectivity at the local-government level in Anambra State.
+Yet the same body of research also proves the upside is enormous. Ogun State's DiPER platform — the one system in this research that
+got the architecture right — took data accuracy from 58% to 93%, cut reporting time by 89%, and cut policy-intervention time by 45%,
+simply by making data a byproduct of daily activity instead of a separate report.
+The 100x opportunity: No paper reviewed here describes a system built mobile-only, offline-first, and free at the point of individual
+teacher use. Every system studied assumed a desktop, a server room, or a mandate from above. The gap between "what DiPER proved is
+possible" and "what's actually usable on the phone a teacher already owns, with no admin approval needed" is the entire opportunity. You
+already have the right architecture in motion — this blueprint formalizes it into something that can out-perform every system in this
+research by an order of magnitude, not by doing more, but by removing the dependencies that broke all of them.
+9–12 MONTHS → REAL-TIME 37% ERROR RATE → SELF-VALIDATING 0% RURAL SERVER UPTIME → ZERO SERVERS NEEDED
+40% ADMIN CONFIDENCE → ONE-TAP UX TOP-DOWN MANDATE → BOTTOM-UP ADOPTION
+NaijaSchool OS Blueprint • 3 / 15
+
+===== PAGE 4 / 15 =====
+S E C T I O N 2
+Research Synthesis — What the Five Studies Actually
+Found
+2.1 The papers at a glance
+Study Setting Core finding
+Adenubi & Oyenuga
+(2025)
+FUDMA Journal of
+Sciences
+Ogun State DiPER platform,
+1,200 schools
+Activity-based, real-time EMIS design lifted data accuracy from 58%→93%,
+completeness 62%→97%, and cut reporting delay from months to real-time.
+Ezeugbor & Obiekwe
+J. of the Nigerian
+Academy of Education
+NEMIS infrastructure audit,
+Anambra State (21 LGAs)
+Only 55.6% of required infrastructure existed at state level; 0% at local-government
+level for servers, laptops, internet and backup power.
+Adisa (2026)
+UEJTL
+5 secondary schools, Badagry,
+Lagos
+Moving records from a cabinet to a computer lab produced no significant
+improvement in processing efficiency — digitization without workflow redesign
+changes nothing.
+Oparinde
+KIJEMAL
+10 primary schools, Osun State
+(190 respondents)
+EMIS significantly improved planning (R²=0.699), but only 40% of headteachers could
+update data at their own school without help.
+Ugwude & Ugwude
+National J. of
+Educational Leadership
+Nsukka LGEA, Enugu State
+(120 respondents)
+Benefits of EMIS rated highly (3.03/4), but so were the barriers (3.19/4) — power
+cuts, cost, lack of user-friendly software, and low awareness top the list.
+2.2 The numbers that matter most
+9–12 months
+Time for manual, paper-based data to
+become usable information in Nigeria's basic
+education system (Adenubi & Oyenuga,
+citing Nwosu & Eke, 2022).
+Up to 37%
+Inconsistency rate in self-reported enrollment
+figures — the exact kind of number a state
+uses to allocate teachers and funding
+(Ibrahim & Bala, 2023).
+0% → 6.35%
+Share of required servers and computers
+actually present at Anambra's 21 local-
+government EMIS nodes.
+93% accuracy
+What real-time, activity-driven data capture
+achieved in Ogun's DiPER — up from a 58%
+baseline under the old manual system.
+40% confidence
+Share of Osun State headteachers who
+could update EMIS records at their own
+school without outside help.
+45% faster
+Improvement in policy-intervention speed
+once data flowed in real time instead of on a
+reporting cycle.
+2.3 What DiPER got right (and why it's still not enough)
+Ogun's DiPER is the closest thing in this research to a proof of concept. It reframed data collection as a byproduct of routine activity — a
+teacher's daily attendance check-in or grade entry generates the record automatically, rather than a separate report being compiled later.
+That single design decision is responsible for nearly every improvement the paper documents: 127 overstaffed urban schools identified for
+teacher redistribution, 43 priority sites flagged for classroom construction via GIS analysis, and 12,500 at-risk students surfaced early
+enough for remedial support.
+But DiPER is still a state-mandated, centrally-hosted platform layered on top of biometric hardware, RFID readers, and payment-gateway
+integrations — the very infrastructure the Anambra audit shows is absent almost everywhere outside a well-funded pilot state. It proves the
+model works. It does not solve distribution.
+NaijaSchool OS Blueprint • 4 / 15
+
+===== PAGE 5 / 15 =====
+S E C T I O N 3
+The Five Failure Patterns Every Past EMIS Repeats
+Read across all five papers together, one pattern repeats with almost no variation. Each failure below is quoted or paraphrased from at
+least two independent studies, which means it isn't a one-state problem — it's structural to how EMIS has been built in Nigeria.
+1 The infrastructure assumption is wrong
+Every system studied assumes a server room, desktops, stable power, and broadband will exist at the point of data entry. The Anambra
+audit shows that assumption fails almost completely below the state level: 0% of local-government nodes had a server, internet connection,
+UPS backup, or database backup capacity. Even at the state node — the best-resourced tier — 0% had working backup power or
+database backup.
+2 Digitization is mistaken for transformation
+The Badagry study is the clearest evidence of this: whether records were stored in a cabinet or on a computer made no statistically
+significant difference to processing efficiency. Buying computers and calling it an EMIS doesn't work if the underlying workflow — who
+enters what, when, and why — is untouched.
+3 The user is assumed to be technical
+In Osun State, EMIS was resourced reasonably well (over 80% of respondents confirmed adequate computers, storage and skilled EMIS
+officers) — and it still failed to reach its potential because only 40% of headteachers were confident enough to update their own school's
+data. The bottleneck moved from hardware to human confidence, and no paper in this set treats that as a design problem to solve rather
+than a training problem to schedule.
+4 Data collection is treated as separate from the job
+Every failing system in this research asks teachers and administrators to do their real work, and then separately report on it. Every
+improvement documented (DiPER's 35-point accuracy gain) came from collapsing that gap — making the record and the activity the same
+event.
+5 Adoption is mandated, not earned
+NEMIS, DiPER, and the state-level systems in Osun and Enugu are all top-down: a federal or state policy requires schools to use them.
+Every paper independently names "negative attitudes," "resistance to digital transition," or "lack of awareness" as a leading barrier. A tool
+nobody asked for, that nobody was consulted on, run by people who don't trust it — that combination shows up in five different states, five
+different research teams, five different years.
+The meta-lesson: Nigeria doesn't need another EMIS that tries to do what DiPER does, better. It needs a tool that gets 90% of DiPER's
+outcome with 0% of DiPER's infrastructure requirement and 0% of its mandate-dependency — something an individual teacher adopts this
+week because it makes their own Friday easier, with zero server, zero training session, and zero permission slip.
+NaijaSchool OS Blueprint • 5 / 15
+
+===== PAGE 6 / 15 =====
+S E C T I O N 4
+Product Philosophy — The Inversion Strategy
+Each failure pattern in Section 3 becomes a hard design law below. Nothing in the roadmap in Section 6 is allowed to violate one of these
+five laws — that discipline is what produces the order-of-magnitude gap between this product and everything reviewed in Section 2.
+Research finding 0% server/internet availability
+at LGA level (Anambra)
+Design law it forces
+Law 1 — No server, ever, at the school. The school-side app is a phone-based PWA. All "infrastructure" lives in
+the cloud (Supabase) and syncs opportunistically. If a school never gets fibre, the product still works.
+Cabinet→computer changed
+nothing (Badagry)
+Law 2 — Digitizing storage is not the product; redesigning the workflow is. Every screen must replace a
+specific paper form teachers already fill (attendance register, result sheet, ledger) rather than adding a new one.
+Only 40% of headteachers
+could self-serve (Osun)
+Law 3 — If it needs a training session, it's not simple enough. Every core action must be completable by
+someone who has never used the app before, in under three taps, with no manual.
+DiPER's gains came from
+activity-based capture
+Law 4 — Never ask for data that isn't already being produced. Attendance, scores, fees and lesson plans
+generate their own records the moment the teacher does the normal task — never a separate reporting screen.
+Mandated systems breed
+resistance (all 5 papers)
+Law 5 — Win the individual before you win the institution. A single teacher must get enough value alone (free
+result compiler, attendance tracker, PDF report cards) to adopt without asking permission. The school, then the
+district, then the state, opt in after seeing it work — never before.
+4.1 Naming the product
+Working name used throughout this document: NaijaSchool OS. Treat it as a placeholder — the important thing is that it reads as "the
+operating system a Nigerian school runs on," not "another EMIS," a category every stakeholder in this research already associates with
+failed, mandated, government software. Positioning language matters as much as code here.
+NaijaSchool OS Blueprint • 6 / 15
+
+===== PAGE 7 / 15 =====
+S E C T I O N 5
+Technical Blueprint — Architecture & Data Model
+This extends the stack you're already building on (Next.js App Router + Supabase, multi-tenant, mobile-first, offline-capable) rather than
+replacing it — the research above is essentially independent validation that this stack's core bets (no desktop dependency, phone-first,
+offline-tolerant) are the correct ones.
+•
+•
+•
+•
+•
+5.1 Non-negotiable architecture principles
+Offline-first, not offline-tolerant. The app must be fully usable with zero connectivity and sync later. This directly answers the
+Anambra infrastructure audit and the "constant power interruption" finding in Enugu — connectivity is the exception you design for, not
+the assumption you build on.
+PWA, installable, no app-store gate. Removes the biggest single-tap friction point for a teacher on a low-end Android with limited
+storage. Add-to-homescreen is the install flow.
+Multi-tenant from day one (already in your architecture) — one codebase, one Supabase project, Row-Level Security isolating each
+school's data. This is what lets you onboard school #2 through #200 without re-deploying anything.
+Progressive data richness. A school with only phones gets attendance + results + report cards. A school that later gets a front-desk
+PC or tablet unlocks fee tracking, inventory, and admin dashboards — same backend, no migration.
+SMS/USSD fallback for the zero-smartphone edge case. Not phase 1, but architected for: a head teacher without a smartphone can
+still confirm daily attendance counts via a short SMS code, syncing into the same Supabase tables.
+5.2 System layers (mapped directly against the DiPER framework)
+┌─────────────────────────────────────────────────────────────┐
+│ CAPTURE LAYER (on-device, works fully offline) │
+│ • Attendance → 1-tap class register (replaces paper sheet) │
+│ • Results → Score entry that IS the report card data │
+│ • Fees → Payment log (replaces exercise-book ledger) │
+│ • Lesson logs → Optional, auto-timestamped │
+│ Local store: IndexedDB / SQLite (via PWA) → sync queue │
+├─────────────────────────────────────────────────────────────┤
+│ SYNC & VALIDATION LAYER (Supabase Edge Functions) │
+│ • Queued writes replay on reconnect, conflict-resolved │
+│ • Rule checks (range, duplicate, cross-field) at sync time │
+│ • Anomaly flags (e.g. 100% attendance every day → review) │
+├─────────────────────────────────────────────────────────────┤
+│ DATA LAYER (Supabase Postgres, RLS per-tenant) │
+│ schools • classes • students • staff • attendance_logs │
+│ scores • terms • fee_transactions • audit_log │
+├─────────────────────────────────────────────────────────────┤
+│ ANALYTICS LAYER (materialized views + dashboards) │
+│ • Descriptive: attendance trend, at-risk-student flag │
+│ • School dashboard → District rollup → State rollup (later) │
+│ • Exportable, anonymized dataset for policy partners │
+└─────────────────────────────────────────────────────────────┘
+5.3 Minimum data model (extend your existing Supabase schema)
+Keep this small in Phase 1 — the temptation to model everything DiPER does (biometrics, RFID, payment gateways) is exactly the over-
+engineering that made prior systems infrastructure-dependent. Start with what a single classroom teacher touches every day.
+Table Core columns Replaces (paper artifact)
+schools id, name, tenant settings, state/LGA (for later rollups) —
+students id, school_id, class_id, name, guardian_contact Admission register
+attendance_logs student_id, date, status, recorded_by, synced_at Class attendance register
+scores Result/mark sheet
+NaijaSchool OS Blueprint • 7 / 15
+
+===== PAGE 8 / 15 =====
+student_id, subject, term, ca_score, exam_score,
+recorded_by
+fee_transactions student_id, amount, term, recorded_by, method Fee ledger book
+audit_log table, row_id, change, actor, timestamp Nothing — this is the trust layer none of the 5 papers
+had
+5.4 The "activity-based" trick, concretely
+Rule of thumb: if a teacher has to open a screen whose only purpose is "reporting," the design has failed Law 4. Every data point in the
+schema above is a side-effect of a screen the teacher was already going to open to do their actual job — taking attendance, entering a
+score, receipting a payment. Real-time institutional data is the exhaust from those actions, never a separate destination.
+NaijaSchool OS Blueprint • 8 / 15
+
+===== PAGE 9 / 15 =====
+S E C T I O N 6
+The Roadmap — Four Phases, One Classroom to One State
+Each phase is scoped to be shippable solo, and each phase's exit criterion is a real adoption number, not a feature checklist — because
+the research shows adoption, not feature count, is where every predecessor system actually died.
+PHASE 0 — Proof Target: 2–4 weeks
+Goal: One real classroom (your mother's school is the natural pilot) runs attendance + result compilation + PDF report cards entirely
+on this system for one full term, replacing the paper equivalent completely — not alongside it.
+•
+•
+•
+Ship the Capture Layer for one class: attendance + score entry + PDF export (you've already built the result-compiler core of
+this).
+Make offline queueing and sync bulletproof before anything else — this is Law 1, and it's the single feature every predecessor
+system got wrong.
+Instrument nothing except: did the teacher use it every day without being reminded? That's your only real metric at this stage.
+PHASE 1 — One School, Fully Target: 1–2 months
+Goal: Every teacher and the admin at one full school run on it — attendance, results, fee logging, and a first admin dashboard.
+•
+•
+•
+•
+Multi-class, multi-teacher rollout inside the one school (RLS already supports this).
+Admin dashboard: attendance trend, at-risk-student flags, term-over-term score comparison — the descriptive analytics tier from
+Section 5.2.
+Onboarding must pass the "no training session" test from Law 3: a teacher who's never seen it should reach a saved attendance
+record in under 60 seconds, unaided.
+Ship it as a genuinely useful free tool at this stage — this is where Law 5 (win the individual first) gets tested for real.
+PHASE 2 — Multi-School Network Target: 3–6 months
+Goal: 15–30 private/public primary and junior-secondary schools across Lagos, acquired teacher-first (see Section 7), running the
+platform.
+•
+•
+•
+•
+Cross-school benchmarking dashboard for proprietors running more than one school.
+Anomaly detection at sync time (Section 5.2) — this is where the 37% enrollment-inconsistency finding gets structurally
+addressed, because bad data gets flagged the moment it's entered, not 9 months later in a report.
+Paid tier introduced here (Section 8) — proprietors, not individual teachers, become the paying customer.
+SMS/USSD fallback path built and tested with at least one low-connectivity school, closing the gap the Anambra infrastructure
+audit identified.
+PHASE 3 — District & State Rollup Target: 6–18 months
+Goal: Anonymized, aggregated dashboards offered to an LGA or state education office — replicating what DiPER achieved (teacher
+redeployment insight, infrastructure-gap mapping, early-warning for at-risk students) but built on a network that opted in school-by-
+school, not by mandate.
+•
+This is the point where you can credibly approach SUBEB or a state ministry — not with a pitch, but with a working dataset
+already covering dozens of real schools.
+•
+Prescriptive analytics tier (Section 5.2): redeployment suggestions, priority-infrastructure lists — the exact outputs Ogun's DiPER
+used to relocate staff across 127 schools and prioritize 43 construction sites.
+NaijaSchool OS Blueprint • 9 / 15
+
+===== PAGE 10 / 15 =====
+•
+Government/NGO partnership revenue becomes viable here (Section 8), but only because Phase 0–2 already proved the model
+without needing that money.
+NaijaSchool OS Blueprint • 10 / 15
+
+===== PAGE 11 / 15 =====
+S E C T I O N 7
+Go-to-Market — Marketing, Distribution, Awareness
+Every paper in Section 2 names "negative attitudes" and "lack of awareness" as a top implementation barrier. That means distribution isn't
+a phase-2 concern here — it's as load-bearing as the offline sync engine. The strategy below is deliberately bottom-up, matching Law 5:
+win one teacher before you win one ministry.
+7.1 Beachhead: the free, individually-useful tool
+Lead with something a single teacher can use alone, with no school buy-in required: free result compilation + auto-generated, printable
+PDF report cards. This is the wedge — it solves a task every Nigerian teacher already does manually every term, it needs no admin
+approval, and it's already the strongest feature on your own CV. Everything else in the product is discovered after that first win.
+7.2 Distribution channels, ranked by cost-to-reach-first-100-users
+Channel Why it works here First move
+WhatsApp/
+Facebook teacher
+groups
+Nigerian teachers coordinate almost entirely through WhatsApp and
+Facebook groups organized by LGA, subject, or private-school network.
+This is the single highest-leverage channel for a tool that needs zero
+admin permission.
+Post the report-card generator as a genuinely
+free tool in 5–10 relevant groups, framed as
+"made this for my mum's school, works even
+with no data/light."
+Your mother's
+school as flagship
+case study
+A real, named, working deployment beats every cold pitch. Proprietors
+trust other proprietors' referrals far more than an unknown app.
+Document the before/after (paper report cards
+vs. this) with real screenshots/photos — this
+becomes your entire sales deck.
+Private school
+proprietor
+associations
+Bodies like NAPPS (National Association of Proprietors of Private
+Schools) and state-level equivalents are where proprietors already
+gather to compare tools and vendors.
+Attend one local chapter meeting with a
+working demo on your phone — not a slide
+deck.
+Build-in-public
+content (LinkedIn/X/
+Hashnode)
+You already publish developer content — turn the build itself into
+distribution. "Building the school app Nigeria's EMIS research says
+nobody built yet" is a strong, specific hook that also builds your own
+portfolio and freelance pipeline simultaneously.
+One post per phase milestone in Section 6,
+always with a real screen recording on a real
+low-end Android, never a polished desktop
+demo.
+Referral inside the
+product
+A proprietor running 2–3 schools is your highest-value single acquisition
+— get them, and you get every school under them.
+Once Phase 2 ships, add a one-tap "invite
+another school you run" flow for existing paying
+proprietors.
+State/LGA education
+office (last, not first)
+Every paper here shows top-down mandates breed resistance.
+Approach government after you have real usage data to show, not
+before — you're offering evidence, not asking for a pilot budget.
+Reserve this for Phase 3, and lead with the
+dataset, not the product.
+1.
+2.
+7.3 Messaging — what to say, and what to avoid
+Say this
+Not this
+"Works on the phone you already have. No data plan required to take
+attendance. No training needed — try it right now." Speaks directly to
+Laws 1 and 3.
+Avoid the word "EMIS" in any user-facing copy. Every paper here
+documents that stakeholders already associate that category with
+failed, mandated government software. Call it a result compiler, an
+attendance tool, a school app — never an "information system."
+7.4 Awareness cadence (first 90 days after Phase 1 ships)
+Week 1–2: Launch the free report-card tool in 5 WhatsApp/Facebook teacher groups + one LinkedIn/X build-in-public post.
+Week 3–4: Publish the "before/after" case study from your mother's school as a short write-up with real numbers (time saved per report
+card, errors caught).
+NaijaSchool OS Blueprint • 11 / 15
+
+===== PAGE 12 / 15 =====
+3.
+4.
+Week 5–8: Direct outreach to 10–15 private-school proprietors in your immediate network, offering free full-school onboarding in
+exchange for a testimonial.
+Week 9–12: First paid-tier conversion push among Phase 1/2 schools; attend one proprietor-association meeting with the by-then-live
+product.
+NaijaSchool OS Blueprint • 12 / 15
+
+===== PAGE 13 / 15 =====
+S E C T I O N 8
+Monetization & Sustainability
+Adenubi & Oyenuga's paper explicitly recommends institutionalizing EMIS budgets at a minimum 1.5% of education spending for long-term
+viability — useful context, but not a model a solo builder can wait on. The tiering below is designed so the product survives entirely on
+individual/school revenue long before any institutional money is needed.
+Tier Who Price logic What it includes
+Free Individual teacher ₦0 — this is the distribution engine, not a loss
+leader to feel guilty about
+Result compiler, PDF report cards, single-class
+attendance
+School One school, one
+proprietor/admin
+Flat monthly fee, priced against what a school
+already spends on a printed report-card
+booklet run
+Multi-class, admin dashboard, fee tracking, at-risk-
+student flags
+Network Proprietor running
+2+ schools
+Per-school discount at volume Cross-school benchmarking, single login across
+schools
+Institutional /
+Government
+LGA, state ministry,
+NGO partner
+Negotiated — dataset & dashboard licensing,
+not per-seat
+Anonymized rollups, GIS-style infrastructure-gap
+analytics, prescriptive redeployment reports (Phase
+3)
+Why this order matters: every paper in this research shows government-funded, top-down EMIS money arriving before product-market fit
+was proven, which is exactly why the money got spent on hardware that then sat unused (the Anambra audit). Revenue here is sequenced
+to arrive only after real usage already exists at each tier — money follows proof, not the other way around.
+NaijaSchool OS Blueprint • 13 / 15
+
+===== PAGE 14 / 15 =====
+S E C T I O N 9
+Risk Register
+Risk Teachers abandon it after
+week one
+Evidence it's real "Negative attitudes," "resistance to digital
+transition" — named in every paper
+Mitigation already built into this blueprint
+Law 5 + Phase 0 pilot in a real classroom before any wider rollout;
+free tier removes the risk of asking anyone to pay before trust
+exists
+Connectivity/power failure
+breaks trust in the data
+Enugu study ranks "constant power
+interruption" among top challenges; Anambra
+shows 0% UPS availability at LGA level
+Offline-first architecture (Law 1) + sync queue means outages
+never cause data loss, only delayed sync
+Admin/proprietor can't
+operate the dashboard
+Only 40% of Osun headteachers could self-
+serve
+Law 3 — every core flow user-tested for zero-training completion
+before shipping a phase
+Data quality drifts once
+volume grows
+37% enrollment inconsistency in self-reported
+figures nationally
+Sync-time validation + anomaly flags (Section 5.2), built in from
+Phase 2, not bolted on later
+Government partner tries to
+impose a top-down mandate
+mid-way
+Every failed system in this research was
+mandate-first
+Institutional tier is licensing on top of an already-adopted network
+(Phase 3), never a precondition for schools to join
+Solo-builder bandwidth Not a research finding — a practical constraint Phase scoping in Section 6 deliberately keeps each phase
+shippable alone; resist adding DiPER's biometric/RFID/payment-
+gateway scope until there's a team or clear paying demand for it
+NaijaSchool OS Blueprint • 14 / 15
+
+===== PAGE 15 / 15 =====
+S E C T I O N 1 0
+Source Papers
+All findings, statistics, and quotes referenced throughout this blueprint are drawn from the following five studies, supplied as source material for this
+analysis:
+1.
+2.
+3.
+4.
+5.
+Adenubi, A. O., & Oyenuga, A. O. (2025). A Framework for Real-Time Data-Driven Decision Making in Nigerian Public Basic School System.
+FUDMA Journal of Sciences, 9(7), 45–48.
+Ezeugbor, C. O., & Obiekwe, K. K. Adequacy of Infrastructural Facilities Required for the Implementation of Nigeria Education Management
+Information System Policy in Anambra State. Journal of the Nigerian Academy of Education, 14(2), 12–20.
+Adisa, O. (2026). Educational Management Information System: Its Relevance to Recording Keeping and Processing in Secondary Schools.
+Universal Education Journal of Teaching and Learning, 3(2), 162–170.
+Oparinde, O. R. Influence of Educational Management Information System (EMIS) on Effective Planning and Administration of Primary Schools in
+Osun State, Nigeria. Kwasu International Journal of Educational Management and Leadership, 2(1), 36–44.
+Ugwude, A. C., & Ugwude, D. I. (2020). Challenges of Education Management Information Systems on Primary School Administration in Nsukka
+Local Government Education Authority of Enugu State. National Journal of Educational Leadership, 5(2), 49–56.
+This blueprint is a synthesis and strategic interpretation of the above research, prepared for product-planning purposes. Figures and
+findings are paraphrased from the cited studies; consult the original papers for full methodology and statistical detail.
+NaijaSchool OS Blueprint • 15 / 15

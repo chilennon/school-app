@@ -1,30 +1,24 @@
 "use client";
 
-import {
-  ChevronRight,
-  Users,
-  ShieldCheck,
-  BookOpen,
-  School,
-  Settings,
-} from "lucide-react";
+import { ChevronRight, ShieldCheck, Settings } from "lucide-react";
 import type { AdminView } from "../../_lib/types";
 
-const ITEMS = [
-  { key: "teachers", label: "Teachers", Icon: Users },
-  { key: "admins", label: "Admins", Icon: ShieldCheck },
-  { key: "subjects", label: "Subjects", Icon: BookOpen },
-  { key: "classes", label: "Classes", Icon: School },
-  { key: "settings", label: "Settings", Icon: Settings },
-] as const;
-
 export function MoreTab({
+  isOwner,
   onNavigate,
   onLogout,
 }: {
+  isOwner: boolean;
   onNavigate: (v: AdminView) => void;
   onLogout: () => void;
 }) {
+  const items = [
+    ...(isOwner
+      ? [{ key: "admins" as const, label: "Admins", Icon: ShieldCheck }]
+      : []),
+    { key: "settings" as const, label: "Settings", Icon: Settings },
+  ];
+
   return (
     <div className="p-4 space-y-4 pb-24">
       <header className="pt-[env(safe-area-inset-top)]">
@@ -32,7 +26,7 @@ export function MoreTab({
       </header>
 
       <div className="space-y-2">
-        {ITEMS.map(({ key, label, Icon }) => (
+        {items.map(({ key, label, Icon }) => (
           <button
             key={key}
             onClick={() => onNavigate(key as AdminView)}

@@ -1,0 +1,532 @@
+
+
+===== PAGE 1 / 9 =====
+UEJTL: Universal Education Journal of Teaching and Learning
+E-ISSN: 3047-8235
+2026, Vol. 3, No. 2, pp. 162~170
+DOI: https://doi.org/10.63081/uejtl.v3i2.140  162
+Original Research
+Educational Management Information System: Its Relevance to
+Recording Keeping and Processing in Secondary Schools
+Olusumbo Adisa
+Department of Educational Management, University of Ibadan, Nigeria
+Article Info ABSTRACT
+Article history:
+Received 29 01, 2026
+Revised 02 12, 2026
+Accepted 04 01, 2026
+Keywords:
+Educational management
+information system,
+Information and
+communication technology,
+Students' information system,
+School management team,
+Record keeping,
+To adequately respond to frequent requests for information, school
+management needs an appropriate system and protocol to validate and
+promptly analyze collected data to support decision-making. The Educational
+Management Information System (EMIS) is a database designed to ensure that
+educational data are accurately analyzed, to inform decisions and suggest
+solutions. EMIS encapsulates ICT applications that facilitate data collection,
+assembly, storage, and analysis, thereby easing school management decisions.
+This study, therefore, investigated the relevance of EMIS to staff and student
+record keeping and processing in secondary schools. Using a descriptive
+research design, data were collected via questionnaire from 100 students
+across five secondary schools in Badagry, Lagos State, and analyzed using
+Chi-Square tests. The findings revealed no significant relationship between an
+administrator’s gender or department and their managerial skills in record
+keeping and processing. Similarly, the physical location for saving records
+(computer lab vs. cabinet) showed no significant effect on processing
+efficiency. Key challenges identified include but not limited to inadequate
+resources, poor infrastructure, and negative attitudes among stakeholders.
+The study concludes that while EMIS has the potential to improve
+management decisions in planning, staffing, and coordination, its effective
+implementation in the studied context is hindered by the aforementioned
+challenges. Practical recommendations include the urgent provision of EMIS
+infrastructure, targeted training for record officers, and initiatives to improve
+stakeholder attitudes towards systematic data management.
+This is an open-access article under the CC BY-SA license.
+Corresponding Author:
+Olusumbo Adisa
+Department of Educational Management, University of Ibadan
+Box 4078, University of Ibadan Post, Ibadan 200001, Oyo, Nigeria
+Email: belovedxum@gmail.com
+1. INTRODUCTION
+Globally, an Educational Management Information System (EMIS) is designed as a database to ensure
+that educational data are accurately processed and judiciously used for school management decision-making.
+It incorporates various ICT applications that aid the collection, assembly, storage, retrieval, and analysis of
+data. The Educational Management Information System has lots of ICT applications that aid the collection,
+assembly, storage, retrieval of information, and analysis of data for decision making (Adhikari et al., 2024;
+Iwogbe et al., 2025; Yang & Zhang, 2022). However, in Nigeria, as a peculiar nation, EMIS is playing a
+minimal role in aiding educational decisions, both at the Federal, State, and even at Local Government
+Educational Districts. Although the planning of educational programs usually begins with the Educational
+Journal homepage: https://journal.uepublisher.com/uejtl/index.php/home
+
+===== PAGE 2 / 9 =====
+Univ Edu J of Teaching and Learning E-ISSN: 3047-8235 
+163
+Management Information System, along the way, the planners deviate from it; they mostly use it because it
+plays a significant role in strategic planning at the state level.
+It is obvious that information usually serves as the basis of decisions for management in planning and
+evaluating in educational settings. In processing, EMIS incorporates different stakeholders in all sectors for
+effectiveness and efficiency to access its methods of teaching, challenges, needs, functions, and evaluate its
+performance. An ideal system for information analysis will not only collect, assemble, store, and process, but
+also work hand-in-hand to help with decision-making and evaluation in school management. The effectiveness
+and efficiency are considered in accordance with UNESCO (2015); there is an algorithm for solving problems
+in order to suggest an ideal solution. This has called for the usage of IT in school management to increase
+efficiency and effectiveness. This aids the growth of the Management Information System (MIS), whose main
+aim is to develop the school management; when educational data is collected and stored, there is a need to
+analyze it effectively. At the integration stage, the MIS is highly valued.
+Obviously, keeping a record has to do with monitoring and putting down activities for historical
+purposes, which could cut across finance, personal information, or keeping documents in a file, and so on. In
+time past, keeping records referred to the management of records that are no longer needed but need to be kept,
+that is, they are mainly “semi-current” records that are stored in cabinets in the office. Presently, the usage is
+more of the entire life cycle of a record from the creation point until disposal. These school records are official
+books, documents, and files containing crucial and essential information of events and actions that are
+preserved or kept in the office for usage and information retrieval when needed.
+Record management in secondary school, as it is in any organization, is more complex as the process
+involves all personnel within the school, yet much of the work of record keeping is handled by the head of
+school along with other administrative works; keeping of records is mostly done manually, and the process of
+retrieval is not easy. To empirically investigate the factors influencing record-keeping practices within the
+framework of an Educational Management Information System (EMIS), the following null hypotheses were
+tested:
+H01: Gender has no significant implication on managerial skills for record keeping and processing.
+H02: The department that the data administrator belongs to has no significant effect on the record keeping and
+processing.
+H03: Saving of information in the computer laboratory or cabinet has no significant effect on the processing of
+student records.
+2. LITERATURE REVIEW
+Effective management of student and staff records is fundamental to the administration of secondary
+schools. In the digital age, this task is increasingly supported by Education Management Information Systems
+(EMIS), which are designed to systematize data collection, storage, processing, and dissemination to inform
+decision-making (UNESCO, 2003). While the theoretical benefits of EMIS for planning and policy at national
+and global levels are well-documented (UNESCO, 2014; DepEd, 2016), significant challenges persist in its
+practical implementation, particularly at the local institutional level. This literature review, therefore, examines
+the concept and objectives of EMIS, explores its intersection with Student Information Systems (SIS), and
+critically analyses the documented challenges of implementation. A specific focus is placed on identifying gaps
+in the literature concerning the contextual socio-technical barriers to EMIS adoption in local settings, such as
+those in Nigeria's Badagry Region of Lagos State, which forms the core investigative gap for this study.
+2.1 Concept of EMIS
+An Education Management Information System (EMIS) is a structured assembly of information
+services dedicated to supporting educational leadership (Asio et al., 2022; Rahmatullah & Mubarok, 2025). Its
+core function involves systematically gathering, storing, processing, and ultimately disseminating data to
+inform strategic planning and administrative decisions. The system is built on a framework of integrated
+elements, including inputs, operational processes, outputs, and feedback mechanisms, all working in concert
+to achieve defined educational objectives. Modern EMIS solutions often combine principles of systems theory
+with computer technology to manage vast quantities of data from the education sector, making it easily
+accessible for analysis and reporting (Ojeka et al., 2025). By providing managers with reliable and up-to-date
+information, an EMIS becomes an indispensable tool for enhancing decision-making, project implementation,
+and overall management efficacy. Therefore, competency in operating or overseeing such systems, regardless
+of their technological sophistication, is a fundamental requirement for today's educational professionals
+(Villanueva, 2003).
+According to Hider et al (2018) and Jallow & Sanner (2023), the landscaping of EMIS is an important
+achievement. When a program starts with EMIS, very little basic knowledge of the application and a
+cumbersome central main system for data collation are needed. UNESCO sees EMIS as the basis of planning,
+Educational Management Information… (Adisa)
+
+===== PAGE 3 / 9 =====
+164
+ ISSN: 3047-8235
+managing, and evaluating an educational system; during this process, EMIS is mandated to communicate all
+stakeholders on its state of the sector, its efficiency and effectiveness, methods, operations, challenges, and
+needs. An ideal IT should not only collate, store, and process data but also help in analysis for educational
+managers for policy formulation, management, and evaluation.
+The objectives of data were chosen based on strategies and policy decisions; likewise, some nations’
+educational data are agreed upon by the school managers' surveys. Unfortunately, many are not improving on
+the survey done. EMIS is the Management Information System (MIS) setup for managing information on the
+educational system. The repository for the collection of data, procedures, analysis, and results of educational
+data includes students, schools, staff, and teachers (Carrizo et al., 2003). Educational System Information
+System is usually used to create performance indicators on the educational system and to manage the
+distribution and allocation of education resources and services to appropriate quarters (UNESCO, 2003).
+Despite significant investment in Education Management Information Systems (EMIS) over decades,
+there is still little consensus on best practices or the factors that determine a system's efficacy. The World Bank
+alone has funded more than 40 projects with an EMIS component in some years back (infoDev, 2005; Haiyan
+& Herstein, 2003). Consequently, donors and policymakers are increasingly questioning the return on these
+investments and whether the systems are adaptable to evolving information needs. Much of the available
+performance data is informal and derived from project reports, which frequently cite common issues such as
+prolonged setup times, a lack of internal expertise to use the data effectively, and challenges in maintaining the
+systems over the long term.
+2.2 Objectives of EMIS
+Below are some of the objectives as stated by UNESCO 2003:
+i. to help the development of data analysis, storage for reliable and timely data for the educational manager.
+ii. to help in coordination and improve efforts in the collection, processing, storage, and communication of data
+for educational managers
+iii. to improve and promote relevant information for various organizations and individuals.
+iv. It streamlines flows of information for school managers by avoiding duplication and filling information
+gaps.
+v. It generates information that can formulate dialogue for the development of the educational system.
+A comprehensive framework for EMIS development outlines a cyclical process spanning from the
+definition of national educational goals and data requirements to the collection, processing, dissemination, and
+final evaluation of educational data (Ross & UNESCO, 2005).
+2.3 Student information system (SIS) and EMIS
+Student Information System (SIS) is a dedicated educational software that is designed to manage
+students' information only. It is designed to allow data input on assessments, schedules, attendance, and other
+student-related data that the school manager needs to know about.
+Connal (2005) asserted that the formal recognition of data administrator departments is crucial for
+establishing the organizational context in which research groups function. The study found that departments
+employing data administrators reported that higher-level principles of practice were universally applicable
+across research disciplines and institutions. These principles, which guide the effective management of
+scientific laboratories and work groups, are designed to foster clear communication between current and future
+research participants through the maintenance of stored records.
+According to Valery (2020), a few of the services rendered that help the EMIS are as follows:
+1. Reporting of student information and its maintenance.
+2. Attending to questions from intending students
+3. Admission process of new students
+4. Online scheduling of a new student and enrolment.
+5. Aids the student's financial record
+6. Creation of class and teacher schedules
+7. Recording of the academic performance of the student, including grades and progression
+8. Attendance maintenance
+While the server-based model has defined most Student Information Systems (SIS), a significant shift
+towards web-based platforms has been underway since the late 1990s. This trend is now accelerating as schools
+and universities progressively replace or modernize their legacy systems, moving away from centralized
+servers accessed by client software to more flexible, online solutions. This transition, however, introduces
+critical concerns regarding the security and privacy of sensitive student data in the digital age (Langsdale,
+2014).
+Univ Edu J of Teaching and Learning, (2026), Vol. 3, No. 2: 162-170
+
+===== PAGE 4 / 9 =====
+Univ Edu J of Teaching and Learning E-ISSN: 3047-8235 
+165
+2.4 Contextual challenges in EMIS implementation
+While the architectural framework of EMIS is standardized, its implementation is highly context-
+dependent. Global reports and studies from similar developing regions highlight recurrent barriers that resonate
+with the Nigerian context. These include chronic inadequate funding and infrastructural deficits (e.g., lack of
+reliable electricity, hardware, and internet connectivity), which form a primary technical barrier (Haiyan &
+Herstein, 2003; infoDev, 2005). Furthermore, human capacity and attitudinal factors pose significant socio-
+technical challenges. This encompasses a lack of technical expertise among administrators, resistance to change
+from staff accustomed to manual systems, and poor data discipline among stakeholders (De Silva, 2015). In
+the specific context of Nigerian secondary schools, challenges such as poor maintenance culture, insufficient
+training, and the manual overload on school heads complicate the integration of a digital EMIS (Olibie, 2010).
+This study posits that in settings like Badagry, these contextual challenges, attitudinal, infrastructural, and
+systemic, may have a more substantial impact on record-keeping efficacy than the demographic or
+departmental affiliations of administrators, a premise tested in the subsequent methodology.
+2.5 Education information and changes in educational management
+The complex nature of the Nigerian education system compels school managers to continually adapt
+and assume new roles in the implementation of government policies. Historically, the core responsibilities of
+the School Management Team (SMT) have focused on instructional leadership, enhancing teacher capacity,
+and improving student academic outcomes (Olibie, 2010). Thus, due to changes in all educational settings, the
+roles of all SMT were expanded beyond the initial operations. Below are some of the additional responsibilities:
+(1) SMT is now to manage all academic and administrative activities of the school. This includes educational
+planning, assigning teachers to classes as scheduled in the timetable, procurement of teaching aids, and
+on-the-job training for staff.
+(2) Monitoring and evaluation of staff and learners' performance using the National Policy on Education
+guidelines as a yardstick. This will later serve as a guide to staff and learners' development plan.
+(3) Maintenance of school plants.
+(4) SMTs are expected to source additional educational funds from external bodies, such as the town (well-
+wishers, immediate community, alumni, etc); they must not levy any charges on learners in monetary
+matters. Because the imprest from the government is meager and delayed.
+(5) In this IT age, SMT must provide continuous training for teachers and non-teaching staff for the holistic
+development of the school.
+Yet the use of laboratory and cabinet for record keeping and processing cannot be overemphasized in
+the study of Educational Management Information System (EMIS) (Cuartero & Role, 2018). Hua & Herstein
+(2003) came up with the opinion that Laboratory Information Management Systems (LIMS) and Electronic
+Laboratory Notebooks (ELNs) are the two major types of tools that have been developed. The institution has
+embraced these systems due, in part, to intellectual property concerns. LIMS and ELN systems have been
+extremely helpful in managing laboratories and electronic information to generate a great deal of data and use
+standardized procedures, which is often the case in institutional and clinical labs and school quality control
+facilities.
+2.6 Changes in educational management
+Educational change in Nigeria is intrinsically linked to systemic reforms. As Francis (2012) suggests,
+the very concept of "change" indicates a prevailing dissatisfaction with the status quo in the nation's education
+sector. Consequently, change can be understood as the process of rectifying deficiencies and amending
+elements within a system that are deemed ineffective or undesirable. This represents a fundamental paradigm
+shift from established methods and ideologies. Theron (2007) outlines a structured five-stage model for this
+process: it commences with diagnosis, an analysis of the current policy's strengths and weaknesses; followed
+by planning, where data from the diagnosis informs the search for alternatives; implementation, which enacts
+the change; stabilisation, where the new policy is monitored and integrated into the school system; and finally
+evaluation, to assess whether the policy's objectives have been met.
+The Nigerian education system is significantly influenced by the country's dynamic political and
+socio-economic landscape. Positioned as the second tier of education, the secondary level is widely regarded
+as a foundational element for creating national policies designed to foster societal growth and development
+(Espero, 2024). In response, the Ministry of Education formulates and guides its policies to align with
+international and national benchmarks. These include United Nations educational programmes, the Millennium
+Development Goals (MDGs) focusing on universal and equitable education, and the standards for quality
+education outlined in the National Economic Empowerment and Development Strategy (Education Reform
+Act, 2007).
+Educational Management Information… (Adisa)
+
+===== PAGE 5 / 9 =====
+166
+ ISSN: 3047-8235
+Contemporary education systems are characterized by growing complexity and escalating demands at
+every level. Research indicates that when stakeholders engage directly and substantively in educational
+decision-making, it correlates with enhanced quality. This evidence has spurred increased interest in
+decentralizing authority and fostering community involvement, strategies seen as vital for making educational
+systems more responsive and adaptive to the needs they serve (Singh et al., 2024; Virvidaki et al., 2024).
+The process of effective teaching and learning is embedded within a broader administrative and socio-
+economic framework. The role of educational management is to support educators and establish the conditions
+essential for enhancing quality (World Bank, 2014). For instance, advancing literacy can be a pivotal factor in
+disrupting intergenerational poverty in disadvantaged communities. Furthermore, the caliber of decisions made
+by officials at the district, regional, and national levels has a direct and profound influence on the realities of
+the classroom and the overall school environment.
+3. METHODOLOGY
+The study adopted a descriptive survey design. The population comprised students from public
+secondary schools within the Badagry Local Government Area of Lagos State, Nigeria. Badagry was selected
+as the research location because, as a semi-urban locality with a mix of government schools, it presents a typical
+case of the infrastructural and administrative challenges common to many public secondary schools across
+Nigeria, particularly in terms of resource allocation and record-keeping practices.
+The study involved five (5) selected schools from the Local Educational District of Badagry zone. A
+total sample of 100 students (20 from each school) was used. This sample size was deemed adequate for an
+initial exploratory and descriptive study of this nature, aiming to identify key trends and challenges rather than
+to generalize it to the entire national population. The students were selected using stratified random sampling
+techniques, and each of them responded to the items on the questionnaire, which was distributed to them.
+The instrument used to collect data was a questionnaire containing items based on the research
+hypotheses. The questionnaire consisted of two (2) sections. Section A collected personal information (e.g.,
+Gender, Age, Department). Section B contained items that required responses on a four-point Likert scale: 'SA'
+for Strongly Agreed, 'A' for Agreed, 'D' for Disagreed, and 'SD' for Strongly Disagreed. A key limitation
+acknowledged is that the sample, while providing valuable insights, is not statistically representative of all
+Nigerian secondary schools. The findings are therefore interpreted as indicative of the conditions within the
+studied context of Badagry.
+The results were analyzed using Cronbach's Alpha, in which the corresponding even numbers and
+corresponding odd numbers were selected separately and correlated using a 0.87 high positive correlation. This
+ensured a highly positive reliability of the instrument. Data obtained from the respondents were analyzed using
+the mean to answer the research questions, while Chi-Square was used to test the hypotheses at a 0.05 level of
+significance.
+4. RESULTS
+Based on the data presented, the results of the tests for all three null hypotheses indicate that they are
+all accepted because the probability values (p-values) exceed the significance threshold of 0.05. In Table 1, the
+results of the chi-square test between gender and managerial skills in data recording and processing show a χ²
+value of 7.817 with df = 1 and p = 0.452, so H01 is accepted, meaning that gender has no significant implication
+on managerial skills for data recording and processing. Furthermore, Table 2 presents the results of the chi-
+square test between the department where data administrators work and its influence on data recording and
+processing; the results show χ² = 11.207, df = 9, and p = 0.262, so H02 is accepted, indicating that there is no
+significant influence of the department on these processes. Finally, Table 3 shows the results of the chi-square
+test between the information storage location (computer lab or cabinet) and student data processing, namely χ²
+= 5.347, df = 8, and p = 0.720; thus, H03 is accepted, meaning that storing information in a computer lab or in
+a cabinet does not have a significant effect on student data processing. Thus, overall, the three independent
+variables tested were found to be statistically insignificant at the 5% level.
+Table 1. Result of chi-square between gender and managerial skills for record keeping and processing
+Variables χ² df P-value Decision
+Gender 7.817 1 0.452 Not Significant
+Table 2. Result of chi-square between the department that has a data administrator and the effect on the
+record keeping and processing
+Variables χ² df P-value Decision
+Department that has a data administrator 11.207 9 0.262 Not Significant
+Univ Edu J of Teaching and Learning, (2026), Vol. 3, No. 2: 162-170
+
+===== PAGE 6 / 9 =====
+Univ Edu J of Teaching and Learning E-ISSN: 3047-8235 
+167
+Table 3. Result of chi-square between the saving of information in the computer laboratory or the cabinet
+and the effect on the processing of students' records
+Variables χ² df P-value Decision
+Saving of information in the computer laboratory 5.347 8 0.720 Not Significant
+5. DISCUSSION
+The findings of this study, which showed no significant effects for gender, departmental affiliation,
+or storage location on record-keeping efficacy, provide important insights into the contextual challenges of
+implementing an Education Management Information System (EMIS) in secondary schools. These results are
+best understood not as evidence that these factors are irrelevant, but as indicators that more fundamental
+systemic barriers may be overriding their influence in settings like Badagry. From a systems theory perspective
+(Von Bertalanffy, 1968; 1972), an EMIS functions as an open system where inputs (staff attributes, storage
+methods) are mediated by environmental factors such as infrastructure, leadership support, and organizational
+culture. When these macro-level factors are severely constrained, the influence of micro-level variables like
+gender or department becomes statistically undetectable. Thus, the non-significant findings do not imply a true
+zero effect but rather a suppression effect caused by more dominant, systemic deficiencies.
+The non-significant role of gender (H01) aligns with modern management theory that emphasizes
+competency over gender. However, it somewhat contrasts with studies highlighting how gender status beliefs
+can shape workplace dynamics and authority (Nkata, 2020). The findings of this study suggest that, in the
+specific context of school record-keeping, a task often perceived as administrative rather than leadership-
+oriented, gender stereotypes may have less sway. This can be explained through role congruity theory (Eagly
+& Karau, 2002): gender-based expectations are strongest in roles associated with authority or decision-making.
+Record-keeping, being a procedural and support-oriented function, falls outside the typical arena where gender
+bias operates. Consequently, the absence of a gender effect is theoretically coherent—routine administrative
+tasks may serve as an equalizer. Furthermore, this finding challenges the assumption that gender inequality is
+universal across all job functions within educational institutions. The practical implication is that EMIS training
+and role assignment should be merit-based, opening opportunities to all qualified staff and focusing on skill
+development irrespective of gender.
+The finding that the data administrator's department (H02) had no significant effect resonates with
+Thorn's (2001) assertion that data administration principles are universal across disciplines. This supports the
+argument for treating educational data management as a centralized, institutional function rather than a duty
+relegated to a specific academic department. However, a deeper interpretation emerges when considering
+organizational socialization theory (Van Maanen & Schein, 1979). The non-significant result suggests that
+departmental cultures—whether science, arts, or administration—do not meaningfully shape how individuals
+perform data processing tasks. This implies that record-keeping practices are likely governed by a weak
+organizational script, meaning no department has developed a distinctive or superior approach. While this
+finding refutes the hypothesis of departmental variation, it simultaneously signals a lack of specialized
+expertise anywhere in the school, which is itself a problem. The absence of departmental effect does not mean
+all departments perform well; rather, they perform equally poorly or moderately. The key implication for EMIS
+implementation is the need for clear institutional policies that define data stewardship roles and protocols that
+transcend departmental boundaries, ensuring consistency and accountability.
+Similarly, the non-significant result for storage location (H03) offers a critical lesson. While tools like
+Laboratory Information Management Systems (LIMS) are recognized for managing standardized data (Hua &
+Herstein, 2003; Davenport, 2004), findings imply that simply moving records from a cabinet to a computer lab
+is insufficient. The underlying processes and accessibility are paramount. This highlights a common pitfall in
+EMIS adoption: mistaking digitization for effective information management. Extending this finding with
+sociotechnical systems theory (Trist & Bamforth, 1951), any technological change (e.g., shifting storage to a
+computer lab) must be accompanied by corresponding changes in work processes, skills, and incentives. When
+storage location alone is altered without redesigning retrieval protocols, data entry standards, or staff digital
+literacy, no performance improvement materializes. Moreover, the non-significant result may reflect the reality
+that computers in the lab were either non-functional, not networked, or used intermittently—common issues in
+resource-constrained school settings. Therefore, the finding warns against hardware-centric interventions. It
+aligns with the concept of "technology as fetish," where the presence of equipment is mistaken for effective
+use. The practical recommendation is that schools must invest in workflow redesign and user training alongside
+any technological upgrade.
+Collectively, these findings shift the focus from who manages the records or where they are kept to
+how the entire system is supported. The primary constraints to effective record-keeping and, by extension,
+successful EMIS implementation in this context appear to be the broader challenges identified in the problem
+statement: inadequate resources, poor infrastructure, and negative stakeholder attitudes. This conclusion is
+Educational Management Information… (Adisa)
+
+===== PAGE 7 / 9 =====
+168
+ ISSN: 3047-8235
+consistent with contingency theory (Donaldson, 2001), which argues that the effectiveness of any management
+practice—including EMIS—depends on its fit with the external environment. In a low-resource environment
+with irregular electricity, limited computers, and low data literacy, even the best-designed gender-neutral
+policies or departmental assignments will produce null effects. Thus, the study's findings are not disappointing
+but diagnostic: they reveal that the EMIS bottleneck lies at the infrastructural and motivational level, not at the
+demographic or procedural level. Furthermore, the results contribute to the growing literature on EMIS failure
+in developing countries, suggesting that replication of technical solutions without addressing basic conditions
+leads to statistically non-significant outcomes, which is itself a significant finding for policymakers. Therefore,
+for EMIS to be relevant, interventions must first address these foundational issues. Policy must mandate and
+fund basic ICT infrastructure. School management must champion a culture of data discipline, and continuous,
+practical training must be provided for all staff involved in data handling. Future research should employ
+qualitative methods or mixed designs to uncover the specific mechanisms—such as power outages, lack of
+software training, or absent supervisory enforcement—that suppress the effects of gender, department, and
+storage location.
+6. LIMITATIONS AND FUTURE RESEARCH
+This study's findings are limited by its sample size and confinement to one local government area.
+The use of student perceptions to gauge managerial skill is another limitation, as direct assessment of
+administrative staff would provide more direct evidence. Future research should involve larger, multi-site
+samples and mixed-methods approaches, incorporating interviews with school administrators to gain deeper
+insight into the operational barriers to EMIS adoption.
+7. CONCLUSION AND RECOMMENDATIONS
+7.1 Conclusion
+This study investigated the relevance of the Educational Management Information System (EMIS) to
+record keeping and processing in secondary schools in Badagry, Lagos State, Nigeria. The findings indicate
+that while EMIS is conceptually designed to streamline data management and aid decision-making, its practical
+relevance in the studied context is currently constrained by more fundamental systemic barriers. The analysis
+revealed that factors such as the gender or departmental affiliation of personnel and the physical storage
+location of records did not significantly impact the efficacy of record processing. Instead, the relevance and
+potential of EMIS are primarily mediated by overarching challenges, including inadequate infrastructural
+resources, lack of procedural manuals, and insufficient technical training and support for staff. Therefore, it is
+concluded that for EMIS to become truly relevant and operational in these schools, strategic planners must first
+address these foundational issues of infrastructure, clear policy-guided procedures, and human capacity
+development, rather than focusing on administrator demographics or simple digitization of storage.
+7.2 Recommendations
+As it's obvious that information is the basis of management, planning, and evaluation of educational
+system, and these can be achieved with a total understanding of the concept of EMIS. The following are my
+recommendations:
+(1) That EMIS should always communicate all stakeholders about its methodology, operations, strengths,
+weaknesses, opportunities, and threats (SWOT)
+(2) Set a time-lag for recording for retention and disposal, since closing of full files and opening of new ones
+will not help the matter.
+(3) (4) The filling manual should be designed for all record officers to avoid boredom while working.
+For record safety, it should be saved in the computer. In the IT age, cloud storage has minimized the loss
+of documents. There is a need to key into this to avoid littering offices with files.
+(5) An ideal, serene, and air-conditioned office is better to house files or computer systems to prevent dust
+and the growth of unwanted organisms in the storage.
+(6) A skilled record officer should be employed, or existing officers should be equipped with the needed
+training to meet the record-keeping demands.
+ACKNOWLEDGEMENTS
+I am grateful to Professor Olumide Abiodun Ayeni, my Supervisor and school father at the
+postgraduate level. I acknowledge Dr. Timilehin Omoniyi, a fine consultant who initiated this study and made
+it a big success, and to the great technical staff, Mr. Emmanuel Ademuyiwa and Mr. Samuel Adebayo, for their
+inputs to make this a success.
+Univ Edu J of Teaching and Learning, (2026), Vol. 3, No. 2: 162-170
+
+===== PAGE 8 / 9 =====
+Univ Edu J of Teaching and Learning E-ISSN: 3047-8235 
+169
+DECLARATION OF INTEREST
+There are no conflicts of interest.
+RESEARCH FUNDING
+This research did not receive any financial support.
+ETHICAL STATEMENT
+Not applicable.
+AI USE STATEMENT
+“The authors declare that the generative artificial intelligence (AI) tool [ChatGPT, Google Scholar]
+was used exclusively for language editing and/or grammatical improvement. The use of AI did not influence
+the scientific content, study design, data analysis, data interpretation, results, or conclusions of the manuscript.
+Full responsibility for the content remains with the authors.”
+REFERENCES
+Adhikari, N. P., Budhathoki, J. K., & Adhikari, S. (2024). Management Information Systems' Role and Effects on School Administration:
+A Review. Perspectives on Higher Education, 14, 81-94. https://doi.org/10.3126/phe.v14i1.76569
+Asio, J. M. R., Leva, E. F., Lucero, L. C., & Cabrera, W. C. (2022). Education Management Information System (EMIS) and its
+implications to educational policy: a mini-review. International Journal of Multidisciplinary: Applied Business and Education
+Research, 3(8), 1389-1398. http://dx.doi.org/10.11594/ijmaber.03.08.01
+Carrizo, L., Sauvageot, C., & Bella, N. (2003): Information tools for the preparation and monitoring of education plans. UNESCO.
+Connal, C. (2005): NFE-MIS handbook: Developing a sub-national non-formal education management information system.
+Cuartero, O. L., & Role, M. (2018): Educational management information system (EMIS) in public elementary school. International
+Journal of Scientific Research and Management, 6(6), 452–462. https://doi.org/10.18535/ijsrm/v6i6.el012
+Davenport, B. L. (Ed.): (2004): Data management and laboratory notebooks: Making the right moves. Howard Hughes Medical Institute.
+De Silva, S. (2015): The impact of education management information systems: The case of Afghanistan. World Bank.
+Department of Education (DepEd): (2016): DepEd Order No. 52, s. 2016: Implementing guidelines on the direct release of maintenance
+and other operating expenses (MOOE) allocations of schools to the respective implementing units.
+Donaldson, L. (2001) The contingency theory of organizations. Sage Publications, Inc., New York.
+http://dx.doi.org/10.4135/9781452229249
+Eagly, A. H., & Karau, S. J. (2002). Role congruity theory of prejudice toward female leaders. Psychological review, 109(3), 573.
+https://doi.org/10.1037//0033-295X.109.3.573
+Education (Pupil Records and Reporting) (Transitional) Regulations (Northern Ireland), Statutory Rule No. 43. (2007):
+Espero, M. G. G. (2024): Readiness on information system management: Its relationship on records management in schools. International
+Journal of Research and Innovation in Social Science, 8(5), 123–134. https://etcor.org/storage/iJOINED/Vol.%20III(2),%20292-
+308.pdf
+Francis, B. (2012): Enhancing quality education in Nigerian unity schools through effective supervision in a changing environment.
+European Scientific Journal, 7(31), 70. https://doi.org/10.5901/mjss.2012.v3n14p57
+Haiyan, H., & Herstein, J. (2003): Education management information system (EMIS): Integrated data and information systems and their
+implications in educational management. Paper presented at the Annual Conference of the Comparative and International Education
+Society, New Orleans, LA, United States.
+Hider, S. L., Bucknall, M., Cooke, K., Cooke, K., Finney, A. G., Goddin, D., ... & Chew-Graham, C. A. (2018). The INCLUDE study:
+INtegrating and improving Care for patients with infLammatory rheUmatological DisordErs in the community; identifying
+multimorbidity: protocol for a pilot randomized controlled trial. Journal of Comorbidity, 8(1), 2235042X18792373.
+https://doi.org/10.1177/2235042X18792373
+Hua, H., & Herstein, J. (2003). Education management information system (EMIS): Integrated data and information systems and their
+implications in educational management. Paper presented at the Annual Conference of Comparative and International Education
+Society, New Orleans, LA.
+infoDev. (2005): Knowledge maps: ICTs in education. World Bank. https://openknowledge.worldbank.org/handle/10986/10332
+Iwogbe, E. C., Chigbo-Obasi, T. U., Ezeanwu, M. C., & Obona, E. E. (2025). Educational Management Information System (Emis), A
+strategic tool for promoting primary education administration: Emerging challenges and sustainable solutions. Int'l Journal of
+Education Research and Scientific Development, 8(1), 1-10. https://doi.org/10.59795/ijersd.v8i1.231
+Jallow, S. A. & Sanner, T. A. (2023). The Role of EMIS in Improving Equitable Service Delivery in Education: A Case Study from the
+Gambia. In In: Jones, M.R., Mukherjee, A.S., Thapa, D., Zheng, Y. (eds) After Latour: Globalisation, Inequity and Climate Change.
+IFIPJWC 2023. IFIP Advances in Information and Communication Technology, 696. Springer, Cham. https://doi.org/10.1007/978-
+3-031-50154-8_12
+Langsdale, G. (2014): What it takes to keep student information safe in the digital age. The Evolution.
+http://www.evolution.com/opinions/audio-takes-student-information-safe-digital-age/
+Nkata, A. S. (2020): Education management information system for tracking students’ academic progress in secondary schools: A case
+of Arusha region (Doctoral dissertation, NM-AIST).
+Ojeka, J. A., Edeh, S. O., & John-Ojeka, M. K. (2025). Educational management information system and universities'effectiveness in
+Cross River State, Nigeria. Global Journal of Educational Research, 24(3). https://doi.org/10.4314/gjedr.v24i3.12
+Olibie, E. I. (2010): Effects of computer-assisted language learning on students' achievement in English language grammar (Unpublished
+doctoral dissertation): Nnamdi Azikiwe University, Awka.
+Rahmatullah, R., & Mubarok, H. (2025). The Urgency of Education Management Information System in Managing Educational Institution
+Data. International Journal of Management, Innovation, and Education, 3(1), 013-017. https://doi.org/10.33751/ijmie.v3i1.12738
+Ross, K. N., & UNESCO. (2005): Education management information systems (EMIS): A guide for planners. UNESCO International
+Institute for Educational Planning.
+Educational Management Information… (Adisa)
+
+===== PAGE 9 / 9 =====
+170
+ ISSN: 3047-8235
+Singh, A., Sinha, S., Verma, S. B., & Singh, B. K. (2024). Benefits and challenges of decentralization in education for resource
+optimization and improved performance. In Avasthi, A., Tripathi, S. L., Dhanda, N. & Verma, S. B. Decentralized Systems and
+Distributed Computing, 163-187. https://doi.org/10.1002/9781394205127.ch8
+Theron, A. M. (2007): Change in educational organisations. In P. C. Van der Westhuizen (Ed.), Schools as organisation. Van Schaik
+Publishers.
+Thorn, C. A. (2001). Knowledge management for educational information systems. Education policy analysis archives, 9, 47-47.
+https://doi.org/10.14507/epaa.v9n47.2001
+Trist, E., & Bamforth, K. (1951). Some Social and Psychological Consequences of the Longwall Method of Coal-Getting. Human
+Relations, 4, 3-38. https://doi.org/10.1177/001872675100400101
+UNESCO. (2003): Education management information system (EMIS) and the formulation of education for all (EFA) plan of action,
+2002–2015.
+UNESCO. (2015): Education for all global monitoring report: The quality imperative. UNESCO Publishing.
+UNESCO. (2014): Regional report on progress towards education for all in Asia and the Pacific. http://www.unesco.org
+Valery, W. (2020): An appraisal of the use of education management information system (EMIS) and its effects in the effective
+management of secondary schools in the West Region of Cameroon. International Journal of Education and Social Science
+Research, 3.
+Van Maanen, J. and Schein, E.H. (1979) Toward of Theory of Organizational Socialization. Research in Organizational Behavior, 1, 209-
+264.
+Villanueva, C. C. (2003): Education management information system (EMIS) and the formulation of education for all (EFA) plan of action,
+2002–2015. UNESCO.
+Virvidaki, A., Milakis, E. D., Argyrakou, C. C., Vasilara, A., Bampouli, I., & Charalampidis, G. (2024). Decentralization dynamics and
+their impact on special education: A systematic literature review. International Journal of Early Childhood Special Education,
+16(1), 10-48047. https://doi.org/10.48047/intjecse/v16i1.16
+Von Bertalanffy, L. (1968). General system theory: foundations, development. New York: George Braziller.
+Von Bertalanffy, L. (1972). The history and status of general systems theory. Academy of Management Journal, 15(4), 407-426.
+https://doi.org/10.5465/255139
+World Bank. (2014): Education management information systems: SABER-EMIS framework.
+Yang, H., & Zhang, W. (2022). Data mining in college student education management information system. International Journal of
+Embedded Systems, 15(3), 279-287. https://doi.org/10.1504/IJES.2022.124841
+Univ Edu J of Teaching and Learning, (2026), Vol. 3, No. 2: 162-170

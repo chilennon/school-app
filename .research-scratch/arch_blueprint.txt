@@ -1,0 +1,1898 @@
+
+
+===== PAGE 1 / 28 =====
+A R C H I T E C T U R E B L U E P R I N T
+Mobile-First School
+Management System
+Built for Nigerian primary schools — offline-capable, low-end Android first
+Stack: React · Dexie/IndexedDB · Supabase · Tailwind · PWA
+Prepared for: Phocus (John Chibuike)
+Date: September 2026
+Version: 1.0
+
+===== PAGE 2 / 28 =====
+Contents
+1 Design Principles & Operating Reality
+2 The Three Non-Negotiable Features
+2.1 Result Compilation & Report Cards
+2.2 Fee Management
+2.3 Student & Staff Registry
+3 System Architecture
+3.1 Shape of the system · 3.2 Technology stack · 3.3 The Next.js decision
+4 The Offline Engine
+4.1 Outbox pattern · 4.2 Sync algorithm · 4.3 Conflict rules · 4.4 Sync scope
+5 Data Model
+5.1 Supabase schema · 5.2 Local Dexie schema · 5.3 Computed values
+6 Authentication & Security
+7 Mobile UX Specification
+7.1 Rules · 7.2 Navigation · 7.3 Screen specs · 7.4 Offline feedback
+8 Performance Budget
+9 Printing Report Cards
+10 Build Roadmap
+11 Risk Register
+12 Appendix: Domain Glossary
+School Management System — Architecture Blueprint v1.0 Page 2 of 28
+
+===== PAGE 3 / 28 =====
+1. Design Principles & Operating Reality
+Every decision in this document follows from five facts about the environment this software will run in. Re-read these whenever a
+technical choice feels ambiguous.
+Reality Consequence for the build
+The phone is the computer Low-end hardware Erratic, expensive data Varied digital literacy Paper still rules Most schools have no working desktop. The teacher's Android phone is the only device. Every
+feature must be fully usable on a 360×640 screen with one thumb. Desktop is a bonus, not the
+target.
+Tecno, Infinix, itel, Samsung A-series. 2–4GB RAM, weak CPUs, limited storage. Hard ceiling on
+JavaScript payload and runtime work.
+Network is intermittent and metered. The app must be fully functional with zero connectivity and
+must not silently burn data bundles.
+Users range from confident to barely comfortable. No jargon, no hidden gestures, no multi-step flows
+that can be abandoned halfway.
+The report card that goes home is a printed sheet. Digital output that cannot become clean A4 paper
+has failed.
+The five design laws
+1. Local first, always. The UI reads from and writes to the device. The network is a background concern the user never waits on. A
+save must feel instant whether there are five bars or none.
+2. One screen, one job. No dashboards crowded with widgets. Each screen answers a single question or completes a single task.
+Depth over breadth.
+3. The thumb owns the bottom third. Primary actions sit at the bottom of the screen where a thumb naturally rests. Nothing
+important lives at the top.
+4. Never lose a teacher's work. Autosave on every keystroke. No save buttons that can be missed. No session timeouts that discard
+drafts. A teacher who loses an hour of score entry will never open the app again.
+5. Speak the school's language. Use the vocabulary already on the walls and in the record books: term, session, CA, broadsheet,
+position in class, form teacher. Never invent software words for things that already have names.
+THE TEST FOR EVERY SCREEN
+Hand the phone to a teacher who has never seen the app. If they cannot complete the task without being told what to tap, the
+screen is wrong. Not the teacher.
+School Management System — Architecture Blueprint v1.0 Page 3 of 28
+
+===== PAGE 4 / 28 =====
+2. The Three Non-Negotiable Features
+These three carry effectively all the value. Everything else — timetables, attendance, CBT, library, analytics — is optional and must be
+resisted until these three have survived a full term of real use.
+Feature The pain it removes Who it sells to
+1. Results 2–3 weeks of manual compilation every term, in
+Excel or by hand
+Teachers — drives daily adoption
+2. Fees Unknown debtors, lost receipts, guesswork on
+The proprietor — drives payment for the software
+income
+3. Registry Scattered records in notebooks and
+disconnected spreadsheets
+Nobody directly — but both features above depend on it
+2.1 Result Compilation & Report Cards
+What it does
+A subject teacher enters CA and exam scores for their class on their phone. The system computes totals, grades, subject positions, class
+averages and overall position, then assembles a printable report card per student including behavioural ratings, attendance, and
+teacher comments. At the end of the session it computes a cumulative average and a promotion decision.
+How it works — the grading rules
+Nigerian primary schools use a continuous-assessment split. The two common configurations must both be supported and set per
+school:
+Configuration CA weight Exam weight Notes
+40 / 60 (most common) 40 marks 60 marks CA often broken into 2–4 tests plus assignments
+30 / 70 30 marks 70 marks Used by some schools and most secondary schools
+Store the split as school configuration, never hard-code it. Optionally allow the CA component itself to be broken down (CA1, CA2,
+Assignment, Project) with the sum capped at the CA weight — build the simple single-CA-field version first.
+GRADE SCALE (SCHOOL-CONFIGURABLE, TYPICAL DEFAULT)
+Range Grade Remark
+70 – 100 A Excellent
+60 – 69 B Very Good
+50 – 59 C Good
+45 – 49 D Pass
+40 – 44 E Fair
+0 – 39 F Fail
+Everything a Nigerian report card must contain
+This is the checklist that decides whether a school adopts or rejects the product. A missing item here means the school keeps its
+spreadsheet.
+School Management System — Architecture Blueprint v1.0 Page 4 of 28
+
+===== PAGE 5 / 28 =====
+Block Contents
+School header Student identity Subject table Summary Cumulative Affective domain Psychomotor domain Attendance Comments Footer School name, logo, address, motto, phone
+Full name, admission number, class and arm, gender, session, term
+One row per subject: CA score, exam score, total, grade, subject position, class highest, class lowest, class
+average, remark
+Total marks obtainable, total obtained, average, position in class, number of students in class
+1st term average, 2nd term average, 3rd term average, cumulative average (3rd term report only)
+Punctuality, neatness, honesty, politeness, attentiveness, relationship with others — rated 1–5
+Handwriting, drawing/painting, sports, handling of tools, musical skills — rated 1–5
+Days school opened, days present, days absent
+Class teacher's comment, head teacher's comment
+Next term begins (date), next term's fees, head teacher signature line, school stamp space
+DO NOT SKIP
+The affective and psychomotor domains, next-term-begins date, and next-term fees. Developers routinely omit these because they
+look decorative. They are not — a report card without them is not a valid Nigerian report card and the school will reject it on sight.
+The computations, precisely
+subject
+total = ca
+score + exam
+score
+_
+_
+_
+subject
+_grade = lookup(subject
+total, school.grade
+scale)
+_
+_
+subject
+_position = rank of subject
+total among all students
+_
+in that class+subject+term (ties share a position)
+class
+class
+class
+highest = max(subject
+total) in that class+subject+term
+_
+_
+lowest = min(subject
+total)
+_
+_
+average = mean(subject
+total)
+_
+_
+student
+total = sum(subject
+total) across subjects offered
+_
+_
+marks
+obtainable = 100 * count(subjects offered)
+_
+student
+average = student
+total / count(subjects offered)
+_
+_
+class
+_position = rank of student
+total within class+term
+_
+cumulative
+average = mean(term1
+average, term2
+average, term3
+average)
+_
+_
+_
+_
+over terms with recorded results
+promotion = cumulative
+average >= school.promotion
+threshold
+_
+_
+(default 40, overridable per student by the head teacher)
+Compute these on the client from local data so a teacher can see positions and averages offline. Recompute on the server at approval
+time so the printed record is authoritative.
+Ranking rule
+Use competition ranking: two students tied on 84 are both 2nd, and the next student is 4th. Format positions with ordinal suffixes
+(1st, 2nd, 3rd, 11th, 21st) — mind the 11/12/13 exception.
+The approval workflow
+Results must not go straight from a teacher's phone to a parent. Model three states:
+State Who sets it Meaning
+draft submitted approved Subject teacher Subject teacher Head teacher Scores being entered. Editable. Not visible to anyone else.
+Class complete. Locked to the teacher, visible to form teacher and head.
+Comments added, result final, report card printable and releasable.
+School Management System — Architecture Blueprint v1.0 Page 5 of 28
+
+===== PAGE 6 / 28 =====
+2.2 Fee Management
+What it does
+Defines what each class owes per term, records payments as they come in (usually partial, usually by bank transfer), keeps a running
+balance per student, issues receipts, and produces a debtors list per class on demand. It also gates result release on outstanding
+balance.
+THE SINGLE MOST IMPORTANT MODELLING DECISION IN THIS SYSTEM
+Never store or update a balance. Payments are an append-only ledger. Balance is always computed as sum(charges) −
+sum(payments). Inserts never conflict during sync, so a phone that was offline for a week cannot corrupt a student's account when it
+reconnects. Every money bug you will otherwise spend weeks chasing disappears at this one decision.
+Fee items to support
+Item Behaviour
+Tuition Compulsory, set per class per term
+Bus / transport Optional, opt-in per student, sometimes varies by route
+Feeding Optional, opt-in per student
+Uniform / books One-off, usually first term or on admission
+Exam fee Compulsory, per term
+PTA levy Compulsory, per term or per session
+Extra lesson Optional, opt-in
+Development levy Compulsory, often per session
+A student's charges for a term = all compulsory items for their class + the optional items they opted into. Sibling discounts and
+scholarship waivers are common: support a per-student discount line as a negative charge rather than editing the fee structure.
+Recording a payment
+Almost no payment arrives through an API. Parents pay by bank transfer and send a screenshot on WhatsApp, or pay cash at the school.
+So the primary flow is manual entry by the bursar or admin, and it must be fast:
+Search student by name or admission number
+Amount, date paid, method (cash / transfer / POS), bank reference or teller number
+Optional note
+Auto-generated sequential receipt number, unique per school per session
+Receipt view that can be printed or screenshotted and sent back on WhatsApp
+Online payment integration (Paystack or Flutterwave) is a phase-3 nicety, not a requirement. When you add it, treat the webhook as just
+another writer into the same payments ledger.
+The debtors list
+This is the screen the proprietor will open most. Requirements: filter by class, sort by amount owed descending, show name, class,
+amount due, amount paid, balance, and guardian phone as a tap-to-call link. Add a total at the top: "Outstanding this term: ₦1,240,000
+across 87 students.
+"
+Result gating — where features 1 and 2 meet
+Schools already withhold results from fee defaulters manually. Automating it is the feature that makes the software indispensable
+rather than merely useful.
+can
+release
+result(student, term):
+_
+_
+if school.settings.gate
+results
+on
+fees is false: return true
+_
+_
+_
+balance = charges(student, term) - payments(student, term)
+if balance <= school.settings.gate
+threshold: return true
+_
+if student.has
+release
+override(term): return true _
+_
+return false
+# head teacher can waive
+When blocked, the teacher's screen shows a plain message —
+"Result held: ₦18,000 outstanding"
+teacher must always be able to override per student, with the override recorded and attributed.
+— not a generic error. The head
+School Management System — Architecture Blueprint v1.0 Page 6 of 28
+
+===== PAGE 7 / 28 =====
+2.3 Student & Staff Registry
+What it does
+The single source of truth for who is in the school. Unglamorous, invisible to the proprietor, and the foundation everything else stands
+on. Get the model wrong here and both features above become painful to fix later.
+CORE MODELLING INSIGHT
+A student is not in a class. A student has an enrolment that places them in a class for a given session. This separation is what
+makes promotion, repeating a year, mid-session transfers, and multi-year history work at all. Scores and fees attach to the
+enrolment, never to the student directly.
+Student fields
+Field Notes
+Admission number Unique per school. Auto-suggest next in sequence, allow manual override for legacy numbers.
+First / middle / last name Three fields, not one. Report cards and registers sort and display differently.
+Gender Required — appears on report cards and registers.
+Date of birth Often unknown or approximate. Make it optional; never block admission on it.
+Guardian name Required.
+Guardian phone Required. Second number optional. Normalise to +234 on save, accept 0803... on input.
+Address Free text. Nigerian addresses do not fit structured fields.
+Admission date Required.
+Status active / withdrawn / graduated. Never delete a student — historical results depend on them.
+Photo Deliberately excluded from v1. See §8.
+Class structure
+Nigerian primary schools typically run: Creche, Pre-Nursery, Nursery 1–3 (or Kindergarten), Primary 1–6 (sometimes labelled Basic 1–6),
+each optionally split into arms (A, B, Gold, Silver, Diamond). Model class as { level
+name, arm, level
+order } where level
+order is an
+_
+_
+_
+integer driving promotion sequence and report card sorting.
+End-of-session promotion
+One of the highest-value small features in the whole system. At session end the admin promotes a whole class in one action:
+1. 2. 3. 4. Select the outgoing class and the new session
+System computes each student's cumulative average and proposes Promote or Repeat
+Admin reviews the list and flips any individual decision
+Confirm → new enrolment rows are created in the destination class; Primary 6 students are marked graduated
+Doing this by hand for 300 students is a day of work. Doing it in four taps is the kind of thing that makes a proprietor tell another
+proprietor.
+Staff records and assignment
+Staff need: full name, phone, role, active flag. Two distinct assignments matter and must not be conflated:
+Form teacher — owns a class. Writes the class teacher's comment, sees the whole class broadsheet, manages attendance.
+Subject teacher — assigned to a (class, subject) pair. Can enter scores only for that pair.
+One person is usually both. In a Nigerian primary school the form teacher often teaches most subjects to their own class, so make bulk
+assignment easy: "Assign Mrs. Okoro to all subjects in Primary 3A" should be one action.
+ROLES
+Role Can do
+admin / proprietor Everything: students, staff, classes, fees, settings, all results
+head
+_
+teacher All results, approve results, head teacher comments, release overrides, view fees
+teacher Enter scores for assigned (class, subject) pairs; if form teacher, class comments and class broadsheet
+bursar Fees, payments, receipts, debtors. No access to scores.
+School Management System — Architecture Blueprint v1.0 Page 7 of 28
+
+===== PAGE 8 / 28 =====
+3. System Architecture
+3.1 The shape of the system
+PHONE (the real computer)
++--------------------------------------------------+
+| React UI (Tailwind, client-rendered) |
+| | reads ^ writes |
+| v | |
+| +--------------------------------------------+ |
+| | DEXIE / IndexedDB <-- SOURCE OF TRUTH | |
+| | students, enrolments, scores, payments, | |
+| | fee
+_
+structures, settings, OUTBOX | |
+| +--------------------------------------------+ |
+| | ^ |
+| v drain outbox | pull changes |
+| +--------------------------------------------+ |
+| | SYNC WORKER (retry, backoff, idempotent) | |
+| +--------------------------------------------+ |
+| +--------------------------------------------+ |
+| | SERVICE WORKER (Serwist) - app shell, | |
+| | static assets, background sync trigger | |
+| +--------------------------------------------+ |
++--------------------------------------------------+
+|
+~ network ~ (may be absent for days)
+|
++--------------------------------------------------+
+| SUPABASE |
+| Postgres + Row Level Security (school
+_
+id) |
+| Auth | Edge Function: /sync-push, /sync-pull |
++--------------------------------------------------+
+The critical property: the arrow from the UI never crosses the network. Reads and writes terminate at IndexedDB. Sync is a
+separate, asynchronous, failure-tolerant concern that the user observes but never waits for.
+3.2 Technology stack
+Layer Choice Why this one
+App shell PWA / service worker Local database React 18 + Vite (or Next.js client
+routes)
+Smallest, fastest path to an offline SPA. See §3.3.
+Serwist Dexie.js 4 Maintained successor to next-pwa/workbox wrapper. Handles precaching and
+background sync.
+~25KB, clean IndexedDB wrapper, liveQuery gives reactive reads with no
+extra state library. SQLite-WASM is more powerful but ships ~1MB of WASM.
+Server database Supabase (Postgres) Already your stack. RLS gives multi-tenant isolation at the database layer.
+Auth Supabase Auth + device PIN See §6.
+Styling Tailwind CSS Already yours. Purged output is tiny.
+State Dexie liveQuery + Zustand for UI-
+only state
+Server state lives in Dexie. Do not add React Query — it solves a problem
+you have designed away.
+Routing React Router (or Next.js app router) Flat routes, no nested layouts deeper than two.
+Forms Plain controlled inputs React Hook Form is fine but score entry is custom enough that a library adds
+weight without value.
+PDF / print CSS @media print + browser print Free, zero bytes. jsPDF is ~300KB and produces worse typography. See §9.
+Dates Native Intl + small helpers Do not ship date-fns or dayjs for four format calls.
+Icons Inline SVG, hand-picked Importing an icon library pulls hundreds of unused paths.
+Hosting Vercel / Netlify Free tier, global CDN, instant rollback.
+DELIBERATELY EXCLUDED FROM V1
+Chart libraries (Recharts ~150KB) · icon packs · animation libraries · Google Fonts · student photos · rich text editors · component libraries beyond your own
+primitives · analytics SDKs.
+3.3 The Next.js decision — read this before you start
+Next.js App Router is server-first by design. Server Components cannot render without a network round trip. That is fundamentally at
+odds with an app whose defining requirement is working with zero connectivity.
+You have two honest options:
+School Management System — Architecture Blueprint v1.0 Page 8 of 28
+
+===== PAGE 9 / 28 =====
+Option Trade-off
+A. Keep Next.js, push app routes
+client-side
+Mark teacher/admin routes "use client"
+render from Dexie, use the server only as a
+sync endpoint
+,
+B. Vite + React SPA
+Plain client app, Supabase JS client, deployed
+as static files
+Keeps your familiar tooling and gives you a good marketing site and API routes for free. Costs: you
+will be fighting the framework's grain, and it is easy to accidentally reintroduce a server dependency
+that breaks offline.
+Simpler mental model, smaller bundle, no server/client boundary to reason about, better PWA story.
+Costs: you lose Next.js conveniences and need a separate marketing page.
+RECOMMENDATION
+Build the app itself as Option B, and keep a separate small Next.js (or plain HTML) marketing site. Trying to make App Router
+offline-first is a well-known source of wasted weeks. If you strongly prefer to stay in one codebase, choose Option A but write the
+rule down: no teacher-facing screen may ever depend on a Server Component.
+School Management System — Architecture Blueprint v1.0 Page 9 of 28
+
+===== PAGE 10 / 28 =====
+4. The Offline Engine
+This is the hardest part of the build and where projects of this type usually die. Read this section twice.
+4.1 The outbox pattern
+Do not attempt to make Supabase calls "work offline"
+. Invert the relationship: the local database is authoritative for the UI, and every
+mutation is recorded as an intent in an outbox that a worker drains when a network exists.
+User taps Save
+|
+1. Write the row to Dexie 2. Append a mutation to
+`
+|
+outbox
+`
+-> UI updates instantly (liveQuery)
+-> { id, table, op, payload, device
+_
+id, ts }
+[ network available? ]
+| |
+yes no
+| |
+3. POST outbox batch sit in outbox, badge shows
+to /sync-push "12 changes waiting"
+|
+4. Server applies, returns applied ids
+5. Delete those rows from outbox, mark local rows synced
+Three rules that make this safe
+Rule 1 — client-generated UUIDs. Every row gets a uuid created on the device, not by the database. A replayed batch is then an
+upsert on the same id rather than a duplicate insert. This single rule makes the whole pipeline idempotent.
+Rule 2 — server timestamps for ordering. Device clocks on cheap Android phones drift, sometimes by hours. Send the device
+timestamp for display, but let the server set server
+updated
+_
+_
+at and use that for ordering and conflict decisions.
+Rule 3 — the outbox is never cleared optimistically. Remove an entry only after the server confirms that specific id. A failed batch
+stays queued and retries.
+4.2 The sync algorithm
+PUSH (LOCAL → SERVER)
+async function push() {
+const batch = await db.outbox.orderBy('ts').limit(100).toArray();
+if (batch.length === 0) return;
+const res = await fetch('/sync-push'
+method: 'POST'
+,
+body: JSON.stringify({ device
+_
+, {
+id, mutations: batch })
+});
+if (!res.ok) throw new Error('push failed'); // stays queued, retried
+const { applied, rejected } = await res.json();
+await db.outbox.bulkDelete(applied);
+if (rejected.length) await db.sync
+_
+errors.bulkAdd(rejected);
+}
+PULL (SERVER → LOCAL)
+async function pull() {
+const since = await getMeta('last
+_pull
+at'); // server timestamp
+_
+const res = await fetch(`/sync-pull?since=${since}&scope=${scopeKey}`);
+const { changes, server
+time } = await res.json();
+_
+await db.transaction('rw'
+, db.tables, async () => {
+for (const [table, rows] of Object.entries(changes)) {
+await db[table].bulkPut(rows);
+}
+});
+await setMeta('last
+_pull
+at'
+, server
+time);
+_
+_
+}
+WHEN TO RUN
+School Management System — Architecture Blueprint v1.0 Page 10 of 28
+
+===== PAGE 11 / 28 =====
+Trigger Behaviour
+App opens / regains focus window.online event fires Every 5 minutes while app is open and outbox
+is non-empty
+User taps "Sync now" Service worker Background Sync Push then pull
+Push then pull
+Push only
+Push then pull, with visible progress
+Push, if the browser supports it (Chrome Android does)
+Use exponential backoff on failure: 5s, 15s, 60s, 5min, capped. Never retry in a tight loop — it drains battery and data.
+4.3 Conflict resolution
+Your domain is unusually gentle on conflicts if you model it correctly. Set an explicit rule per table and document it:
+Table Rule Why it is safe
+scores Last-write-wins per row, by
+server
+updated
+at
+_
+_
+One teacher owns one (class, subject, term). Two people editing the same cell is
+nearly impossible by construction.
+payments Insert-only, never updated Append-only ledger. Inserts cannot conflict. A correction is a new reversing entry,
+not an edit.
+students , staff Last-write-wins per row Admin-only, usually a single device.
+enrolments Server-authoritative Promotion is an admin action; reject client writes that contradict server state.
+comments Last-write-wins per
+(enrolment, term,
+author
+role)
+Teacher and head comments are separate fields with separate owners.
+_
+fee
+_
+structures Server-authoritative Admin-only, low frequency, correctness matters more than offline editing.
+BUILD THIS BEFORE YOU NEED IT
+A Sync Log screen: last successful sync time, number of pending mutations, a list of recent sync errors with the table and row
+involved, and a "retry all" button. When a teacher says "my scores disappeared"
+, this screen is the difference between a five-
+minute answer and a lost weekend. Build it in phase 1, not when the first bug appears.
+The escape hatch
+If hand-rolled sync becomes a tarpit, PowerSync has a first-class Supabase integration and handles the entire sync engine (local
+SQLite, bidirectional replication, declarative conflict rules). It adds a vendor and a cost past the free tier. Hand-roll first — your conflict
+profile is simple and you will understand the system deeply — but know this exit exists and take it without shame if you lose more than
+two weeks to sync bugs.
+4.4 Sync scope — protecting the data bundle
+Never sync the whole school onto a phone. Scope by role:
+Role Pulls
+Teacher Current session + current term only. Only classes and subjects assigned to them. Students in those classes. No fee
+data at all.
+Form teacher The above plus full broadsheet for their own class.
+Bursar Current term fee structures, all students (name, admission no, class only), payments. No scores.
+Admin / head Current session, all classes. Historical sessions fetched on demand, not synced.
+Add an explicit "Sync now" button next to the automatic behaviour. Teachers on metered data want to feel in control of when bytes
+move, and a manual control buys enormous trust. Show approximate size: "Sync now (about 40 KB)"
+.
+School Management System — Architecture Blueprint v1.0 Page 11 of 28
+
+===== PAGE 12 / 28 =====
+5. Data Model
+5.1 Supabase schema
+Every table carries school
+client.
+id for tenant isolation and server
+updated
+_
+_
+_
+at for sync ordering. Primary keys are UUIDs generated on the
+TENANCY, CALENDAR AND STRUCTURE
+create table schools (
+id uuid primary key,
+name text not null,
+address text,
+phone text,
+motto text,
+logo
+url text,
+_
+ca
+weight int not null default 40,
+_
+exam
+weight int not null default 60,
+_
+promotion
+threshold numeric not null default 40,
+_
+gate
+results
+on
+fees boolean not null default true,
+_
+_
+_
+gate
+threshold numeric not null default 0,
+_
+created
+at timestamptz default now()
+_
+);
+create table sessions ( id uuid primary key,
+school
+id uuid references schools not null,
+_
+name text not null,
+is
+current boolean default false
+-- academic year, e.g.
+"2025/2026"
+_
+);
+create table terms (
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+session
+id uuid references sessions not null,
+_
+name text not null,
+--
+'First' | 'Second' | 'Third'
+sequence int not null,
+-- 1 | 2 | 3
+start
+date date,
+_
+end
+date date,
+_
+days
+opened int,
+-- used on report cards
+_
+next
+term
+begins date,
+_
+_
+is
+current boolean default false
+_
+);
+create table classes (
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+level
+name text not null,
+--
+'Primary 4'
+,
+'Nursery 2'
+_
+arm text,
+--
+'A'
+,
+'Gold'
+, null
+level
+order int not null,
+-- drives promotion sequence
+_
+unique (school
+id, level
+name, arm)
+_
+_
+);
+create table subjects (
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+name text not null,
+display_
+order int default 0
+);
+create table grade
+bands (
+_
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+min
+score numeric not null,
+_
+max
+score numeric not null,
+_
+grade text not null,
+--
+remark text not null --
+'A'
+'Excellent'
+);
+PEOPLE
+School Management System — Architecture Blueprint v1.0 Page 12 of 28
+
+===== PAGE 13 / 28 =====
+create table staff (
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+auth
+user
+id uuid,
+_
+_
+full
+name text not null,
+_
+phone text,
+role text not null,
+-- admin|head
+is
+active boolean default true,
+_
+server
+updated
+at timestamptz default now()
+-- links to supabase auth.users
+_
+teacher|teacher|bursar
+_
+_
+);
+create table students (
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+admission
+no text not null,
+_
+first
+name text not null,
+_
+middle
+name text,
+_
+last
+name text not null,
+_
+gender text,
+--
+'M' | 'F'
+date
+of
+birth date,
+_
+_
+guardian
+name text,
+_
+guardian
+_phone text,
+guardian
+_phone
+alt text,
+_
+address text,
+admission
+date date,
+_
+status text not null default 'active'
+,
+server
+updated
+at timestamptz default now(),
+_
+_
+unique (school
+id, admission
+no)
+_
+_
+-- active|withdrawn|graduated
+);
+create table enrolments ( -- a student IN a class FOR a session
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+student
+id uuid references students not null,
+_
+class
+id uuid references classes not null,
+_
+session
+id uuid references sessions not null,
+_
+status text default 'active'
+,
+-- active|transferred|withdrawn
+server
+updated
+at timestamptz default now(),
+_
+_
+unique (student
+id, session
+id)
+_
+_
+);
+create table class
+subjects ( _
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+class
+id uuid references classes not null,
+_
+subject
+id uuid references subjects not null,
+_
+staff
+id uuid references staff,
+_
+session
+id uuid references sessions not null,
+_
+unique (class
+id, subject
+id, session
+id)
+_
+_
+_
+-- which teacher teaches what, where
+);
+create table form
+teachers (
+_
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+class
+id uuid references classes not null,
+_
+staff
+id uuid references staff not null,
+_
+session
+id uuid references sessions not null,
+_
+unique (class
+id, session
+id)
+_
+_
+);
+RESULTS
+School Management System — Architecture Blueprint v1.0 Page 13 of 28
+
+===== PAGE 14 / 28 =====
+create table scores (
+id uuid primary key,
+-- client-generated
+school
+id uuid references schools not null,
+_
+enrolment
+id uuid references enrolments not null,
+_
+class
+subject
+id uuid references class
+subjects not null,
+_
+_
+_
+term
+id uuid references terms not null,
+_
+ca
+score numeric check (ca
+score is null or ca
+score between 0 and 100),
+_
+_
+_
+exam
+score numeric check (exam
+score is null or exam
+score between 0 and 100),
+_
+_
+_
+status text not null default 'draft'
+,
+-- draft|submitted|approved
+device
+id text,
+_
+device
+updated
+at timestamptz,
+_
+_
+server
+updated
+at timestamptz default now(),
+_
+_
+unique (enrolment
+id, class
+subject
+id, term
+id)
+_
+_
+_
+_
+);
+create table trait
+ratings ( -- affective + psychomotor
+_
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+enrolment
+id uuid references enrolments not null,
+_
+term
+id uuid references terms not null,
+_
+trait
+key text not null,
+--
+'punctuality'
+,
+'handwriting'
+_
+trait
+domain text not null,
+--
+_
+'affective' | 'psychomotor'
+rating int check (rating between 1 and 5),
+unique (enrolment
+id, term
+id, trait
+key)
+, ...
+_
+_
+_
+);
+create table term
+records ( _
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+enrolment
+id uuid references enrolments not null,
+_
+term
+id uuid references terms not null,
+_
+days
+_present int,
+class
+teacher
+comment text,
+_
+_
+head
+teacher
+comment text,
+_
+_
+approved
+by uuid references staff,
+_
+approved
+at timestamptz,
+_
+release
+override boolean default false,
+_
+override
+by uuid references staff,
+_
+server
+updated
+at timestamptz default now(),
+_
+_
+unique (enrolment
+id, term
+id)
+-- per student, per term summary
+_
+_
+);
+FEES — APPEND-ONLY LEDGER
+create table fee
+items ( -- what a class owes in a term
+_
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+term
+id uuid references terms not null,
+_
+class
+id uuid references classes,
+_
+name text not null,
+-- null = applies to all classes
+'Tuition'
+'Bus'
+--
+,
+amount numeric not null,
+is
+optional boolean default false
+_
+);
+create table student
+fee
+optins ( _
+_
+id uuid primary key,
+school
+id uuid references schools not null,
+_
+enrolment
+id uuid references enrolments not null,
+_
+fee
+item
+id uuid references fee
+items not null,
+_
+_
+_
+unique (enrolment
+id, fee
+item
+id)
+-- which optional items a student takes
+_
+_
+_
+);
+create table charges ( id uuid primary key,
+school
+id uuid references schools not null,
+_
+enrolment
+id uuid references enrolments not null,
+_
+term
+id uuid references terms not null,
+_
+fee
+item
+id uuid references fee
+items,
+_
+_
+_
+description text not null,
+amount numeric not null,
+created
+by uuid references staff,
+_
+created
+at timestamptz default now()
+-- APPEND ONLY. discounts = negative amount
+-- negative for discount/waiver
+_
+);
+create table payments ( -- APPEND ONLY. corrections = reversing row
+id uuid primary key,
+-- client-generated: replay-safe
+school
+id uuid references schools not null,
+_
+enrolment
+id uuid references enrolments not null,
+_
+term
+id uuid references terms not null,
+_
+amount numeric not null,
+method text not null,
+reference text,
+-- cash|transfer|pos
+-- bank ref / teller no
+receipt
+no text not null,
+_
+paid
+on date not null,
+_
+note text,
+recorded
+device
+_
+created
+by uuid references staff,
+_
+id text,
+at timestamptz default now()
+_
+);
+School Management System — Architecture Blueprint v1.0 Page 14 of 28
+
+===== PAGE 15 / 28 =====
+WHY CHARGES IS ALSO APPEND-ONLY
+Charges are generated from fee
+_
+items at the start of term, but once a student has paid against them they must never be edited —
+otherwise a fee increase retroactively rewrites history and balances stop reconciling. Adjust by adding a new charge row (positive
+or negative) with a description explaining it.
+INDEXES THAT MATTER
+create index on scores (enrolment
+id, term
+id);
+_
+_
+create index on scores (class
+subject
+id, term
+id);
+_
+_
+_
+create index on enrolments (class
+id, session
+id);
+_
+_
+create index on payments (enrolment
+id, term
+id);
+_
+_
+create index on charges (enrolment
+id, term
+id);
+_
+_
+create index on students (school
+id, last
+name);
+_
+_
+-- sync pulls hit these constantly:
+create index on scores (school
+id, server
+updated
+at);
+_
+_
+_
+create index on students (school
+id, server
+updated
+at);
+_
+_
+_
+School Management System — Architecture Blueprint v1.0 Page 15 of 28
+
+===== PAGE 16 / 28 =====
+5.2 Local Dexie schema
+import Dexie from 'dexie';
+export const db = new Dexie('school');
+db.version(1).stores({
+// mirrors of server tables (subset, scoped)
+schools: 'id'
+,
+sessions: 'id, is
+current'
+,
+_
+terms: 'id, session
+id, is
+current'
+_
+_
+classes: 'id, level
+order'
+,
+_
+subjects: 'id'
+,
+grade
+bands: 'id'
+,
+_
+staff: 'id, role'
+,
+students: 'id, admission
+no, last
+_
+enrolments: 'id, student
+id, class
+_
+_
+class
+subjects: 'id, [class
+id+session
+_
+_
+_
+form
+teachers: 'id, [class
+id+session
+_
+_
+_
+scores: 'id, [enrolment
+id+term
+_
+_
+trait
+ratings: 'id, [enrolment
+id+term
+_
+_
+_
+term
+records: 'id, [enrolment
+id+term
+_
+_
+_
+fee
+items: 'id, term
+id'
+,
+_
+_
+charges: 'id, [enrolment
+_
+_
+payments: 'id, [enrolment
+id+term
+id+term
+,
+name'
+,
+_
+id, session
+id], staff
+_
+id]'
+,
+id], [class
+id]'
+,
+id]'
+,
+id, [class
+id+session
+id]'
+,
+_
+id'
+_
+_
+,
+subject
+id+term
+id]'
+,
+_
+_
+_
+id]'
+,
+id], receipt
+no'
+,
+_
+_
+_
+// local-only tables
+outbox: '++seq, id, table
+_
+sync
+errors: '++seq, ts'
+,
+_
+meta: 'key'
+name, ts'
+,
+});
+Compound indexes such as [class
+id+session
+_
+_
+id] are what make "load my class list" instant on a slow phone. Add an index for every
+query you actually run; Dexie full-table scans are noticeably slow on low-end devices once a table passes a few thousand rows.
+REACTIVE READS WITH LIVEQUERY
+import { useLiveQuery } from 'dexie-react-hooks';
+function ClassList({ classId, sessionId }) {
+const students = useLiveQuery(
+() => db.enrolments
+.where('[class
+id+session
+id]')
+_
+_
+.equals([classId, sessionId])
+.toArray(),
+[classId, sessionId]
+);
+// re-renders automatically whenever a sync writes new rows
+}
+EVERY MUTATION GOES THROUGH ONE HELPER
+export async function mutate(table
+name, op, row) {
+_
+const now = new Date().toISOString();
+row.device
+updated
+at = now;
+_
+_
+row.device
+id = getDeviceId();
+_
+await db.transaction('rw'
+, db[table
+name], db.outbox, async () => {
+_
+if (op ===
+'delete') await db[table
+name].delete(row.id);
+_
+else await db[table
+name].put(row);
+_
+await db.outbox.add({
+id: row.id, table
+_
+device
+id: row.device
+name, op, payload: row,
+id, ts: now
+_
+_
+});
+});
+}
+Never write to Dexie directly from a component. One choke point means one place to fix bugs, one place to add logging, and no
+possibility of a write that never reaches the outbox.
+5.3 Computed values — never stored
+Value Computed from
+Subject total ca
+score + exam
+_
+_
+score
+Grade and remark total, looked up against grade
+bands
+_
+Subject position, class high/low/average all scores for that (class, subject, term)
+Student average, class position all scores for that (enrolment, term)
+Cumulative average, promotion averages across the session's terms
+Fee balance sum(charges) − sum(payments) for the enrolment and term
+School Management System — Architecture Blueprint v1.0 Page 16 of 28
+
+===== PAGE 17 / 28 =====
+Storing any of these creates a cache that will go stale the first time a score is corrected after a report card is generated. Compute on
+read. These datasets are small — 40 students by 12 subjects is 480 rows — and a cheap phone handles that in milliseconds. The one
+exception: snapshot the full computed result into the term
+_
+records row at the moment of head teacher approval, so a
+printed report card can always be reproduced exactly even if scores are later edited.
+School Management System — Architecture Blueprint v1.0 Page 17 of 28
+
+===== PAGE 18 / 28 =====
+6. Authentication & Security
+6.1 Why email and password is the wrong choice
+Many teachers have no email address they actually check. Typing a strong password on a cracked touchscreen is miserable and will be
+done many times a day. Password reset by email fails when the email is abandoned. SMS OTP costs money per message and Nigerian
+delivery is unreliable.
+6.2 The flow that works
+1. Admin creates the teacher — name and phone number. System generates a 6-character enrolment code (e.g. K7M2QX ).
+2. 3. Admin shares the code — read aloud, written down, or sent on WhatsApp. No email, no SMS cost.
+Teacher enters the code once on their phone. The device is enrolled and bound to that staff record. The Supabase session is
+created and refreshed indefinitely in the background.
+4. Teacher sets a 4-digit PIN. Thereafter the app opens with a numeric keypad. Two seconds to unlock.
+5. Admin can revoke a device from the staff screen — ends the session and triggers a local wipe on next connection.
+What the PIN actually protects
+The PIN is a local device lock, not a server credential. It guards the copy of student data sitting in IndexedDB on a phone that may be
+shared, borrowed or stolen. Store only a salted hash of the PIN locally, never the PIN. Lock the app after 15 minutes in the background.
+After 5 wrong attempts, require the enrolment code again.
+NON-NEGOTIABLE
+On logout or device revocation, delete the entire IndexedDB database. Offline copies of children's names, ages, addresses and
+guardian phone numbers must not persist on a device that is no longer authorised. Flush the outbox first if there is a connection;
+warn clearly if there are unsynced changes.
+6.3 Row Level Security
+Multi-tenant leakage is the most damaging bug this system could have. Enforce isolation in the database, not in application code.
+alter table students enable row level security;
+create policy "same school only" on students
+for all
+using (
+school
+id = (
+_
+select school
+where auth
+limit 1
+_
+user
+id from staff
+id = auth.uid()
+_
+_
+)
+);
+Apply the equivalent policy to every table. Then add role-specific narrowing on the sensitive ones:
+-- teachers may only touch scores for subjects assigned to them
+create policy "own subjects only" on scores
+for all
+using (
+exists (
+select 1
+from class
+subjects cs
+_
+join staff s on s.id = cs.staff
+id
+_
+where cs.id = scores.class
+subject
+id
+_
+_
+and s.auth
+user
+id = auth.uid()
+_
+_
+)
+or exists ( select 1 from staff s
+where s.auth
+user
+id = auth.uid()
+_
+_
+and s.role in ('admin'
+,
+'head
+_
+and s.school
+id = scores.school
+-- heads and admins see everything in their school
+teacher')
+id
+_
+_
+)
+);
+VERIFY IT, DO NOT ASSUME IT
+Create two test schools with overlapping data. Sign in as a teacher from school A and attempt to read a student from school B directly
+via the Supabase client. You must get zero rows. Repeat this test after every schema change. Put it in a script.
+Other security essentials
+Never put the service-role key in the client. Only the anon key ships to the browser.
+The sync endpoint validates the JWT and derives school
+_
+id from the token, never from the request body.
+Audit the money. Every payment records recorded
+by, device
+id and created
+_
+_
+_
+at. Never allow deletion; corrections are reversing
+School Management System — Architecture Blueprint v1.0 Page 18 of 28
+
+===== PAGE 19 / 28 =====
+entries.
+Rate-limit enrolment code attempts to prevent brute-forcing a 6-character code.
+School Management System — Architecture Blueprint v1.0 Page 19 of 28
+
+===== PAGE 20 / 28 =====
+7. Mobile UX Specification
+This section decides whether the software is used or abandoned. The architecture can be perfect and the product still fails here.
+7.1 Non-negotiable interaction rules
+Rule Specification
+Thumb zone Primary action lives in the bottom 25% of the screen, full width, sticky. Nothing critical in the top
+20%.
+Tap targets Minimum 48×48px. Primary buttons 56px tall. List rows 56–64px. Minimum 8px gap between
+adjacent targets.
+Navigation Bottom tab bar, maximum 4 tabs. Never a hamburger menu — it hides everything from users who
+will not go looking.
+Typography Body 16px minimum (below this iOS zooms inputs and Android users squint). Labels 14px. Nothing
+below 12px anywhere.
+Contrast Minimum 4.5:1. Light theme only in v1 — these phones are used in bright classrooms and outdoors.
+Keyboards inputMode=
+"numeric" on every score and amount field. type=
+"tel" for phone numbers. Never force
+users through the alphabet keyboard for a number.
+Saving Autosave on change, debounced 300ms. No save buttons on data-entry screens. A visible "Saved"
+tick, never a modal.
+Confirmations Only for destructive and irreversible actions: delete student, delete class, approve results, promote a
+class. Never confirm a save.
+Errors Inline, next to the field, in plain English.
+constraint violated.
+"
+"CA cannot be more than 40"
+— never "Validation error: field
+Loading Local reads are instant, so there is almost nothing to load. Where something is genuinely pending,
+use skeleton rows, never a blocking full-screen spinner.
+Language School vocabulary throughout.
+Compilation Module"
+.
+"Enter Scores" not "Assessment Entry"
+.
+"Term Report" not "Result
+7.2 Navigation map
+TEACHER ADMIN / PROPRIETOR
++--------------+ +--------------+
+| [Home] | | [Home] |
+| [My Classes] | | [Students] |
+| [Results] | | [Fees] |
+| [Me] | | [More] |
++--------------+ +--------------+
+Teacher Home ...... today's task, straight to score entry
+My Classes ........ list -> class -> subject -> score entry
+Results ........... my submitted classes and their status
+Me ................ profile, sync log, PIN, logout
+Admin Home ........ term at a glance: outstanding fees,
+results progress, student count
+Students .......... search, add, edit, promote
+Fees .............. structures, record payment, debtors
+More .............. staff, classes, subjects, settings
+7.3 Key screen specifications
+Teacher Home
+The entire screen answers one question: what do I need to do right now?
+School Management System — Architecture Blueprint v1.0 Page 20 of 28
+
+===== PAGE 21 / 28 =====
++------------------------------------------+
+| Good morning, Mrs. Okoro |
+| First Term - 2025/2026 |
+| |
+| +------------------------------------+ |
+| | ENTER SCORES | |
+| | 3 subjects not yet complete | |
+| +------------------------------------+ |
+| |
+| My classes |
+| +------------------------------------+ |
+| | Primary 3A - Mathematics 42/42 | |
+| | Primary 3A - English 18/42 | |
+| | Primary 3A - Basic Science 0/42 | |
+| +------------------------------------+ |
+| |
+| Saved on this phone. |
+| 12 changes waiting to upload. [Sync] |
+| |
++------------------------------------------+
+| [Home] [Classes] [Results] [Me] |
++------------------------------------------+
+Score Entry — the flow that makes or breaks this product
+Design assumption: the teacher has a paper record book open beside the phone and wants to transcribe 42 students as fast as humanly
+possible. Every tap you remove is worth real minutes.
++------------------------------------------+
+| < Primary 3A - Mathematics |
+| First Term CA /40 Exam /60 |
++------------------------------------------+
+| 18 of 42 entered [=========
+.........] |
++------------------------------------------+
+| |
+| 1. Adaeze Okonkwo |
+| CA [ 32 ] Exam [ 51 ] = 83 A |
+| ---------------------------------------- |
+| 2. Chidi Nwosu |
+| CA [ 28 ] Exam [ 44 ] = 72 A |
+| ---------------------------------------- |
+| 3. Fatima Bello |
+| CA [ 45 ] Exam [ ] |
+| ! CA cannot be more than 40 |
+| ---------------------------------------- |
+| 4. Emeka Obi |
+| CA [ ] Exam [ ] |
+| |
++------------------------------------------+
+| Saved [ SUBMIT ] |
++------------------------------------------+
+REQUIRED BEHAVIOURS
+Numeric keypad only. inputMode=
+"numeric"
+, pattern=
+"[0-9]*"
+.
+Keyboard "Next" advances to the next field across students, in order. The teacher's thumb should never leave the keypad for
+42 students.
+Live total and grade appear the instant both fields are filled. Immediate feedback catches transcription errors on the spot.
+Inline validation against the school's CA and exam weights, shown the moment the value exceeds the cap.
+Autosave every keystroke to Dexie. No save button. The word "Saved" sits quietly in the bottom bar.
+Progress counter is sticky at the top so the teacher always knows how far they are.
+Resume exactly where they left off. Closing the app mid-class and reopening it must restore scroll position and focus.
+Submit is separate and deliberate — a real confirmation, because it locks the class. Block submission with a clear list if any
+student is incomplete.
+Record Payment
+School Management System — Architecture Blueprint v1.0 Page 21 of 28
+
+===== PAGE 22 / 28 =====
++------------------------------------------+
+| < Record Payment |
++------------------------------------------+
+| Student |
+| [ Search name or admission no... ] |
+| |
+| Chidi Nwosu - Primary 3A |
+| Term charges N 45,000 |
+| Paid so far N 20,000 |
+| Balance N 25,000 |
+| ---------------------------------------- |
+| Amount |
+| [ 15,000 ] |
+| |
+| Method |
+| [ Cash ] [ Transfer ] [ POS ] |
+| |
+| Bank reference (optional) |
+| [ FBN/2026/0044821 ] |
+| |
+| Date paid |
+| [ 19 Sep 2026 ] |
+| |
++------------------------------------------+
+| [ SAVE PAYMENT ] |
++------------------------------------------+
+On save: generate the receipt number, write the ledger row, queue it, and go straight to a shareable receipt view. The bursar's next
+action is almost always sending that receipt back to the parent on WhatsApp — make it one tap.
+Debtors List
++------------------------------------------+
+| Outstanding - First Term |
+| N 1,240,000 across 87 students |
++------------------------------------------+
+| [ All classes v ] [ Sort: Amount ]|
++------------------------------------------+
+| Emeka Obi Pry 3A |
+| Owes N 45,000 Paid N 0 [ Call ] |
+| ---------------------------------------- |
+| Zainab Musa Pry 5B |
+| Owes N 38,000 Paid N 7,000 [ Call ] |
+| ---------------------------------------- |
+| Tunde Adeyemi Pry 1A |
+| Owes N 30,000 Paid N 15,000 [ Call ] |
++------------------------------------------+
+The [Call] button is a tel: link to the guardian's number. This is the proprietor's most-used screen; the distance between seeing a
+debt and calling about it should be one tap.
+7.4 Communicating offline state
+Get this wrong and teachers will believe the app is broken and lose trust permanently.
+State What the user sees Tone
+Online, synced "All changes saved" with a small tick Offline, work pending "Saved on this phone. 12 changes waiting to upload.
+Syncing "Uploading 12 changes...
+" with a thin progress bar Sync failed "Could not upload yet. Your work is safe on this phone. [Try again]" Conflict / rejection "1 change could not be saved. [See details]" linking to the sync log Quiet, grey
+" Calm, neutral. Never red.
+Informative
+Reassuring first, actionable
+second
+Honest, specific
+THE PRINCIPLE
+Being offline is the normal condition, not an error. The teacher did nothing wrong; the network did. Language and colour must
+reflect that. A red banner every time a bundle runs out trains users to expect failure.
+School Management System — Architecture Blueprint v1.0 Page 22 of 28
+
+===== PAGE 23 / 28 =====
+8. Performance Budget
+Set hard numbers now and check every dependency against them. A budget you do not enforce is a wish.
+Metric Budget Notes
+Initial JS (gzipped) Initial CSS (gzipped) Total install size Time to interactive, mid-range Android, 3G Repeat open (offline) < 200 KB < 20 KB < 5 MB < 3 s < 1 s Score entry keystroke to visible total Class list of 60 students render < 50 ms < 200 ms Typical sync payload < 50 KB The hard one. Audit before every npm install.
+Tailwind purged is comfortably under this.
+Versus 40 MB+ for a native APK.
+First visit only. Repeat visits are cache-served.
+Service worker serves the shell; Dexie serves
+data.
+Must feel like paper.
+Below this, virtualisation is unnecessary
+complexity.
+Respect the data bundle. Show the estimate.
+How to hold the line
+System font stack only. -apple-system,
+"Segoe UI"
+, Roboto, sans-serif. No Google Fonts — that is a blocking network request and
+~100 KB for something Android already has.
+No student photos in v1. They destroy storage costs, sync times and data bills simultaneously. If added later: WebP, 200px max
+edge, lazy-loaded, never synced to teacher devices.
+No chart library until charts are genuinely needed. A CSS bar built from divs covers 90% of what a proprietor wants to see.
+No icon library. Inline the 15 SVGs you actually use.
+Route-level code splitting. The teacher bundle must not contain admin or fee screens.
+Virtualise lists only past ~60 rows. Below that, plain rendering is faster and simpler.
+Run vite-bundle-visualizer weekly. Bundles do not grow in leaps; they grow 8 KB at a time.
+TEST ON REAL HARDWARE
+Chrome DevTools with 4× CPU throttling plus Slow 4G is a useful first pass, but emulators lie about touch responsiveness, memory
+pressure and thermal throttling. Buy a cheap Tecno or itel and make it your primary test device. Nothing in this document is
+as valuable as watching the app stutter on the hardware your users actually own.
+School Management System — Architecture Blueprint v1.0 Page 23 of 28
+
+===== PAGE 24 / 28 =====
+9. Printing Report Cards
+The report card must become paper. Phones do not print. The honest, working flow:
+1. App generates a clean HTML print view of the report card
+2. Browser's Print → Save as PDF produces the file — built into Chrome on Android
+3. Teacher or admin shares that PDF to a laptop or a business centre via WhatsApp for printing
+This uses zero kilobytes of library code and produces better typography than any JavaScript PDF generator.
+The print stylesheet
+@media print {
+@page { size: A4 portrait; margin: 12mm; }
+/* hide everything that is not the report */
+nav, .bottom-bar, .no-print { display: none !important; }
+body { font-size: 10pt; color: #000; background: #fff; }
+.report-card {
+page-break-after: always; page-break-inside: avoid;
+/* one student per page */
+}
+table { page-break-inside: avoid; }
+tr { page-break-inside: avoid; }
+/* force backgrounds and borders to actually print */
+* { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+Requirements
+Exactly one student per A4 page. A report card that spills onto a second page will be rejected.
+"Print whole class" renders all 42 report cards into one document with correct page breaks. This is the feature that
+Batch printing.
+saves the real time.
+Print the broadsheet too. The class-wide grid of every student against every subject — A4 landscape — is what the head teacher
+reviews and files.
+Test on actual Chrome Android, not desktop Chrome. Its print engine differs and margins behave differently.
+Build this in phase 1. A misaligned report card is the single most likely thing to make a proprietor lose faith in the entire system.
+RECEIPTS TOO
+Apply the same approach to payment receipts, but size the page for a narrow slip. Most receipts will be screenshotted and sent on
+WhatsApp rather than printed — so make the on-screen receipt view look good as an image, with the school name, amount,
+balance and receipt number all legible at phone-screenshot resolution.
+School Management System — Architecture Blueprint v1.0 Page 24 of 28
+
+===== PAGE 25 / 28 =====
+10. Build Roadmap
+Build in this order. Each phase ends with something a real school can actually use, because a system that is 80% built across ten
+features is worth nothing, while one feature that works end to end changes someone's week.
+Phase 0 — Foundation and pilot access Week 1–2
+Goal: the skeleton runs offline on a real phone, and you have a pilot school.
+[ ] Secure your pilot school and agree what a successful term looks like
+[ ] Sit beside a teacher compiling results the current way. Say nothing for ten minutes. Take notes.
+[ ] Collect real artefacts: a blank report card, a filled one, the broadsheet, the fee schedule, a receipt
+[ ] Scaffold the app (Vite + React + Tailwind + Dexie + Serwist)
+[ ] Configure the PWA manifest; install it to a phone home screen and confirm it opens offline
+[ ] Set up Supabase project, create schema from §5.1, enable RLS on every table
+[ ] Write the cross-tenant isolation test and make it pass
+[ ] Build the mutate() helper and the outbox table before any feature code
+[ ] Acquire a low-end Android test device
+Phase 1 — Registry and results Week 3–8
+Goal: a school can replace its results spreadsheet entirely. This alone justifies the product.
+[ ] Auth: enrolment code, device binding, PIN lock, local wipe on logout
+[ ] Sessions, terms, classes, subjects, grade bands — admin CRUD
+[ ] Students: add, edit, search, list by class. Bulk import from CSV (your pilot has a spreadsheet already)
+[ ] Enrolments created on admission and on promotion
+[ ] Staff records, roles, subject assignment, bulk-assign to a whole class
+[ ] Sync engine: push, pull, retry with backoff, scope by role
+[ ] Sync Log screen — build it now, not when the first bug appears
+[ ] Score entry screen to the full spec in §7.3
+[ ] Result computation: totals, grades, positions, class statistics
+[ ] Trait ratings (affective and psychomotor) — form teacher screen
+[ ] Comments: class teacher and head teacher
+[ ] Submit and approve workflow with status transitions
+[ ] Report card print view, A4, one student per page
+[ ] Batch print for a whole class; landscape broadsheet
+[ ] End-of-session promotion flow
+Exit test: a form teacher at your pilot school compiles and prints an entire class's report cards, on their own phone, without you touching it.
+Phase 2 — Fees Week 9–12
+Goal: the proprietor can see, at any moment, who owes what. This is what makes the software worth paying for.
+[ ] Fee items per class per term; optional items with per-student opt-in
+[ ] Charge generation at the start of term
+[ ] Record payment screen with fast student search
+[ ] Receipt numbering, receipt view, share as image or PDF
+[ ] Balance computation from the ledger (never stored)
+[ ] Per-student fee history
+[ ] Debtors list with class filter, sort, totals, tap-to-call
+[ ] Result gating on outstanding balance, with head teacher override
+[ ] Discounts and waivers as negative charge rows
+[ ] Term income summary for the proprietor: expected, collected, outstanding
+Exit test: the proprietor opens the debtors list instead of asking the bursar.
+School Management System — Architecture Blueprint v1.0 Page 25 of 28
+
+===== PAGE 26 / 28 =====
+Phase 3 — Hardening and reach Week 13–18
+Goal: survive a full term with real users and extend carefully.
+[ ] Run a complete term end to end at the pilot school. Fix what breaks. Change nothing else.
+[ ] Parent access: read-only report card via a signed link, no app install required
+[ ] Attendance: simple daily register, form teacher only, feeding the report card
+[ ] Multi-school onboarding flow so you can take a second customer without touching the database
+[ ] Backup and export: full school data to CSV or Excel, so no school ever feels trapped
+[ ] Onboarding: a five-minute guided setup for a new school
+Deliberately deferred
+Timetable generation · CBT and online exams · library management · payroll · SMS broadcast · analytics dashboards · a native parent
+app · online payment collection · student photos · biometric attendance.
+Every school management product in this market is bloated with these, and none of them is the reason a school switches. Add them
+only when a paying customer asks twice.
+School Management System — Architecture Blueprint v1.0 Page 26 of 28
+
+===== PAGE 27 / 28 =====
+11. Risk Register
+Risk Severity Mitigation
+Sync bugs consume the
+project
+Teacher loses entered scores Report card format rejected
+by the school
+Cross-tenant data leak Bundle creep kills the low-
+end experience
+Next.js App Router fights
+offline-first
+Teachers abandon it after
+week one
+Money figures disputed Scope creep from an eager
+pilot school
+Device shared or lost with
+data on it
+High High High High Medium Medium High Medium Medium Medium Client UUIDs for idempotency; server timestamps for ordering; append-only money; sync log
+built in phase 1; PowerSync as a known escape hatch if you lose more than two weeks.
+Autosave every keystroke to local storage; never clear the outbox optimistically; warn loudly
+before logout if changes are unsynced; sync log lets you recover and explain.
+Collect a real filled report card in phase 0 and match it closely. Print early and often. Show the
+pilot head teacher a printed sample in week 4, not week 14.
+RLS on every table, derived from the JWT. Automated two-school isolation test run after every
+schema change. Service-role key never in the client.
+Written performance budget; bundle visualiser weekly; a real cheap Android as the primary
+test device.
+Decide in week 1, in writing. Prefer a Vite SPA for the app itself. If staying on Next.js, forbid
+Server Components in teacher-facing routes.
+The only real defence is watching real teachers use it. Sit in the staff room during score entry
+week. Every friction point you see is worth more than any amount of design theory.
+Append-only ledger; every entry attributed to a staff member, device and timestamp; no
+deletions, only reversing entries; printable statement per student.
+Keep a visible "later" list. Agree the three features up front. Say "that is phase 3" out loud and
+often.
+PIN lock, 15-minute background timeout, admin-triggered device revocation, full IndexedDB
+wipe on logout or revocation.
+The single highest-leverage activity
+DO THIS EVERY TWO WEEKS
+Hand the phone to a teacher who has not seen the new build. Give them a real task. Then stay silent and watch. Do not explain,
+do not help, do not defend a design decision. Write down every place they hesitate. That list, over a term, is a better roadmap than
+this document.
+School Management System — Architecture Blueprint v1.0 Page 27 of 28
+
+===== PAGE 28 / 28 =====
+12. Appendix: Domain Glossary
+Use these words in the interface, the codebase and conversations with schools. Speaking the domain's language correctly is a large part
+of why a school trusts a product.
+Term Meaning
+Session Term CA Exam Broadsheet Position in class Affective domain Psychomotor domain Form teacher Arm Basic 1–6 Proprietor Bursar Next term begins PTA levy Development levy Teller / reference The academic year, written as "2025/2026"
+. Runs roughly September to July.
+One of three divisions of a session: First, Second, Third. Each ends with exams and report cards.
+Continuous Assessment. Tests, assignments and class work scored through the term, usually worth 40
+marks.
+The end-of-term examination, usually worth 60 marks.
+The class-wide grid: every student down the side, every subject across the top, with totals, averages and
+positions. What the head teacher reviews and files.
+The student's rank by total marks. Culturally important and always printed, even where modern pedagogy
+discourages it.
+Behaviour and character ratings: punctuality, neatness, honesty, politeness, attentiveness, relationship
+with others. Rated 1–5.
+Practical skill ratings: handwriting, drawing, sports, handling of tools, musical skills. Rated 1–5.
+The teacher who owns a class: writes the class comment, manages the register, reviews the broadsheet.
+Also called class teacher.
+A division of a class level — Primary 3A and Primary 3B, or named arms like Gold and Silver.
+Alternative naming for Primary 1–6 under the Universal Basic Education framework. Support both labels.
+The school's owner. Usually the person who decides whether to pay for software. Often distinct from the
+head teacher.
+The staff member who handles fees, receipts and records of payment.
+The resumption date printed at the bottom of every report card. Parents look for it first.
+Parent-Teacher Association charge, usually per term or per session, collected alongside fees.
+A building or facilities charge, commonly once per session.
+The bank transaction identifier a parent supplies as proof of a transfer payment.
+Closing note
+The architecture in this document is sound, but it is not what will determine whether this succeeds. What will determine it is the number
+of hours you spend sitting beside a real teacher at a real school, watching them use it and resisting the urge to explain.
+Build the three features. Build them so they work with no network on a cheap phone. Print a report card that a head teacher would sign
+without hesitating. Everything else can wait.
+School Management System — Architecture Blueprint v1.0 Page 28 of 28
