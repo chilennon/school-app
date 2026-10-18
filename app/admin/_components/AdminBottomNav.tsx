@@ -1,13 +1,13 @@
 "use client";
 
-import { Home, Users, CheckSquare, Menu } from "lucide-react";
+import { Home, Clock, CalendarCheck, CheckSquare } from "lucide-react";
 import type { AdminView } from "../_lib/types";
 
 const TABS = [
   { key: "home", label: "Home", Icon: Home },
-  { key: "students", label: "Students", Icon: Users },
-  { key: "approvals", label: "Approvals", Icon: CheckSquare },
-  { key: "more", label: "More", Icon: Menu },
+  { key: "fees", label: "Fees", Icon: Clock },
+  { key: "attendance", label: "Attendance", Icon: CalendarCheck },
+  { key: "approvals", label: "Reports", Icon: CheckSquare }, // mapped approvals to reports
 ] as const;
 
 export function AdminBottomNav({
@@ -24,7 +24,8 @@ export function AdminBottomNav({
       <div className="max-w-lg mx-auto flex">
         {TABS.map(({ key, label, Icon }) => {
           const isActive = active === key;
-          const showBadge = key === "approvals" && pendingCount > 0;
+          const showBadge = (key === "approvals" || key === "fees") && pendingCount > 0;
+          
           return (
             <button
               key={key}
@@ -34,11 +35,11 @@ export function AdminBottomNav({
               }`}
             >
               <Icon className="w-6 h-6" strokeWidth={isActive ? 2.5 : 2} />
-              <span className={`text-[11px] ${isActive ? "font-bold" : "font-medium"}`}>
+              <span className={`text-[10px] ${isActive ? "font-bold" : "font-medium"}`}>
                 {label}
               </span>
               {showBadge && (
-                <span className="absolute top-1.5 right-[calc(50%-22px)] min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">
+                <span className="absolute top-1.5 right-[calc(50%-22px)] min-w-[16px] h-[16px] px-1 rounded-full bg-amber-500 text-white text-[9px] font-bold flex items-center justify-center">
                   {pendingCount}
                 </span>
               )}

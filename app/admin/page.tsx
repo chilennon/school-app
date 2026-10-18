@@ -16,6 +16,7 @@ import { computeTermAverages } from "@/lib/termAverages";
 import { useAdminData } from "./_hooks/useAdminData";
 import { useApprovals } from "./_hooks/useApprovals";
 import { useActivityFeed } from "./_hooks/useActivityFeed";
+import { useFeesSummary } from "./_hooks/useFeesSummary"; // <-- Imported
 import { fetchResultForView } from "./_lib/fetchResultForView";
 
 import { AdminBottomNav } from "./_components/AdminBottomNav";
@@ -32,13 +33,8 @@ import { ClassesSection } from "./_components/sections/ClassesSection";
 
 import type { AdminView, PendingClass, ReviewStudent } from "./_lib/types";
 
-const MAIN_TABS: AdminView[] = ["home", "students", "approvals", "more"];
+const MAIN_TABS: AdminView[] = ["home", "fees", "attendance", "approvals"];
 
-/**
- * Every confirmation on the page is expressed as one of these.
- * One state object → one ConfirmDialog. Add a case here, add a
- * handler case in `runConfirm`, and it works everywhere.
- */
 type ConfirmAction =
   | { kind: "delete-student"; id: string }
   | { kind: "delete-teacher"; id: string; name: string }
@@ -128,6 +124,9 @@ export default function AdminDashboardPage() {
   const data = useAdminData();
   const approvals = useApprovals();
   const activity = useActivityFeed();
+  
+  // 1. Call the new hook instead of doing a manual fetch
+  const { feeSummary } = useFeesSummary(data.callerRole === "owner");
 
   const [adminName, setAdminName] = useState("");
   const [currentAdminId, setCurrentAdminId] = useState<string | null>(null);
@@ -139,7 +138,6 @@ export default function AdminDashboardPage() {
     classRoom: any;
   } | null>(null);
 
-  // Approvals UI state
   const [bulkComment, setBulkComment] = useState("");
   const [batchPrinting, setBatchPrinting] = useState(false);
   const [busyEnrolmentId, setBusyEnrolmentId] = useState<string | null>(null);
@@ -149,14 +147,11 @@ export default function AdminDashboardPage() {
     title: string;
     description?: string;
   } | null>(null);
-
-  // One dialog, one state, one busy flag
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(
     null,
   );
   const [confirmBusy, setConfirmBusy] = useState(false);
 
-  // Load admin name once
   useEffect(() => {
     (async () => {
       const {
@@ -176,7 +171,6 @@ export default function AdminDashboardPage() {
     })();
   }, [router]);
 
-  // Load approvals when tab opens
   useEffect(() => {
     if (view === "approvals") approvals.load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -209,16 +203,7 @@ export default function AdminDashboardPage() {
     router.push("/sign-in/staff");
   };
 
-  // ── Immediate actions (no confirmation) ──
-
-  const handleSaveStudent = async (input: {
-    id?: string;
-    name: string;
-    regNo: string;
-    classId: string;
-    gender: string;
-    age: string;
-  }) => {
+  const handleSaveStudent = async (input: any) => {
     const action = input.id ? "update-student" : "create-student";
     await callAdminApi(action, {
       id: input.id,
@@ -303,12 +288,7 @@ export default function AdminDashboardPage() {
     toast.success("Subject deleted.");
   };
 
-  const handleSaveClass = async (input: {
-    id?: string;
-    name: string;
-    session: string;
-    subjectIds: string[];
-  }) => {
+  const handleSaveClass = async (input: any) => {
     try {
       if (input.id) {
         await callAdminApi("update-class", {
@@ -378,22 +358,19 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // ── Confirmation triggers (set state; the single dialog does the work) ──
-
   const askDeleteStudent = (id: string) =>
     setConfirmAction({ kind: "delete-student", id });
-
   const askDeleteTeacher = (id: string, name: string) =>
     setConfirmAction({ kind: "delete-teacher", id, name });
-
   const askDeleteClass = (id: string, name: string) =>
     setConfirmAction({ kind: "delete-class", id, name });
-
   const askReopenStudent = (
     enrolmentId: string,
     termId: string,
     name: string,
   ) => setConfirmAction({ kind: "reopen-student", enrolmentId, termId, name });
+  const askResetPassword = (id: string, name: string) =>
+    setConfirmAction({ kind: "reset-password", id, name });
 
   const askApproveAll = (termId: string) => {
     const toApprove = approvals.reviewStudents.filter(
@@ -403,42 +380,30 @@ export default function AdminDashboardPage() {
       toast.info("No submitted results to approve.");
       return;
     }
-    setConfirmAction({
-      kind: "approve-all",
-      termId,
-      count: toApprove.length,
-    });
+    setConfirmAction({ kind: "approve-all", termId, count: toApprove.length });
   };
-
-  const askResetPassword = (id: string, name: string) =>
-    setConfirmAction({ kind: "reset-password", id, name });
-
-  // ── Single dispatcher — runs the action, then closes ──
 
   const runConfirm = async () => {
     if (!confirmAction) return;
     setConfirmBusy(true);
     try {
       switch (confirmAction.kind) {
-        case "delete-student": {
+        case "delete-student":
           await callAdminApi("delete-student", { id: confirmAction.id });
           await data.refresh();
           toast.success("Student deleted.");
           break;
-        }
-        case "delete-teacher": {
+        case "delete-teacher":
           await callAdminApi("delete-teacher", { id: confirmAction.id });
           await data.refresh();
           toast.success("Teacher deleted.");
           break;
-        }
-        case "delete-class": {
+        case "delete-class":
           await callAdminApi("delete-class", { id: confirmAction.id });
           await data.refresh();
           toast.success("Class deleted.");
           break;
-        }
-        case "force-delete-subject": {
+        case "force-delete-subject":
           await callAdminApi("delete-subject", {
             id: confirmAction.id,
             force: true,
@@ -446,8 +411,7 @@ export default function AdminDashboardPage() {
           await data.refresh();
           toast.success(`"${confirmAction.name}" deleted.`);
           break;
-        }
-        case "reopen-student": {
+        case "reopen-student":
           await callAdminApi("reopen-student", {
             enrolmentId: confirmAction.enrolmentId,
             termId: confirmAction.termId,
@@ -461,8 +425,7 @@ export default function AdminDashboardPage() {
           );
           toast.success("Result sent back to teacher.");
           break;
-        }
-        case "approve-all": {
+        case "approve-all":
           const toApprove = approvals.reviewStudents.filter(
             (s) => s.status === "submitted",
           );
@@ -488,8 +451,7 @@ export default function AdminDashboardPage() {
             `Approved ${toApprove.length} result${toApprove.length === 1 ? "" : "s"}.`,
           );
           break;
-        }
-        case "reset-password": {
+        case "reset-password":
           const result = await callAdminApi("reset-password", {
             id: confirmAction.id,
           });
@@ -497,11 +459,10 @@ export default function AdminDashboardPage() {
             email: result.email,
             pin: result.pin,
             title: "Password Reset",
-            description: `Share the new passcode with ${confirmAction.name} privately. They can change it after signing in.`,
+            description: `Share the new passcode with ${confirmAction.name} privately.`,
           });
           toast.success("Password reset.");
           break;
-        }
       }
       setConfirmAction(null);
     } catch (err: any) {
@@ -510,8 +471,6 @@ export default function AdminDashboardPage() {
       setConfirmBusy(false);
     }
   };
-
-  // ── Approvals helpers ──
 
   const handleViewResult = async (s: ReviewStudent) => {
     const current = approvals.pendingClasses.find(
@@ -537,22 +496,18 @@ export default function AdminDashboardPage() {
       (c) => c.classId === approvals.reviewClassId,
     );
     if (!current) return;
-
     setBatchPrinting(true);
     try {
       const { classId, termId, sessionId } = current;
-
       const { data: cls } = await supabase
         .from("classes")
         .select("id, name, session, school_id")
         .eq("id", classId)
         .single();
-
       if (!cls || !cls.school_id) {
-        toast.error("Could not load class or class has no school.");
+        toast.error("Could not load class.");
         return;
       }
-
       const [schoolRes, bandsRes, termRes] = await Promise.all([
         supabase.from("schools").select("*").eq("id", cls.school_id).single(),
         supabase
@@ -562,22 +517,18 @@ export default function AdminDashboardPage() {
           .order("display_order"),
         supabase.from("terms").select("name").eq("id", termId).maybeSingle(),
       ]);
-
       const school = schoolRes.data;
       const gradeBands = bandsRes.data || [];
       const termName = termRes.data?.name ? `${termRes.data.name} Term` : "";
-
       if (!school || gradeBands.length === 0) {
         toast.error("Could not load school config.");
         return;
       }
-
       const { data: csubs } = await supabase
         .from("class_subjects")
         .select(`id, subject:subjects (id, name, display_order)`)
         .eq("class_id", classId)
         .eq("session_id", sessionId);
-
       const subjectOrder = (csubs || [])
         .map((cs: any) => ({
           name: cs.subject?.name,
@@ -586,21 +537,17 @@ export default function AdminDashboardPage() {
         }))
         .filter((s: any) => s.name)
         .sort((a: any, b: any) => a.order - b.order);
-
       const { data: enrols } = await supabase
         .from("enrolments")
         .select(`id, student:students (id, name, reg_no, gender, age)`)
         .eq("class_id", classId)
         .eq("session_id", sessionId)
         .eq("status", "active");
-
       if (!enrols || enrols.length === 0) {
         toast.error("No students in this class.");
         return;
       }
-
       const enrolmentIds = enrols.map((e: any) => e.id);
-
       const [scoresRes, traitsRes, recordsRes, termsRes] = await Promise.all([
         supabase.from("scores").select("*").in("enrolment_id", enrolmentIds),
         supabase
@@ -619,18 +566,15 @@ export default function AdminDashboardPage() {
           .eq("session_id", sessionId)
           .order("sequence"),
       ]);
-
       const allScores = scoresRes.data || [];
       const traits = traitsRes.data || [];
       const records = recordsRes.data || [];
       const sessionTerms = termsRes.data || [];
-
       const termAveragesByEnrolment = computeTermAverages(
         allScores.filter((s: any) => s.term_id !== termId) as any,
         sessionTerms as any,
         enrolmentIds,
       );
-
       const scoresForPositions = allScores.filter(
         (s: any) => s.term_id === termId,
       );
@@ -643,12 +587,10 @@ export default function AdminDashboardPage() {
         if (!perEnrolment[s.enrolment_id]) perEnrolment[s.enrolment_id] = {};
         perEnrolment[s.enrolment_id][s.class_subject_id] = tt;
       });
-
       const csIdToName: Record<string, string> = {};
       subjectOrder.forEach((so: any) => {
         csIdToName[so.class_subject_id] = so.name;
       });
-
       const subjectAllTotals: Record<string, number[]> = {};
       Object.values(perEnrolment).forEach((subMap) => {
         Object.entries(subMap).forEach(([csId, tt]) => {
@@ -662,12 +604,10 @@ export default function AdminDashboardPage() {
       Object.entries(subjectAllTotals).forEach(([name, totals]) => {
         sortedBySubject[name] = [...totals].sort((a, b) => b - a);
       });
-
       const allTotals = Object.values(perEnrolment).map((subMap) =>
         Object.values(subMap).reduce((a, b) => a + b, 0),
       );
       const sortedTotals = [...allTotals].sort((a, b) => b - a);
-
       const items: ReportCardInput[] = enrols.map((e: any) => {
         const student = e.student;
         const enrolmentId = e.id;
@@ -677,7 +617,6 @@ export default function AdminDashboardPage() {
           .forEach((s: any) => {
             scoreMap[s.class_subject_id] = s;
           });
-
         const subjects = subjectOrder.map((so: any) => {
           const row = scoreMap[so.class_subject_id];
           return {
@@ -687,7 +626,6 @@ export default function AdminDashboardPage() {
             sa: row?.sa_score != null ? String(row.sa_score) : "",
           };
         });
-
         const affective: Record<string, string> = {};
         const psychomotor: Record<string, string> = {};
         traits
@@ -698,9 +636,7 @@ export default function AdminDashboardPage() {
             else if (t.trait_domain === "psychomotor")
               psychomotor[t.trait_key] = String(t.rating ?? "");
           });
-
         const record = records.find((r: any) => r.enrolment_id === enrolmentId);
-
         const thisEnrolTotals = perEnrolment[enrolmentId] || {};
         const studentTotal = Object.values(thisEnrolTotals).reduce(
           (a, b) => a + b,
@@ -709,7 +645,6 @@ export default function AdminDashboardPage() {
         const subjCount = Object.keys(thisEnrolTotals).length;
         const avg = subjCount > 0 ? studentTotal / subjCount : 0;
         const position = sortedTotals.indexOf(studentTotal) + 1;
-
         const subjectStats: Record<string, any> = {};
         Object.entries(thisEnrolTotals).forEach(([csId, tt]) => {
           const name = csIdToName[csId];
@@ -722,12 +657,10 @@ export default function AdminDashboardPage() {
             average: stats.reduce((a, b) => a + b, 0) / stats.length,
           };
         });
-
         const termAvgs = termAveragesByEnrolment[enrolmentId] || {
           termAverages: {},
           cumulativeAverage: null,
         };
-
         return {
           schoolName: school.name,
           schoolAddress: school.address || "",
@@ -767,7 +700,6 @@ export default function AdminDashboardPage() {
           gradeBands,
         };
       });
-
       const doc = generateBatchReportCards(items);
       const safe = (s: string) => s.replace(/\s+/g, "_");
       doc.save(`${safe(cls.name)}_${safe(termName)}_ReportCards.pdf`);
@@ -780,7 +712,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // ── Full-screen read-only result view ──
   if (viewingStudent) {
     return (
       <div className="min-h-screen bg-slate-100">
@@ -803,7 +734,6 @@ export default function AdminDashboardPage() {
     );
   }
 
-  // ── Main tabs loading state ──
   if (data.loading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -827,12 +757,10 @@ export default function AdminDashboardPage() {
     currentSession && currentTerm
       ? `${currentSession.name} · ${currentTerm.name} Term`
       : "";
-
   const totalPending = approvals.pendingClasses.reduce(
     (n, c) => n + c.submittedCount,
     0,
   );
-
   const isMainTab = MAIN_TABS.includes(view);
   const confirmMeta = confirmAction
     ? describeConfirm(confirmAction, bulkComment)
@@ -858,16 +786,30 @@ export default function AdminDashboardPage() {
               data.students.filter((s) => !s.currentClassId).length
             }
             isOwner={isOwner}
-            // Framework slots — wire these when the features ship
-            feeSummary={null}
-            teacherAbsence={null}
+            feeSummary={feeSummary} // <--- Uses the hook's data directly
+            teacherAbsence={null}   
             onOpenActivity={() => setActivityOpen(true)}
-            onOpenFees={() => setView("fees")}
+            onOpenFees={() => router.push("/admin/fees")}
             onNavigate={(v) => {
               setPreviousView("home");
               setView(v);
             }}
           />
+        )}
+
+        {view === "attendance" && (
+          <div className="p-4 pt-20 text-center space-y-4">
+            <h1 className="text-2xl font-bold text-slate-900">Attendance</h1>
+            <p className="text-slate-500">
+              Admin attendance overview coming soon.
+            </p>
+            <button
+              onClick={() => setView("home")}
+              className="px-6 py-2 bg-slate-200 rounded-xl font-bold"
+            >
+              Go Back
+            </button>
+          </div>
         )}
 
         {view === "students" && (
@@ -927,6 +869,7 @@ export default function AdminDashboardPage() {
             }}
           />
         )}
+
         {view === "more" && (
           <MoreTab
             isOwner={data.callerRole === "owner"}
@@ -1005,11 +948,17 @@ export default function AdminDashboardPage() {
         <AdminBottomNav
           active={view}
           pendingCount={totalPending}
-          onChange={setView}
+          onChange={(newView) => {
+            if (newView === "fees") {
+              router.push("/admin/fees");
+            } else {
+              setPreviousView("home");
+              setView(newView);
+            }
+          }}
         />
       )}
 
-      {/* One dialog for everything */}
       <ConfirmDialog
         open={confirmAction !== null}
         onOpenChange={(open) => !open && setConfirmAction(null)}
@@ -1021,7 +970,6 @@ export default function AdminDashboardPage() {
         onConfirm={runConfirm}
       />
 
-      {/* Activity drawer — mounted once, works from any view */}
       <ActivityFeed
         open={activityOpen}
         onClose={() => setActivityOpen(false)}
