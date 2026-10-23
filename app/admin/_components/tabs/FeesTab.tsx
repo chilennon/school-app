@@ -17,7 +17,6 @@ import { useBulkFeesData } from "../../_hooks/useBulkFeesData";
 import { FeesSummaryDesktop } from "../FeesSummaryDesktop";
 import { BulkFeesGrid } from "../BulkFeesGrid";
 
-
 export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) {
   const router = useRouter();
   const { term } = useCurrentTerm();
@@ -61,6 +60,21 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
     });
   }, []);
 
+  // Moved filteredData UP to be accessible by handleExport
+  const filteredData = data.filter((f) => {
+    const matchesFilter = 
+      filter === "all" || 
+      (filter === "paid" && f.status === "Fully Paid") ||
+      (filter === "partial" && f.status === "Part Payment") ||
+      (filter === "unpaid" && f.status === "Not Paid");
+      
+    const matchesSearch = 
+      f.familyName.toLowerCase().includes(search.toLowerCase()) || 
+      f.children.toLowerCase().includes(search.toLowerCase());
+      
+    return matchesFilter && matchesSearch;
+  });
+
   const handleAddRow = () => {
     setBulkFamilies([...bulkFamilies, { name: "", guardianName: "", guardianPhone: "", initialCharge: "" }]);
   };
@@ -69,17 +83,14 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
     if (bulkFamilies.length === 1) return;
     
     const row = bulkFamilies[index];
-    // Check if the row has any data typed into it
     const hasData = row.name.trim() !== "" || 
                     row.guardianName.trim() !== "" || 
                     row.guardianPhone.trim() !== "" || 
                     row.initialCharge.trim() !== "";
 
     if (hasData) {
-      // If it has data, trigger the confirmation dialog
       setRowToDelete(index);
     } else {
-      // If it's empty, just remove it instantly for speed
       setBulkFamilies(bulkFamilies.filter((_, i) => i !== index));
     }
   };
@@ -103,7 +114,6 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
       return;
     }
 
-    // Filter out completely empty rows
     const validRows = bulkFamilies.filter(f => f.name.trim() && f.guardianPhone.trim());
     
     if (validRows.length === 0) {
@@ -113,13 +123,12 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
 
     setIsSaving(true);
     try {
-      // Map to the ImportRow format expected by the RPC
       const rowsToImport = validRows.map(f => ({
         familyName: f.name.trim(),
         guardianName: f.guardianName.trim() || "Guardian",
         guardianPhone: f.guardianPhone.trim(),
         totalDue: Number(f.initialCharge) || 0,
-        totalPaid: 0, // New families start with 0 paid
+        totalPaid: 0, 
       }));
 
       const res = await importFamilies(rowsToImport, term.id);
@@ -169,20 +178,12 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
     }
   };
 
-  const handleOpenEdit = (row: any) => {
-    setEditingFamily(row);
-    setEditName(row.familyName);
-    setEditGuardian(row.guardianName);
-    setEditPhone(row.guardianPhone);
-  };
-
   const handleExport = () => {
     if (filteredData.length === 0) {
       toast.error("No data to export");
       return;
     }
 
-    // 1. Map the data to a clean, user-friendly Excel format
     const exportData = filteredData.map((row) => ({
       "Family Name": row.familyName,
       "Children": row.children,
@@ -195,30 +196,26 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
       "Remarks": row.latestPaymentNote || "",
     }));
 
-    // 2. Create the worksheet and workbook
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Fees Data");
 
-    // 3. Auto-adjust column widths so it looks nice in Excel
     const wscols = [
-      { wch: 25 }, // Family Name
-      { wch: 35 }, // Children
-      { wch: 15 }, // Brought Fwd
-      { wch: 15 }, // Term Fee
-      { wch: 15 }, // Amount Paid
-      { wch: 15 }, // Amount Owed
-      { wch: 15 }, // Status
-      { wch: 15 }, // Phone
-      { wch: 30 }, // Remarks
+      { wch: 25 }, { wch: 35 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 30 }
     ];
     ws["!cols"] = wscols;
 
-    // 4. Generate the file name and trigger download
     const date = new Date().toISOString().split("T")[0];
     XLSX.writeFile(wb, `Fees_Export_${date}.xlsx`);
     
     toast.success("Exported to Excel successfully");
+  };
+
+  const handleOpenEdit = (row: any) => {
+    setEditingFamily(row);
+    setEditName(row.familyName);
+    setEditGuardian(row.guardianName);
+    setEditPhone(row.guardianPhone);
   };
 
   const handleSaveEdit = async () => {
@@ -265,20 +262,6 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
       setIsMerging(false);
     }
   };
-
-  const filteredData = data.filter((f) => {
-    const matchesFilter = 
-      filter === "all" || 
-      (filter === "paid" && f.status === "Fully Paid") ||
-      (filter === "partial" && f.status === "Part Payment") ||
-      (filter === "unpaid" && f.status === "Not Paid");
-      
-    const matchesSearch = 
-      f.familyName.toLowerCase().includes(search.toLowerCase()) || 
-      f.children.toLowerCase().includes(search.toLowerCase());
-      
-    return matchesFilter && matchesSearch;
-  });
 
   return (
     <div className="w-full">
@@ -365,11 +348,12 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
                 />
               </div>
 
-              <div className="flex gap-2">
+              {/* FIXED: Grid layout on mobile, flex on desktop */}
+              <div className="grid grid-cols-2 md:flex md:flex-row gap-2 w-full md:w-auto">
                 {isOwner && (
                   <Dialog open={isGenOpen} onOpenChange={setIsGenOpen}>
                     <DialogTrigger asChild>
-                      <button className="bg-emerald-600 text-white font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm text-[15px] whitespace-nowrap">
+                      <button className="w-full md:w-auto bg-emerald-600 text-white font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm text-[15px] whitespace-nowrap">
                         <Wand2 className="w-4 h-4" /> Setup Term Fees
                       </button>
                     </DialogTrigger>
@@ -403,25 +387,23 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
                   </Dialog>
                 )}
 
-                {/* IMPORT BUTTON (Down Arrow) */}
                 <button 
                   onClick={() => router.push("/admin/fees/import")}
-                  className="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors shadow-sm text-[15px] whitespace-nowrap"
+                  className="w-full md:w-auto bg-white border border-slate-200 text-slate-700 font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors shadow-sm text-[15px] whitespace-nowrap"
                 >
                   <Download className="w-4 h-4" /> Import
                 </button>
 
-                {/* EXPORT BUTTON (Up Arrow) */}
                 <button 
                   onClick={handleExport}
-                  className="bg-white border border-slate-200 text-slate-700 font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors shadow-sm text-[15px] whitespace-nowrap"
+                  className="w-full md:w-auto bg-white border border-slate-200 text-slate-700 font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors shadow-sm text-[15px] whitespace-nowrap"
                 >
                   <Upload className="w-4 h-4" /> Export
                 </button>
 
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                   <DialogTrigger asChild>
-                    <button className="bg-blue-600 text-white font-bold px-6 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors shadow-sm text-[15px] whitespace-nowrap">
+                    <button className="w-full md:w-auto bg-blue-600 text-white font-bold px-6 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors shadow-sm text-[15px] whitespace-nowrap">
                       <Plus className="w-4 h-4" /> Add Families
                     </button>
                   </DialogTrigger>
