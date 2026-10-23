@@ -509,7 +509,6 @@ export async function POST(req: NextRequest) {
           );
         }
 
-        // Admins can only reset teachers. Only owners can reset admins/owners.
         if (
           !callerIsOwner &&
           (target.role === "admin" || target.role === "owner")
@@ -1198,12 +1197,30 @@ export async function POST(req: NextRequest) {
       // STUDENTS
       // ──────────────────────────────────────────────────────────
       case "create-student": {
-        const { name, reg_no, class_id, gender, age } = body;
+        const { name, reg_no, class_id, family_id, gender, age } = body;
         if (!name || !reg_no) {
           return NextResponse.json(
             { error: "Name and reg_no required" },
             { status: 400 }
           );
+        }
+
+        // 🔒 SECURITY CHECK: Verify family belongs to this school and is not deleted
+        if (family_id) {
+          const { data: familyCheck } = await supabaseAdmin
+            .from("families")
+            .select("id")
+            .eq("id", family_id)
+            .eq("school_id", callerSchoolId)
+            .is("deleted_at", null)
+            .maybeSingle();
+
+          if (!familyCheck) {
+            return NextResponse.json(
+              { error: "Invalid family ID or unauthorized access." },
+              { status: 403 }
+            );
+          }
         }
 
         const { data: student, error } = await supabaseAdmin
@@ -1214,6 +1231,7 @@ export async function POST(req: NextRequest) {
               name,
               reg_no,
               class_id: class_id || null,
+              family_id: family_id || null, // <-- Save family_id
               gender,
               age,
             },
@@ -1262,12 +1280,30 @@ export async function POST(req: NextRequest) {
       }
 
       case "update-student": {
-        const { id, name, reg_no, class_id, gender, age } = body;
+        const { id, name, reg_no, class_id, family_id, gender, age } = body;
         if (!id || !name || !reg_no) {
           return NextResponse.json(
             { error: "Missing fields" },
             { status: 400 }
           );
+        }
+
+        // 🔒 SECURITY CHECK: Verify family belongs to this school and is not deleted
+        if (family_id) {
+          const { data: familyCheck } = await supabaseAdmin
+            .from("families")
+            .select("id")
+            .eq("id", family_id)
+            .eq("school_id", callerSchoolId)
+            .is("deleted_at", null)
+            .maybeSingle();
+
+          if (!familyCheck) {
+            return NextResponse.json(
+              { error: "Invalid family ID or unauthorized access." },
+              { status: 403 }
+            );
+          }
         }
 
         const { error } = await supabaseAdmin
@@ -1276,6 +1312,7 @@ export async function POST(req: NextRequest) {
             name,
             reg_no,
             class_id: class_id || null,
+            family_id: family_id || null, // <-- Save family_id
             gender,
             age,
           })

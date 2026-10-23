@@ -1,34 +1,54 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter, useParams } from "next/navigation";
 import { recordPayment } from "../../../actions";
-import { ChevronLeft, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Download, Printer, Share2, FileImage, FileText } from "lucide-react";
 import { calculateFamilyBalances } from "@/lib/fees";
+import { useSchoolConfig } from "@/hooks/useSchoolConfig";
+import { amountToWords } from "@/lib/utils/amountToWords";
+import { Receipt } from "../../../_components/Receipt";
+import html2canvas from "html2canvas-pro";
+import jsPDF from "jspdf";
+import { toast } from "sonner";
 
 export default function RecordPayment() {
   const router = useRouter();
   const params = useParams();
+  const { config: school } = useSchoolConfig();
+  const receiptRef = useRef<HTMLDivElement>(null);
 
   const [family, setFamily] = useState<any>(null);
   const [amount, setAmount] = useState<string>("");
   const [method, setMethod] = useState<"cash" | "transfer" | "pos">("transfer");
   const [reference, setReference] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [success, setSuccess] = useState<{ receiptNo: string; amount: number } | null>(null);
+  
+  const [success, setSuccess] = useState<{
+    receiptNo: string;
+    amount: number;
+    paymentObj: any;
+    newBalance: number;
+  } | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showShareMenu, setShowShareMenu] = useState(false);
 
   useEffect(() => {
     if (!params.id) return;
-    
     supabase.from("families")
-      .select("name, charges(amount, created_at), payments(amount, created_at)")
+      .select("name, guardian_name, guardian_phone, charges(amount, created_at), payments(amount, created_at)")
       .eq("id", params.id)
       .single()
       .then(({ data }) => {
         if (data) {
           const calc = calculateFamilyBalances(data.charges as any, data.payments as any);
-          setFamily({ name: data.name, balance: calc.currentBalance });
+          setFamily({ 
+            name: data.name, 
+            guardian_name: data.guardian_name,
+            guardian_phone: data.guardian_phone,
+            balance: calc.currentBalance 
+          });
         }
       });
   }, [params.id]);
@@ -43,45 +63,165 @@ export default function RecordPayment() {
         method,
         reference,
       });
+
       if (res.success) {
-        setSuccess({ receiptNo: res.receiptNo, amount: Number(amount) });
+        const paymentObj = {
+          receipt_no: res.receiptNo,
+          amount: Number(amount),
+          method: method,
+          reference: reference,
+          paid_on: new Date().toISOString(),
+          note: "School Fees",
+        };
+        
+        const newBalance = Math.max(0, (family.balance || 0) - Number(amount));
+        
+        setSuccess({ 
+          receiptNo: res.receiptNo, 
+          amount: Number(amount),
+          paymentObj,
+          newBalance
+        });
       }
     } catch (err: any) {
-      alert(err.message || "Failed to save payment");
+      toast.error(err.message || "Failed to save payment");
     } finally {
       setIsSaving(false);
     }
   };
 
+  const downloadPdf = async () => {
+    if (!receiptRef.current) return;
+    setIsGenerating(true);
+    try {
+      const canvas = await html2canvas(receiptRef.current, { scale: 2, backgroundColor: "#f8f6f0", useCORS: true });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [canvas.width, canvas.height] });
+      pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+      pdf.save(`Receipt-${success?.receiptNo}.pdf`);
+      toast.success("PDF Downloaded");
+    } catch (err) {
+      console.error("PDF Error:", err);
+      toast.error("Failed to generate PDF");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const downloadImage = async () => {
+    if (!receiptRef.current) return;
+    setIsGenerating(true);
+    try {
+      const canvas = await html2canvas(receiptRef.current, { scale: 2, backgroundColor: "#f8f6f0", useCORS: true });
+      const link = document.createElement("a");
+      link.download = `Receipt-${success?.receiptNo}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      toast.success("Image Downloaded");
+    } catch (err) {
+      console.error("Image Error:", err);
+      toast.error("Failed to generate Image");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleShare = async (format: 'image' | 'pdf') => {
+    if (!receiptRef.current) return;
+    setIsGenerating(true);
+    try {
+      const canvas = await html2canvas(receiptRef.current, { scale: 2, backgroundColor: "#f8f6f0", useCORS: true });
+      let file: File;
+
+      if (format === 'image') {
+        const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/png"));
+        file = new File([blob], `Receipt-${success?.receiptNo}.png`, { type: "image/png" });
+      } else {
+        const imgData = canvas.toDataURL("image/png");
+        const pdf = new jsPDF({ orientation: "portrait", unit: "px", format: [canvas.width, canvas.height] });
+        pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+        const pdfBlob = pdf.output('blob');
+        file = new File([pdfBlob], `Receipt-${success?.receiptNo}.pdf`, { type: "application/pdf" });
+      }
+
+      const shareData = {
+        files: [file],
+        title: 'Payment Receipt',
+        text: `Receipt for ${family?.name}`,
+      };
+
+      if (navigator.canShare && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        const link = document.createElement("a");
+        link.download = file.name;
+        link.href = URL.createObjectURL(file);
+        link.click();
+        toast.success(`${format.toUpperCase()} saved (Share not supported)`);
+      }
+      setShowShareMenu(false);
+    } catch (err) {
+      console.error("Share Error:", err);
+      toast.error("Failed to share file");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   if (success) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
-        <div className="print:hidden flex flex-col items-center w-full">
-          <CheckCircle2 className="w-20 h-20 text-green-500 mb-4" />
-          <h1 className="text-2xl font-black text-slate-900 mb-2">Payment Saved!</h1>
-          <p className="text-slate-500 font-medium mb-8">Receipt {success.receiptNo} generated.</p>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 py-12 print:hidden">
+        <div className="flex flex-col items-center w-full mb-6">
+          <CheckCircle2 className="w-16 h-16 text-green-500 mb-2" />
+          <h1 className="text-2xl font-black text-slate-900">Payment Saved!</h1>
         </div>
 
-        {/* Receipt Container */}
-        <div className="bg-white p-6 rounded-2xl w-full max-w-sm shadow-sm border border-slate-100 mb-6 print:border-none print:shadow-none print:max-w-full">
-          <p className="text-sm font-bold text-slate-500 mb-1">Amount Paid</p>
-          <p className="text-3xl font-black text-slate-900 mb-4">₦{success.amount.toLocaleString()}</p>
-          <p className="text-sm text-slate-500 font-medium mb-4">For {family?.name}</p>
-          
-          <div className="border-t border-dashed border-slate-200 pt-4 text-left space-y-1">
-            <p className="text-xs text-slate-500">Receipt No: <span className="font-bold text-slate-800">{success.receiptNo}</span></p>
-            <p className="text-xs text-slate-500">Date: <span className="font-bold text-slate-800">{new Date().toLocaleDateString()}</span></p>
-            <p className="text-xs text-slate-500">Method: <span className="font-bold text-slate-800 capitalize">{method}</span></p>
-          </div>
-        </div>
+        <Receipt 
+          ref={receiptRef}
+          school={school}
+          family={family}
+          payment={success.paymentObj}
+          amountInWords={amountToWords(success.amount)}
+          balance={success.newBalance}
+        />
 
-        <div className="w-full max-w-sm space-y-3 print:hidden">
-          <button onClick={() => window.print()} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-md">
-            Print / Download Receipt
-          </button>
-          <button onClick={() => router.push(`/admin/fees/family/${params.id}`)} className="w-full bg-slate-200 text-slate-800 font-bold py-4 rounded-2xl">
-            Back to Family
-          </button>
+        <div className="w-full max-w-[500px] mt-6">
+          {showShareMenu ? (
+            <div className="bg-slate-800 p-4 rounded-xl flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
+              <p className="text-white text-sm text-center font-medium">How do you want to share this?</p>
+              <div className="flex gap-2">
+                <button onClick={() => handleShare('image')} disabled={isGenerating} className="flex-1 bg-slate-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-600 disabled:opacity-50">
+                  <FileImage className="w-4 h-4" /> Image
+                </button>
+                <button onClick={() => handleShare('pdf')} disabled={isGenerating} className="flex-1 bg-slate-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-600 disabled:opacity-50">
+                  <FileText className="w-4 h-4" /> PDF
+                </button>
+              </div>
+              <button onClick={() => setShowShareMenu(false)} className="text-xs text-slate-300 mt-1 hover:text-white">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={downloadImage} disabled={isGenerating} className="bg-slate-800 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-900 disabled:opacity-50">
+                <Download className="w-4 h-4" /> Image
+              </button>
+              <button onClick={downloadPdf} disabled={isGenerating} className="bg-slate-800 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-900 disabled:opacity-50">
+                <Download className="w-4 h-4" /> PDF
+              </button>
+              
+              <button onClick={() => setShowShareMenu(true)} disabled={isGenerating} className="col-span-2 bg-blue-600 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-blue-700 disabled:opacity-50">
+                <Share2 className="w-4 h-4" /> Share Receipt
+              </button>
+              
+              <button onClick={() => window.print()} className="col-span-2 bg-slate-200 text-slate-800 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-300">
+                <Printer className="w-4 h-4" /> Print Directly
+              </button>
+              <button onClick={() => router.push(`/admin/fees/family/${params.id}`)} className="col-span-2 text-blue-600 font-bold py-2 text-sm hover:underline mt-2">
+                Back to Family
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -90,7 +230,7 @@ export default function RecordPayment() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pb-24">
       <div className="p-4 bg-white border-b border-slate-100">
-        <button onClick={() => router.back()} className="text-blue-600 font-bold mb-4 flex items-center gap-1">
+        <button onClick={() => router.push(`/admin/fees/family/${params.id}`)} className="text-blue-600 font-bold mb-4 flex items-center gap-1">
           <ChevronLeft className="w-4 h-4" /> Cancel
         </button>
         <h1 className="text-2xl font-black text-slate-900 mb-1">Record payment</h1>
@@ -98,7 +238,6 @@ export default function RecordPayment() {
       </div>
 
       <div className="p-4 flex-1 space-y-5">
-        {/* Amount Input */}
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-2">Amount</label>
           <div className="relative">
@@ -113,7 +252,6 @@ export default function RecordPayment() {
           </div>
         </div>
 
-        {/* Quick Pills */}
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           <button
             onClick={() => setAmount(family?.balance?.toString() || "")}
@@ -129,7 +267,6 @@ export default function RecordPayment() {
           </button>
         </div>
 
-        {/* Method */}
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-2">Paid by</label>
           <div className="flex gap-2">
@@ -149,7 +286,6 @@ export default function RecordPayment() {
           </div>
         </div>
 
-        {/* Reference */}
         <div>
           <label className="block text-sm font-bold text-slate-700 mb-2">Reference or note (optional)</label>
           <input
@@ -161,13 +297,11 @@ export default function RecordPayment() {
           />
         </div>
 
-        {/* Date */}
         <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm flex justify-between shadow-sm">
           <span className="text-slate-500 font-medium">Date</span>
           <span className="font-bold text-slate-900">Today, {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
         </div>
 
-        {/* Preview Box */}
         {amount && Number(amount) > 0 && (
           <div className="bg-blue-50 rounded-2xl p-5 border border-blue-100">
             <p className="text-xs font-black text-blue-800 uppercase tracking-wider mb-2">After this payment</p>
@@ -182,7 +316,6 @@ export default function RecordPayment() {
         )}
       </div>
 
-      {/* Fixed Bottom Footer */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-4 w-full z-10">
         <div className="max-w-lg mx-auto">
           <button

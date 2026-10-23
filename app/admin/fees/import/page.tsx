@@ -1,3 +1,4 @@
+//app/admin/fees/import/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -5,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { useCurrentTerm } from "@/hooks/useCurrentTerm";
 import { importFamilies, ImportRow } from "../actions";
 import { toast } from "sonner";
-import { ArrowLeft, Upload, Loader2, CheckCircle2, ChevronRight } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, X } from "lucide-react";
 import * as XLSX from "xlsx";
-
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 export default function ImportPage() {
   const router = useRouter();
@@ -16,8 +17,10 @@ export default function ImportPage() {
   const [parsedData, setParsedData] = useState<ImportRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [isImporting, setIsImporting] = useState(false);
+  
+  // New state for the Cancel Confirmation Dialog
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
-  // Parse the file client-side
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !term?.id) return;
@@ -32,7 +35,6 @@ export default function ImportPage() {
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         
-        // Convert to JSON
         const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
         
         if (rawData.length < 2) {
@@ -40,12 +42,7 @@ export default function ImportPage() {
           return;
         }
 
-        // --- COLUMN MAPPING LOGIC ---
-        // This assumes a standard format. You may need to adjust the indices based on the actual Excel headers.
-        // Example Excel Structure:
-        // [0]: Family Name, [1]: Guardian Name, [2]: Phone, [3]: Children, [4]: Total Due, [5]: Total Paid
-        
-        const headers = rawData[0];
+        // Column mapping: [0]: Family Name, [1]: Guardian, [2]: Phone, [3]: Children, [4]: Due, [5]: Paid
         const rows = rawData.slice(1);
 
         const parsedRows: ImportRow[] = rows.map((row) => ({
@@ -55,7 +52,7 @@ export default function ImportPage() {
           children: String(row[3] || "").trim(),
           totalDue: Number(row[4]) || 0,
           totalPaid: Number(row[5]) || 0,
-        })).filter(r => r.familyName !== ""); // Filter out empty rows
+        })).filter(r => r.familyName !== "");
 
         setParsedData(parsedRows);
         toast.success(`Parsed ${parsedRows.length} families successfully.`);
@@ -69,13 +66,26 @@ export default function ImportPage() {
 
   const handleImport = async () => {
     if (!term?.id || parsedData.length === 0) return;
+
+    // RULE: Ensure the user is online before attempting bulk import
+    if (!navigator.onLine) {
+      toast.error("Excel import requires an internet connection.");
+      return;
+    }
+
     setIsImporting(true);
     
     try {
       const res = await importFamilies(parsedData, term.id);
+
       if (res.success) {
-        toast.success(`Successfully imported ${res.importedCount} families!`);
-        router.push("/admin/fees");
+        // Display the exact inserted vs skipped counts
+        if (res.skipped > 0) {
+          toast.success(`Imported ${res.inserted} families. ${res.skipped} duplicates skipped.`);
+        } else {
+          toast.success(`Successfully imported all ${res.inserted} families!`);
+        }
+        router.push("/admin?tab=fees");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to import data");
@@ -84,12 +94,28 @@ export default function ImportPage() {
     }
   };
 
+  const handleBackOrCancel = () => {
+    if (parsedData.length > 0) {
+      setShowCancelConfirm(true);
+    } else {
+      router.back();
+    }
+  };
+
+  const confirmCancel = () => {
+    setParsedData([]);
+    setFileName("");
+    setShowCancelConfirm(false);
+    router.push("/admin?tab=fees");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 w-full">
       <main className="max-w-lg mx-auto p-4 pb-24">
         
         <header className="flex items-center gap-2 mb-6">
-          <button onClick={() => router.back()} className="p-2 -ml-2 rounded-lg hover:bg-slate-200 transition">
+          {/* Intercept Back Button if file is parsed */}
+          <button onClick={handleBackOrCancel} className="p-2 -ml-2 rounded-lg hover:bg-slate-200 transition">
             <ArrowLeft className="w-5 h-5 text-slate-700" />
           </button>
           <div>
@@ -141,21 +167,42 @@ export default function ImportPage() {
               ))}
             </div>
 
-            <button
-              onClick={handleImport}
-              disabled={isImporting}
-              className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
-            >
-              {isImporting ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> Importing...</>
-              ) : (
-                <>Confirm & Import {parsedData.length} Families</>
-              )}
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={handleImport}
+                disabled={isImporting}
+                className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
+              >
+                {isImporting ? (
+                  <><Loader2 className="w-5 h-5 animate-spin" /> Importing...</>
+                ) : (
+                  <>Confirm & Import {parsedData.length} Families</>
+                )}
+              </button>
+              
+              <button
+                onClick={handleBackOrCancel}
+                disabled={isImporting}
+                className="w-full bg-slate-200 text-slate-700 font-bold py-3 rounded-2xl hover:bg-slate-300 transition-colors disabled:opacity-50"
+              >
+                Cancel Import
+              </button>
+            </div>
           </div>
         )}
 
       </main>
+
+      {/* Confirmation Dialog for Cancel */}
+      <ConfirmDialog
+        open={showCancelConfirm}
+        onOpenChange={setShowCancelConfirm}
+        title="Cancel Import?"
+        description="Your uploaded file will be discarded and no families will be imported. Are you sure?"
+        confirmLabel="Yes, cancel"
+        destructive={true}
+        onConfirm={confirmCancel}
+      />
     </div>
   );
 }

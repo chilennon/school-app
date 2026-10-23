@@ -12,6 +12,7 @@ export default function SignupSchoolPage() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [schoolName, setSchoolName] = useState("");
+  const [schoolType, setSchoolType] = useState(""); // <-- Added state
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [motto, setMotto] = useState("");
@@ -26,7 +27,8 @@ export default function SignupSchoolPage() {
       !adminName.trim() ||
       !email.trim() ||
       !password ||
-      !schoolName.trim()
+      !schoolName.trim() ||
+      !schoolType.trim() // <-- Added to validation
     ) {
       setError("Please fill in all required fields.");
       return;
@@ -50,6 +52,7 @@ export default function SignupSchoolPage() {
           email: email.trim(),
           password,
           schoolName: schoolName.trim(),
+          schoolType: schoolType.trim(), // <-- Added to payload
           address: address.trim(),
           phone: phone.trim(),
           motto: motto.trim(),
@@ -156,7 +159,19 @@ export default function SignupSchoolPage() {
                 type="text"
                 value={schoolName}
                 onChange={(e) => setSchoolName(e.target.value)}
-                placeholder="e.g. House Of Angels School"
+                placeholder="e.g. House Of Angels"
+                className="w-full border border-slate-300 rounded-xl px-3 py-3 text-base outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </Field>
+
+            {/* ADDED SCHOOL TYPE FIELD */}
+            <Field label="School Type / Subtitle">
+              <input
+                type="text"
+                value={schoolType}
+                onChange={(e) => setSchoolType(e.target.value)}
+                placeholder="e.g. Preparation Children School"
                 className="w-full border border-slate-300 rounded-xl px-3 py-3 text-base outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />

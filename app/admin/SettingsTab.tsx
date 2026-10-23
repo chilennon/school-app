@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ChangePasswordCard } from "./_components/ChangePasswordCard";
+import { ChevronRight } from "lucide-react"; // <-- Added import
 
 interface Term {
   id: string;
@@ -24,9 +25,11 @@ interface SessionWithTerms {
 
 interface Props {
   callAdminApi: (action: string, payload: any) => Promise<any>;
+  onLogout: () => void;
+  onNavigate: (view: string) => void; // <-- Added prop
 }
 
-export default function SettingsTab({ callAdminApi }: Props) {
+export default function SettingsTab({ callAdminApi, onLogout, onNavigate }: Props) {
   const [sessions, setSessions] = useState<SessionWithTerms[]>([]);
   const [loading, setLoading] = useState(true);
   const [newSessionName, setNewSessionName] = useState("");
@@ -93,12 +96,10 @@ export default function SettingsTab({ callAdminApi }: Props) {
     }
   };
 
-  // Opens dialog
   const handleSetCurrentSession = (sessionId: string) => {
     setPendingCurrentSessionId(sessionId);
   };
 
-  // Does the work
   const confirmSetCurrentSession = async () => {
     if (!pendingCurrentSessionId) return;
     setBusyId(pendingCurrentSessionId);
@@ -161,6 +162,19 @@ export default function SettingsTab({ callAdminApi }: Props) {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      
+      {/* MANAGE ADMINS SECTION */}
+      <button
+        onClick={() => onNavigate("admins")}
+        className="w-full bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left"
+      >
+        <div>
+          <h2 className="text-sm sm:text-base font-bold text-slate-800">Manage Admins</h2>
+          <p className="text-xs text-slate-500 mt-1">Add or remove head teachers</p>
+        </div>
+        <ChevronRight className="w-5 h-5 text-slate-400" />
+      </button>
+
       {/* Current session banner */}
       <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
         <p className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
@@ -359,6 +373,13 @@ export default function SettingsTab({ callAdminApi }: Props) {
       </div>
 
       <ChangePasswordCard />
+
+       <button
+        onClick={onLogout}
+        className="w-full p-4 bg-red-50 border border-red-200 rounded-2xl text-center font-bold text-red-600 active:bg-red-100 mt-8"
+      >
+        Sign Out
+      </button>
 
       <ConfirmDialog
         open={pendingCurrentSessionId !== null}

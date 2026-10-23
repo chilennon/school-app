@@ -26,15 +26,16 @@ function currentSessionName(): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { adminName, email, password, schoolName, address, phone, motto } =
-      body;
+    // ADDED: schoolType to destructured body
+    const { adminName, email, password, schoolName, schoolType, address, phone, motto } = body;
 
     // ── Validation ──
     if (
       !adminName?.trim() ||
       !email?.trim() ||
       !password ||
-      !schoolName?.trim()
+      !schoolName?.trim() ||
+      !schoolType?.trim() // ADDED: validation for schoolType
     ) {
       return NextResponse.json(
         { error: "Missing required fields" },
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest) {
       .insert([
         {
           name: schoolName.trim(),
+          school_type: schoolType.trim(), // <-- ADDED: save school_type
           address: address?.trim() || null,
           phone: phone?.trim() || null,
           motto: motto?.trim() || null,

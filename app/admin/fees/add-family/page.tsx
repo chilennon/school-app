@@ -93,19 +93,17 @@ export default function AddFamilyPage() {
   };
 
   return (
-    // Outer container stretches full width
     <div className="min-h-screen bg-slate-50 pb-28">
       
-      {/* Centered content container */}
       <div className="max-w-lg mx-auto">
         
         {/* Sticky Header */}
         <div className="bg-white px-4 py-4 sticky top-0 z-10 border-b border-slate-100">
           <button 
-            onClick={() => router.back()} 
+            onClick={() => router.push("/admin?tab=fees")} 
             className="text-blue-600 text-sm font-bold mb-2 flex items-center gap-1 hover:underline"
           >
-            <ChevronLeft className="w-4 h-4" /> Fees
+            <ChevronLeft className="w-4 h-4" /> Back to Fees
           </button>
           <h1 className="text-2xl font-black text-slate-900">Add Family</h1>
         </div>
@@ -234,7 +232,7 @@ export default function AddFamilyPage() {
         </div>
       </div>
 
-      {/* Sticky Footer (Full width wrapper, centered content) */}
+      {/* Sticky Footer */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-slate-100 z-20">
         <div className="max-w-lg mx-auto">
           <button

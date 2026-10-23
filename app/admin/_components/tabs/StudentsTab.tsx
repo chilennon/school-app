@@ -1,29 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import { Search } from "lucide-react";
+import { Search, ArrowLeft } from "lucide-react";
 import type { ClassRoom, Student } from "@/types/school";
-import type { SectionHeader } from "../SectionHeader";
 
 export interface StudentsTabProps {
   students: Student[];
   classes: ClassRoom[];
+  families: { id: string; name: string }[]; // <-- Added
   onSave: (input: {
     id?: string;
     name: string;
     regNo: string;
     classId: string;
+    familyId: string; // <-- Added
     gender: string;
     age: string;
   }) => Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
+  onBack: () => void;
 }
 
 export function StudentsTab({
   students,
   classes,
+  families, // <-- Added
   onSave,
   onDelete,
+  onBack,
 }: StudentsTabProps) {
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -33,6 +37,7 @@ export function StudentsTab({
   const [age, setAge] = useState("");
   const [sex, setSex] = useState("");
   const [classId, setClassId] = useState("");
+  const [familyId, setFamilyId] = useState(""); // <-- Added
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
@@ -42,6 +47,7 @@ export function StudentsTab({
     setAge("");
     setSex("");
     setClassId("");
+    setFamilyId(""); // <-- Reset
   };
 
   const openCreate = () => {
@@ -56,6 +62,8 @@ export function StudentsTab({
     setAge(s.age || "");
     setSex(s.gender || "");
     setClassId(s.currentClassId || "");
+    // Assuming your Student type now has familyId, otherwise use (s as any).family_id
+    setFamilyId((s as any).familyId || (s as any).family_id || ""); 
     setFormOpen(true);
   };
 
@@ -69,6 +77,7 @@ export function StudentsTab({
         name: name.trim(),
         regNo: regNo.trim(),
         classId,
+        familyId, // <-- Pass to parent
         gender: sex,
         age,
       });
@@ -90,14 +99,27 @@ export function StudentsTab({
     classById[c.id] = c.name;
   });
 
+  const familyById: Record<string, string> = {};
+  families.forEach((f) => {
+    familyById[f.id] = f.name;
+  });
+
   return (
     <div className="p-4 space-y-4 pb-24">
       <header className="pt-[env(safe-area-inset-top)] flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Students</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {students.length} enrolled
-          </p>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={onBack} 
+            className="p-2 -ml-2 rounded-lg hover:bg-slate-200 transition"
+          >
+            <ArrowLeft className="w-5 h-5 text-slate-700" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Students</h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              {students.length} enrolled
+            </p>
+          </div>
         </div>
         <button
           onClick={openCreate}
@@ -154,13 +176,28 @@ export function StudentsTab({
             onChange={(e) => setClassId(e.target.value)}
             className="w-full border border-slate-300 rounded-xl px-3 py-3 text-base bg-white outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="">— Unassigned —</option>
+            <option value="">— Unassigned Class —</option>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
           </select>
+
+          {/* NEW FAMILY DROPDOWN */}
+          <select
+            value={familyId}
+            onChange={(e) => setFamilyId(e.target.value)}
+            className="w-full border border-slate-300 rounded-xl px-3 py-3 text-base bg-white outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">— Unassigned Family —</option>
+            {families.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+
           <div className="flex gap-2">
             <button
               type="submit"
@@ -213,6 +250,8 @@ export function StudentsTab({
                   <p className="text-xs font-mono text-slate-500 mt-0.5">
                     {s.regNo}
                     {s.currentClassId && ` · ${classById[s.currentClassId] || "—"}`}
+                    {/* SHOW FAMILY NAME IF LINKED */}
+                    {(s as any).family_id && ` · ${familyById[(s as any).family_id] || "—"}`}
                   </p>
                 </div>
               </div>

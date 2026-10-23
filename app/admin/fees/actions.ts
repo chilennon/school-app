@@ -5,6 +5,13 @@ import { createClient } from '@/lib/supabase/server';
 import { logAudit } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 
+// Helper to enforce owner role across all actions
+function enforceOwner(user: any) {
+  if (user.app_metadata?.role !== 'owner') {
+    throw new Error('Forbidden: Only school owners can manage fees.');
+  }
+}
+
 export async function recordPayment(data: {
   familyId: string;
   amount: number;
@@ -14,12 +21,13 @@ export async function recordPayment(data: {
 }) {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
+  
   if (authError || !user) throw new Error('Unauthorized');
+  enforceOwner(user);
 
   const schoolId = user.app_metadata?.school_id;
   if (!schoolId) throw new Error('Missing school context');
 
-  // Fetch current session from DB (it is not in the JWT)
   const { data: currentSession } = await supabase
     .from('sessions')
     .select('id')
@@ -28,48 +36,22 @@ export async function recordPayment(data: {
     .single();
 
   if (!currentSession) throw new Error('No active session found');
-  const sessionId = currentSession.id;
 
-  // 1. Fetch current receipt counter
-  const { data: counter } = await supabase
-    .from('receipt_counters')
-    .select('last_number')
-    .eq('school_id', schoolId)
-    .eq('session_id', sessionId)
-    .single();
-
-  const nextNumber = (counter?.last_number || 0) + 1;
-  const receiptNo = `RCPT-${new Date().getFullYear()}-${String(nextNumber).padStart(4, '0')}`;
-
-  // 2. Update receipt counter
-  if (counter) {
-    await supabase
-      .from('receipt_counters')
-      .update({ last_number: nextNumber })
-      .eq('school_id', schoolId)
-      .eq('session_id', sessionId);
-  } else {
-    await supabase
-      .from('receipt_counters')
-      .insert({ school_id: schoolId, session_id: sessionId, last_number: nextNumber });
-  }
-
-  // 3. Insert Payment
-  const { error } = await supabase.from('payments').insert({
-    school_id: schoolId,
-    family_id: data.familyId,
-    amount: data.amount,
-    method: data.method,
-    reference: data.reference,
-    note: data.note,
-    receipt_no: receiptNo,
-    paid_on: new Date().toISOString().split('T')[0],
-    recorded_by: user.id,
+  // Call the Atomic Postgres RPC
+  const { data: rpcData, error: rpcError } = await supabase.rpc('record_payment_atomic', {
+    p_school_id: schoolId,
+    p_session_id: currentSession.id,
+    p_family_id: data.familyId,
+    p_user_id: user.id,
+    p_amount: data.amount,
+    p_method: data.method,
+    p_reference: data.reference || null,
+    p_note: data.note || null,
   });
 
-  if (error) throw new Error(error.message);
+  if (rpcError) throw new Error(rpcError.message);
+  const receiptNo = rpcData.receipt_no;
 
-  // 4. Audit Log (FIXED TO MATCH YOUR EXISTING HELPER)
   await logAudit(supabase, {
     schoolId: schoolId,
     actorId: user.id,
@@ -81,21 +63,27 @@ export async function recordPayment(data: {
     metadata: { receiptNo, method: data.method }
   });
 
-  revalidatePath('/admin/fees');
-  revalidatePath(`/admin/fees/family/${data.familyId}`);
+  // FIXED: Revalidate the shell, not the dead route
+  revalidatePath('/admin');
   
   return { success: true, receiptNo };
 }
 
-export async function voidPayment(paymentId: string, amount: number, reason: string, familyId: string) {
+export async function voidPayment(
+  paymentId: string, 
+  amount: number, 
+  reason: string, 
+  familyId: string
+) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  
   if (!user) throw new Error('Unauthorized');
+  enforceOwner(user);
 
   const schoolId = user.app_metadata?.school_id;
   if (!schoolId) throw new Error('Missing school context');
 
-  // Insert negative payment
   const { error } = await supabase.from('payments').insert({
     school_id: schoolId,
     family_id: familyId,
@@ -109,7 +97,6 @@ export async function voidPayment(paymentId: string, amount: number, reason: str
 
   if (error) throw new Error(error.message);
   
-  // Audit Log (FIXED TO MATCH YOUR EXISTING HELPER)
   await logAudit(supabase, {
     schoolId: schoolId,
     actorId: user.id,
@@ -121,8 +108,7 @@ export async function voidPayment(paymentId: string, amount: number, reason: str
     metadata: { originalPaymentId: paymentId, reason }
   });
   
-  revalidatePath(`/admin/fees/family/${familyId}`);
-  revalidatePath('/admin/fees');
+  revalidatePath('/admin');
 }
 
 export async function addFamily(data: {
@@ -135,12 +121,13 @@ export async function addFamily(data: {
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  
   if (!user) throw new Error('Unauthorized');
+  enforceOwner(user);
 
   const schoolId = user.app_metadata?.school_id;
   if (!schoolId) throw new Error('Missing school context');
 
-  // 1. Create Family
   const { data: family, error: famError } = await supabase
     .from('families')
     .insert({
@@ -154,7 +141,6 @@ export async function addFamily(data: {
 
   if (famError) throw new Error(famError.message);
 
-  // 2. Create Students
   if (data.students.length > 0) {
     const studentRecords = data.students.map(s => ({
       school_id: schoolId,
@@ -168,7 +154,6 @@ export async function addFamily(data: {
     if (studentError) throw new Error(studentError.message);
   }
 
-  // 3. Create Initial Charge
   if (data.initialCharge > 0) {
     await supabase.from('charges').insert({
       school_id: schoolId,
@@ -180,7 +165,6 @@ export async function addFamily(data: {
     });
   }
 
-  // 4. Audit Log (FIXED TO MATCH YOUR EXISTING HELPER)
   await logAudit(supabase, {
     schoolId: schoolId,
     actorId: user.id,
@@ -192,18 +176,15 @@ export async function addFamily(data: {
     metadata: { initialCharge: data.initialCharge }
   });
 
-  revalidatePath('/admin/fees');
+  revalidatePath('/admin');
   return { success: true, familyId: family.id };
 }
-
-
-// Add to app/admin/fees/actions.ts
 
 export interface ImportRow {
   familyName: string;
   guardianName?: string;
   guardianPhone?: string;
-  children?: string; // e.g. "Tobi (Basic 4), Sola (KG 2)"
+  children?: string;
   totalDue: number;
   totalPaid: number;
 }
@@ -211,12 +192,13 @@ export interface ImportRow {
 export async function importFamilies(rows: ImportRow[], termId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  
   if (!user) throw new Error('Unauthorized');
+  enforceOwner(user);
 
   const schoolId = user.app_metadata?.school_id;
   if (!schoolId) throw new Error('Missing school context');
 
-  // Get current session for receipt numbering
   const { data: currentSession } = await supabase
     .from('sessions')
     .select('id')
@@ -226,75 +208,17 @@ export async function importFamilies(rows: ImportRow[], termId: string) {
 
   if (!currentSession) throw new Error('No active session found');
 
-  // 1. Fetch current counter
-  const { data: counter } = await supabase
-    .from('receipt_counters')
-    .select('last_number')
-    .eq('school_id', schoolId)
-    .eq('session_id', currentSession.id)
-    .single();
+  const { data, error } = await supabase.rpc('import_families_bulk', {
+    p_school_id: schoolId,
+    p_term_id: termId,
+    p_session_id: currentSession.id,
+    p_user_id: user.id,
+    p_rows: rows,
+  });
 
-  let currentReceiptNumber = counter?.last_number || 0;
-
-  let importedCount = 0;
-
-  for (const row of rows) {
-    // 2. Create Family
-    const { data: family, error: famError } = await supabase
-      .from('families')
-      .insert({
-        school_id: schoolId,
-        name: row.familyName,
-        guardian_name: row.guardianName || 'Guardian',
-        guardian_phone: row.guardianPhone || '0000000000',
-      })
-      .select()
-      .single();
-
-    if (famError) {
-      console.error("Failed to insert family:", row.familyName, famError);
-      continue; // Skip this row and continue
-    }
-
-    // 3. Create Initial Charge (if totalDue > 0)
-    if (row.totalDue > 0) {
-      await supabase.from('charges').insert({
-        school_id: schoolId,
-        family_id: family.id,
-        term_id: termId,
-        description: 'Migrated Initial Balance',
-        amount: row.totalDue,
-        created_by: user.id,
-      });
-    }
-
-    // 4. Create Initial Payment (if totalPaid > 0)
-    if (row.totalPaid > 0) {
-      currentReceiptNumber += 1;
-      const receiptNo = `IMP-${new Date().getFullYear()}-${String(currentReceiptNumber).padStart(4, '0')}`;
-      
-      await supabase.from('payments').insert({
-        school_id: schoolId,
-        family_id: family.id,
-        amount: row.totalPaid,
-        method: 'other',
-        receipt_no: receiptNo,
-        paid_on: new Date().toISOString().split('T')[0],
-        note: 'Migrated from spreadsheet',
-        recorded_by: user.id,
-      });
-    }
-
-    importedCount++;
-  }
-
-  // 5. Update Receipt Counter
-  if (currentReceiptNumber > (counter?.last_number || 0)) {
-    await supabase
-      .from('receipt_counters')
-      .update({ last_number: currentReceiptNumber })
-      .eq('school_id', schoolId)
-      .eq('session_id', currentSession.id);
+  if (error) {
+    console.error("Bulk import RPC failed:", error);
+    throw new Error(error.message);
   }
 
   await logAudit(supabase, {
@@ -304,10 +228,204 @@ export async function importFamilies(rows: ImportRow[], termId: string) {
     action: 'IMPORT_FAMILIES',
     targetTable: 'families',
     targetId: 'bulk',
-    targetLabel: `Imported ${importedCount} families`,
-    metadata: { count: importedCount }
+    targetLabel: `Imported ${data.inserted} families, skipped ${data.skipped}`,
+    metadata: { inserted: data.inserted, skipped: data.skipped }
   });
 
-  revalidatePath('/admin/fees');
-  return { success: true, importedCount };
+  revalidatePath('/admin');
+  
+  return { 
+    success: true, 
+    inserted: data.inserted as number, 
+    skipped: data.skipped as number 
+  };
+}
+
+export async function updateFamilyDetails(
+  familyId: string,
+  data: { name: string; guardianName: string; guardianPhone: string }
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error('Unauthorized');
+  enforceOwner(user);
+
+  const schoolId = user.app_metadata?.school_id;
+
+  const { error } = await supabase
+    .from('families')
+    .update({
+      name: data.name,
+      guardian_name: data.guardianName,
+      guardian_phone: data.guardianPhone,
+    })
+    .eq('id', familyId)
+    .eq('school_id', schoolId);
+
+  if (error) throw new Error(error.message);
+
+  await logAudit(supabase, {
+    schoolId: schoolId,
+    actorId: user.id,
+    actorName: user.user_metadata?.name || "Admin",
+    action: 'UPDATE_FAMILY',
+    targetTable: 'families',
+    targetId: familyId,
+    targetLabel: data.name,
+    metadata: { guardianPhone: data.guardianPhone }
+  });
+
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+export async function updatePaymentNote(paymentId: string, note: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error('Unauthorized');
+  enforceOwner(user);
+
+  const schoolId = user.app_metadata?.school_id;
+
+  const { error } = await supabase
+    .from('payments')
+    .update({ note })
+    .eq('id', paymentId)
+    .eq('school_id', schoolId);
+
+  if (error) throw new Error(error.message);
+
+  await logAudit(supabase, {
+    schoolId: schoolId,
+    actorId: user.id,
+    actorName: user.user_metadata?.name || "Admin",
+    action: 'UPDATE_PAYMENT_NOTE',
+    targetTable: 'payments',
+    targetId: paymentId,
+    targetLabel: `Updated note: ${note}`,
+    metadata: { note }
+  });
+
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+export async function deleteFamily(familyId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error('Unauthorized');
+  enforceOwner(user);
+
+  const schoolId = user.app_metadata?.school_id;
+
+  // Verify the ledger is empty
+  const [chargesRes, paymentsRes] = await Promise.all([
+    supabase.from('charges').select('id', { count: 'exact', head: true }).eq('family_id', familyId),
+    supabase.from('payments').select('id', { count: 'exact', head: true }).eq('family_id', familyId)
+  ]);
+
+  if ((chargesRes.count || 0) > 0 || (paymentsRes.count || 0) > 0) {
+    throw new Error("Cannot delete a family with existing financial records. Preserve the audit trail.");
+  }
+
+  const { error } = await supabase
+    .from('families')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', familyId)
+    .eq('school_id', schoolId);
+
+  if (error) throw new Error(error.message);
+
+  await logAudit(supabase, {
+    schoolId: schoolId,
+    actorId: user.id,
+    actorName: user.user_metadata?.name || "Admin",
+    action: 'DELETE_FAMILY',
+    targetTable: 'families',
+    targetId: familyId,
+    targetLabel: 'Deleted Family',
+    metadata: {}
+  });
+
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+// app/admin/fees/actions.ts
+
+export async function mergeFamilies(
+  primaryFamilyId: string, 
+  duplicateFamilyId: string
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error('Unauthorized');
+  enforceOwner(user); // Assuming you have this helper defined at the top
+
+  const schoolId = user.app_metadata?.school_id;
+  if (!schoolId) throw new Error('Missing school context');
+
+  const { error } = await supabase.rpc('merge_families_atomic', {
+    p_school_id: schoolId,
+    p_primary_family_id: primaryFamilyId,
+    p_duplicate_family_id: duplicateFamilyId,
+    p_user_id: user.id,
+  });
+
+  if (error) throw new Error(error.message);
+
+  await logAudit(supabase, {
+    schoolId: schoolId,
+    actorId: user.id,
+    actorName: user.user_metadata?.name || "Admin",
+    action: 'MERGE_FAMILIES',
+    targetTable: 'families',
+    targetId: primaryFamilyId,
+    targetLabel: `Merged family ${duplicateFamilyId} into ${primaryFamilyId}`,
+    metadata: { primaryFamilyId, duplicateFamilyId }
+  });
+
+  revalidatePath('/admin');
+  return { success: true };
+}
+
+export async function generateTermCharges(
+  termId: string, 
+  classFees: { class_id: string; amount: number }[]
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error('Unauthorized');
+  enforceOwner(user); // Assuming you have this helper defined at the top
+
+  const schoolId = user.app_metadata?.school_id;
+  if (!schoolId) throw new Error('Missing school context');
+
+  const { data, error } = await supabase.rpc('generate_term_charges_atomic', {
+    p_school_id: schoolId,
+    p_term_id: termId,
+    p_user_id: user.id,
+    p_class_fees: classFees, // Supabase automatically JSON.stringifies objects/arrays
+  });
+
+  if (error) throw new Error(error.message);
+
+  await logAudit(supabase, {
+    schoolId: schoolId,
+    actorId: user.id,
+    actorName: user.user_metadata?.name || "Admin",
+    action: 'GENERATE_TERM_CHARGES',
+    targetTable: 'charges',
+    targetId: termId,
+    targetLabel: `Generated ${data.generated_charges} tuition charges for term ${termId}`,
+    metadata: { termId, generated_charges: data.generated_charges, classFees }
+  });
+
+  revalidatePath('/admin');
+  return { success: true, generatedCharges: data.generated_charges as number };
 }

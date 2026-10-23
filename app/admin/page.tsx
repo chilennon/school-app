@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,7 +16,7 @@ import { computeTermAverages } from "@/lib/termAverages";
 import { useAdminData } from "./_hooks/useAdminData";
 import { useApprovals } from "./_hooks/useApprovals";
 import { useActivityFeed } from "./_hooks/useActivityFeed";
-import { useFeesSummary } from "./_hooks/useFeesSummary"; // <-- Imported
+import { useFeesSummary } from "./_hooks/useFeesSummary";
 import { fetchResultForView } from "./_lib/fetchResultForView";
 
 import { AdminBottomNav } from "./_components/AdminBottomNav";
@@ -25,7 +25,7 @@ import { SectionHeader } from "./_components/SectionHeader";
 import { HomeTab } from "./_components/tabs/HomeTab";
 import { StudentsTab } from "./_components/tabs/StudentsTab";
 import { ApprovalsTab } from "./_components/tabs/ApprovalsTab";
-import { MoreTab } from "./_components/tabs/MoreTab";
+import { FeesTab } from "./_components/tabs/FeesTab";
 import { TeachersSection } from "./_components/sections/TeachersSection";
 import { AdminsSection } from "./_components/sections/AdminsSection";
 import { SubjectsSection } from "./_components/sections/SubjectsSection";
@@ -117,15 +117,14 @@ function describeConfirm(
   }
 }
 
-export default function AdminDashboardPage() {
+function AdminDashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { session: currentSession, term: currentTerm } = useCurrentTerm();
   const { config } = useSchoolConfig();
   const data = useAdminData();
   const approvals = useApprovals();
   const activity = useActivityFeed();
-  
-  // 1. Call the new hook instead of doing a manual fetch
   const { feeSummary } = useFeesSummary(data.callerRole === "owner");
 
   const [adminName, setAdminName] = useState("");
@@ -151,6 +150,30 @@ export default function AdminDashboardPage() {
     null,
   );
   const [confirmBusy, setConfirmBusy] = useState(false);
+
+  // --- SECURE URL PARSING ---
+  useEffect(() => {
+    if (data.loading) return; 
+
+    const tab = searchParams.get("tab");
+    const isOwner = data.callerRole === "owner";
+
+    if (tab === "fees") {
+      if (isOwner) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setView("fees");
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPreviousView("home");
+      } else {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setView("home");
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPreviousView("home");
+        toast.error("Unauthorized: Only school owners can view the Fees module.");
+        router.replace("/admin");
+      }
+    }
+  }, [searchParams, data.callerRole, data.loading, router]);
 
   useEffect(() => {
     (async () => {
@@ -210,6 +233,7 @@ export default function AdminDashboardPage() {
       name: input.name,
       reg_no: input.regNo,
       class_id: input.classId || null,
+      family_id: input.familyId || null, // <-- Pass family_id
       gender: input.gender,
       age: input.age,
     });
@@ -769,7 +793,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <main className="max-w-lg mx-auto">
+      <main className="max-w-lg md:max-w-7xl mx-auto">
         {view === "home" && (
           <HomeTab
             schoolName={config?.name || ""}
@@ -786,14 +810,27 @@ export default function AdminDashboardPage() {
               data.students.filter((s) => !s.currentClassId).length
             }
             isOwner={isOwner}
-            feeSummary={feeSummary} // <--- Uses the hook's data directly
+            feeSummary={feeSummary}
             teacherAbsence={null}   
-            onOpenActivity={() => setActivityOpen(true)}
-            onOpenFees={() => router.push("/admin/fees")}
+            onOpenFees={() => router.push("/admin?tab=fees")}
+            onOpenSettings={() => {
+              setPreviousView("home");
+              setView("settings");
+            }}
             onNavigate={(v) => {
               setPreviousView("home");
               setView(v);
             }}
+          />
+        )}
+
+        {/* DEFENSIVE RENDERING: Only owners can see the FeesTab */}
+        {view === "fees" && isOwner && (
+          <FeesTab 
+            onNavigate={(v) => {
+              setPreviousView("home");
+              setView(v);
+            }} 
           />
         )}
 
@@ -816,8 +853,10 @@ export default function AdminDashboardPage() {
           <StudentsTab
             students={data.students}
             classes={data.classes}
+            families={data.families || []} // <-- Pass families down
             onSave={handleSaveStudent}
             onDelete={askDeleteStudent}
+            onBack={() => setView("home")}
           />
         )}
 
@@ -870,17 +909,6 @@ export default function AdminDashboardPage() {
           />
         )}
 
-        {view === "more" && (
-          <MoreTab
-            isOwner={data.callerRole === "owner"}
-            onNavigate={(v) => {
-              setPreviousView("more");
-              setView(v);
-            }}
-            onLogout={handleLogout}
-          />
-        )}
-
         {view === "teachers" && (
           <TeachersSection
             teachers={data.teachers}
@@ -901,7 +929,7 @@ export default function AdminDashboardPage() {
           <AdminsSection
             admins={data.admins}
             currentAdminId={currentAdminId}
-            onBack={() => setView(previousView)}
+            onBack={() => setView("settings")}
             onCreate={handleCreateAdmin}
             onResetPassword={askResetPassword}
             createdCredentials={createdCredentials}
@@ -936,9 +964,13 @@ export default function AdminDashboardPage() {
 
         {view === "settings" && (
           <>
-            <SectionHeader title="Settings" onBack={() => setView("more")} />
+            <SectionHeader title="Settings" onBack={() => setView("home")} />
             <div className="p-4">
-              <SettingsTab callAdminApi={callAdminApi} />
+              <SettingsTab 
+                callAdminApi={callAdminApi} 
+                onLogout={handleLogout} 
+                onNavigate={(v) => setView(v as AdminView)}
+              />
             </div>
           </>
         )}
@@ -948,10 +980,15 @@ export default function AdminDashboardPage() {
         <AdminBottomNav
           active={view}
           pendingCount={totalPending}
+          isOwner={isOwner}
           onChange={(newView) => {
             if (newView === "fees") {
-              router.push("/admin/fees");
+              router.push("/admin?tab=fees");
             } else {
+              // FIX: Clear the URL if we are leaving the fees tab
+              if (searchParams.get("tab")) {
+                router.replace("/admin");
+              }
               setPreviousView("home");
               setView(newView);
             }
@@ -978,5 +1015,28 @@ export default function AdminDashboardPage() {
         onSeen={activity.markSeen}
       />
     </div>
+  );
+}
+
+export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50">
+        <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-7 w-56" />
+          <Skeleton className="h-3 w-44" />
+          <div className="grid grid-cols-3 gap-3 mt-6">
+            <Skeleton className="h-20 rounded-2xl" />
+            <Skeleton className="h-20 rounded-2xl" />
+            <Skeleton className="h-20 rounded-2xl" />
+          </div>
+          <Skeleton className="h-14 w-full rounded-2xl mt-3" />
+          <Skeleton className="h-14 w-full rounded-2xl" />
+        </main>
+      </div>
+    }>
+      <AdminDashboardContent />
+    </Suspense>
   );
 }
