@@ -22,7 +22,7 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
   const { term } = useCurrentTerm();
   
   const { data, loading: dataLoading, refetch } = useBulkFeesData(term?.id);
-  const loading = dataLoading || !term?.id;
+  const loading = dataLoading;
 
   const [filter, setFilter] = useState<"all" | "unpaid" | "partial" | "paid">("all");
   const [search, setSearch] = useState("");
@@ -277,7 +277,12 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
           </div>
         </header>
 
-        {loading ? (
+        {!term?.id ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-2">
+            <p className="font-bold text-lg">No Active Term Found</p>
+            <p className="text-sm">Please go to Settings and select a current term.</p>
+          </div>
+        ) : loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-4">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
             <p className="text-sm font-medium animate-pulse">Loading fees data...</p>
