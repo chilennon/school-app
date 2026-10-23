@@ -19,10 +19,14 @@ import { BulkFeesGrid } from "../BulkFeesGrid";
 
 export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) {
   const router = useRouter();
-  const { term } = useCurrentTerm();
+  
+  // 1. Destructure termLoading from the hook
+  const { term, loading: termLoading } = useCurrentTerm(); 
   
   const { data, loading: dataLoading, refetch } = useBulkFeesData(term?.id);
-  const loading = dataLoading;
+  
+  // 2. Combine loading states
+  const isLoading = termLoading || dataLoading;
 
   const [filter, setFilter] = useState<"all" | "unpaid" | "partial" | "paid">("all");
   const [search, setSearch] = useState("");
@@ -277,15 +281,16 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
           </div>
         </header>
 
-        {!term?.id ? (
-          <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-2">
-            <p className="font-bold text-lg">No Active Term Found</p>
-            <p className="text-sm">Please go to Settings and select a current term.</p>
-          </div>
-        ) : loading ? (
+        {/* 3. Updated Conditional Rendering */}
+        {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-4">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
             <p className="text-sm font-medium animate-pulse">Loading fees data...</p>
+          </div>
+        ) : !term?.id ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-500 space-y-2">
+            <p className="font-bold text-lg">No Active Term Found</p>
+            <p className="text-sm">Please go to Settings and select a current term.</p>
           </div>
         ) : (
           <>
@@ -353,7 +358,7 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
                 />
               </div>
 
-              {/* FIXED: Grid layout on mobile, flex on desktop */}
+              {/* Responsive Grid for buttons */}
               <div className="grid grid-cols-2 md:flex md:flex-row gap-2 w-full md:w-auto">
                 {isOwner && (
                   <Dialog open={isGenOpen} onOpenChange={setIsGenOpen}>
