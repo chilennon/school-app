@@ -81,7 +81,9 @@ export default function TeacherDashboardPage() {
 
     const st = student.assessment?.status || "draft";
     if (st === "submitted") {
-      toast.info("This student's result has already been submitted for approval.");
+      toast.info(
+        "This student's result has already been submitted for approval.",
+      );
       return;
     }
     if (st === "approved") {
@@ -388,7 +390,7 @@ export default function TeacherDashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <main className="max-w-lg mx-auto">
+      <main className="max-w-lg mx-auto pb-32">
         {mobileTab === "home" && (
           <HomeTab
             schoolName={config?.name || ""}
