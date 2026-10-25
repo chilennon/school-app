@@ -28,12 +28,13 @@ export interface ReviewStudent {
 export type AdminView =
   | "home"
   | "students"
-  | "approvals"
-  | "more"
+  | "students-import" 
   | "teachers"
-  | "admins"
-  | "subjects"
   | "classes"
-  | "settings"
+  | "subjects"
+  | "approvals"
   | "fees"
-  | "attendance";
+  | "attendance"
+  | "more"
+  | "settings"
+  | "admins";
