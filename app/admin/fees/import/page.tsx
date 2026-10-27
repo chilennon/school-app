@@ -5,70 +5,52 @@ import { useRouter } from "next/navigation";
 import { useCurrentTerm } from "@/hooks/useCurrentTerm";
 import { importFamilies } from "../actions";
 import { toast } from "sonner";
-import { ArrowLeft, Upload, Loader2, Download, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, Download, FileSpreadsheet } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
-// 1. Define the strict schema
-const EXPECTED_HEADERS = [
-  "Family Name",
-  "Guardian Name",
-  "Guardian Phone",
-  "Children",
-  "Total Due",
-  "Total Paid",
-];
+// Our new modular architecture
+import { RawRow, ParsedRow, MappingConfig, FeeModel } from "./_lib/types";
+import { autoMapHeaders, parseRows } from "./_lib/parser";
+import { MappingStep } from "./_components/MappingStep";
+import { ValidationStep } from "./_components/ValidationStep";
 
-// Extended type to hold UI state
-type ParsedRow = {
-  _rowNumber: number;
-  _isValid: boolean;
-  familyName: string;
-  guardianName: string;
-  guardianPhone: string;
-  children: string;
-  totalDue: number;
-  totalPaid: number;
-};
+type Step = "upload" | "mapping" | "validation";
 
 export default function ImportPage() {
   const router = useRouter();
   const { term } = useCurrentTerm();
-  
-  const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
-  const [fileName, setFileName] = useState("");
+
+  // State Machine
+  const [step, setStep] = useState<Step>("upload");
   const [isImporting, setIsImporting] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  // Data State
+  const [fileName, setFileName] = useState("");
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [rawRows, setRawRows] = useState<RawRow[]>([]);
+  const [mapping, setMapping] = useState<MappingConfig | null>(null);
+  const [feeModel, setFeeModel] = useState<FeeModel>("family");
+  const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
 
   // --- 1. TEMPLATE DOWNLOAD ---
   const handleDownloadTemplate = () => {
     const dummyRow = [
-      "Adeyemi Family",
-      "Mr. Tunde Adeyemi",
-      "08031234567",
-      "Tobi (Basic 4), Sola (KG 2)",
-      300000,
-      100000
+      "Adeyemi Family", "Mr. Tunde Adeyemi", "08031234567", 
+      "Tobi (Basic 4), Sola (KG 2)", 300000, 100000
     ];
-    
-    const ws = XLSX.utils.aoa_to_sheet([EXPECTED_HEADERS, dummyRow]);
-    
-    // Set column widths for a nice looking template
-    ws["!cols"] = [
-      { wch: 20 }, // Family Name
-      { wch: 25 }, // Guardian Name
-      { wch: 15 }, // Guardian Phone
-      { wch: 35 }, // Children
-      { wch: 15 }, // Total Due
-      { wch: 15 }, // Total Paid
-    ];
-
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["Family Name", "Guardian Name", "Guardian Phone", "Children", "Total Due", "Total Paid"], 
+      dummyRow
+    ]);
+    ws["!cols"] = [{ wch: 20 }, { wch: 25 }, { wch: 15 }, { wch: 35 }, { wch: 15 }, { wch: 15 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Fees Import Template");
     XLSX.writeFile(wb, "Fees_Import_Template.xlsx");
   };
 
-  // --- 2. HEADER & ROW VALIDATION ---
+  // --- 2. FILE UPLOAD & PARSE TO RAW ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !term?.id) return;
@@ -78,84 +60,72 @@ export default function ImportPage() {
 
     reader.onload = (event) => {
       try {
-        const bstr = event.target?.result;
-        const wb = XLSX.read(bstr, { type: "binary" });
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
         
-        const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+        // Read as raw 2D array
+        const rawData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
         
         if (rawData.length < 2) {
           toast.error("The file appears to be empty.");
-          return;
-        }
-
-        // 3. STRICT HEADER VALIDATION
-        const rawHeaders = rawData[0].map((h: any) => String(h || "").trim());
-        
-        // Check if lengths match and every header is in the exact right position
-        const isValidHeaders = 
-          rawHeaders.length === EXPECTED_HEADERS.length &&
-          EXPECTED_HEADERS.every((expected, index) => 
-            rawHeaders[index].toLowerCase() === expected.toLowerCase()
-          );
-
-        if (!isValidHeaders) {
-          toast.error("Invalid file structure. Please download the official template and try again.");
           setFileName("");
-          // Reset the file input so they can try again
-          e.target.value = "";
           return;
         }
 
-        // 4. ROW-LEVEL VALIDATION
-        const rows = rawData.slice(1);
-        let skippedCount = 0;
-
-        const parsedRows: ParsedRow[] = rows.map((row, index) => {
-          const familyName = String(row[0] || "").trim();
-          const isValid = familyName !== ""; // A row MUST have a family name
-          
-          if (!isValid) skippedCount++;
-
-          return {
-            _rowNumber: index + 2, // +2 because of 0-indexing and the header row
-            _isValid: isValid,
-            familyName: familyName,
-            guardianName: String(row[1] || "").trim(),
-            guardianPhone: String(row[2] || "").trim(),
-            children: String(row[3] || "").trim(),
-            totalDue: Number(row[4]) || 0,
-            totalPaid: Number(row[5]) || 0,
-          };
+        // Extract headers (filter out completely empty columns)
+        const rawHeaders = rawData[0].map((h: any) => String(h).trim()).filter(Boolean);
+        
+        // Extract rows and map them to objects using the headers as keys
+        const extractedRows: RawRow[] = rawData.slice(1).map((row) => {
+          const rowObj: RawRow = {};
+          rawHeaders.forEach((header, index) => {
+            rowObj[header] = row[index];
+          });
+          return rowObj;
         });
 
-        setParsedData(parsedRows);
+        setHeaders(rawHeaders);
+        setRawRows(extractedRows);
         
-        if (skippedCount > 0) {
-          toast.warning(`Parsed ${parsedRows.length} rows. ${skippedCount} rows are missing a Family Name and will be skipped.`);
-        } else {
-          toast.success(`Parsed ${parsedRows.length} families successfully.`);
-        }
+        // Auto-map and move to next step
+        setMapping(autoMapHeaders(rawHeaders));
+        setStep("mapping");
 
       } catch (err) {
         console.error(err);
         toast.error("Failed to parse the file. Please check the format.");
+        setFileName("");
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
-  const handleImport = async () => {
-    if (!term?.id || parsedData.length === 0) return;
+  // --- 3. MAPPING CONFIRMATION ---
+  const handleMappingConfirm = (confirmedMapping: MappingConfig, confirmedModel: FeeModel) => {
+    setMapping(confirmedMapping);
+    setFeeModel(confirmedModel);
 
-    // Filter out invalid rows before sending to server
-    const validRows = parsedData.filter(r => r._isValid);
+    // Parse the raw rows using the confirmed mapping
+    const parsed = parseRows(rawRows, confirmedMapping, confirmedModel);
+    setParsedRows(parsed);
     
-    if (validRows.length === 0) {
-      toast.error("No valid rows to import.");
-      return;
-    }
+    // Move to validation
+    setStep("validation");
+  };
+
+  // --- 4. INLINE ROW UPDATES (From ValidationStep) ---
+  const handleUpdateRow = (index: number, updates: Partial<ParsedRow>) => {
+    setParsedRows((prev) => {
+      const newRows = [...prev];
+      newRows[index] = { ...newRows[index], ...updates };
+      return newRows;
+    });
+  };
+
+  // --- 5. FINAL IMPORT ---
+  const handleFinalImport = async () => {
+    if (!term?.id || parsedRows.length === 0) return;
 
     if (!navigator.onLine) {
       toast.error("Excel import requires an internet connection.");
@@ -165,6 +135,16 @@ export default function ImportPage() {
     setIsImporting(true);
     
     try {
+      // Filter out any rows that somehow still have errors
+      // (ValidationStep should prevent this, but we double-check)
+      const validRows = parsedRows.filter(r => r.familyName.trim().length > 0);
+      
+      if (validRows.length === 0) {
+        toast.error("No valid rows to import.");
+        return;
+      }
+
+      // Call the Server Action
       const res = await importFamilies(validRows, term.id);
 
       if (res.success) {
@@ -182,8 +162,9 @@ export default function ImportPage() {
     }
   };
 
+  // --- 6. CANCEL / RESET ---
   const handleBackOrCancel = () => {
-    if (parsedData.length > 0) {
+    if (step !== "upload") {
       setShowCancelConfirm(true);
     } else {
       router.back();
@@ -191,116 +172,106 @@ export default function ImportPage() {
   };
 
   const confirmCancel = () => {
-    setParsedData([]);
-    setFileName("");
     setShowCancelConfirm(false);
+    setStep("upload");
+    setFileName("");
+    setHeaders([]);
+    setRawRows([]);
+    setParsedRows([]);
+    // If we are deep into the flow, go back to admin
     router.push("/admin?tab=fees");
   };
 
-  const validRowsCount = parsedData.filter(r => r._isValid).length;
-
   return (
     <div className="min-h-screen bg-slate-50 w-full">
-      <main className="max-w-lg mx-auto p-4 pb-24">
+      <main className="max-w-2xl mx-auto p-4 pb-24">
         
+        {/* HEADER */}
         <header className="flex items-center gap-2 mb-6">
-          <button onClick={handleBackOrCancel} className="p-2 -ml-2 rounded-lg hover:bg-slate-200 transition">
+          <button 
+            onClick={handleBackOrCancel} 
+            className="p-2 -ml-2 rounded-lg hover:bg-slate-200 transition"
+          >
             <ArrowLeft className="w-5 h-5 text-slate-700" />
           </button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-slate-900">Import Fees</h1>
-            <p className="text-sm text-slate-500">Upload your Excel spreadsheet</p>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {step === "upload" && "Import Fees"}
+              {step === "mapping" && "Map Your Columns"}
+              {step === "validation" && "Validate Data"}
+            </h1>
+            <p className="text-sm text-slate-500">
+              {step === "upload" && "Upload your Excel spreadsheet"}
+              {step === "mapping" && fileName}
+              {step === "validation" && `Reviewing ${parsedRows.length} rows from ${fileName}`}
+            </p>
           </div>
         </header>
 
-        {/* TEMPLATE DOWNLOAD BUTTON */}
-        <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mb-6 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-1">
-            <AlertTriangle className="w-4 h-4" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-bold text-blue-900 mb-1">Need the correct format?</h3>
-            <p className="text-xs text-blue-700 mb-3">Download our official template to ensure your data imports perfectly.</p>
-            <button 
-              onClick={handleDownloadTemplate}
-              className="bg-blue-600 text-white font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 hover:bg-blue-700 transition-colors"
-            >
-              <Download className="w-4 h-4" /> Download Template
-            </button>
-          </div>
-        </div>
-
-        {/* Upload Zone */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 border-dashed text-center mb-6">
-          <div className="w-12 h-12 bg-slate-50 text-slate-600 rounded-full flex items-center justify-center mx-auto mb-3">
-            <Upload className="w-6 h-6" />
-          </div>
-          <h3 className="font-bold text-slate-900 mb-1">Select Excel File</h3>
-          <p className="text-xs text-slate-500 mb-4">Accepts .xlsx, .xls, or .csv</p>
-          
-          <label className="block w-full bg-slate-900 text-white font-bold py-3 rounded-xl cursor-pointer hover:bg-slate-800 transition">
-            Browse Files
-            <input 
-              type="file" 
-              accept=".xlsx, .xls, .csv" 
-              className="hidden" 
-              onChange={handleFileUpload} 
-            />
-          </label>
-          {fileName && <p className="text-xs text-blue-600 font-medium mt-3">Selected: {fileName}</p>}
-        </div>
-
-        {/* Preview Data */}
-        {parsedData.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-slate-900">Preview ({parsedData.length} rows)</h3>
-              <span className="text-xs font-bold bg-slate-200 text-slate-700 px-2 py-1 rounded">Verify Data</span>
-            </div>
-            
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
-              {parsedData.map((row, idx) => (
-                <div key={idx} className={`p-4 flex justify-between items-center ${!row._isValid ? 'bg-red-50' : ''}`}>
-                  <div>
-                    <p className={`font-bold text-sm ${row._isValid ? 'text-slate-900' : 'text-red-700'}`}>
-                      {row.familyName || "— Missing Family Name —"}
-                    </p>
-                    <p className="text-xs text-slate-500 truncate max-w-[200px]">{row.children || "No children listed"}</p>
-                    {!row._isValid && (
-                      <p className="text-[10px] font-bold text-red-600 mt-1 uppercase tracking-wider">
-                        Row {row._rowNumber} · Will be skipped
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-red-500 font-medium">Due: ₦{row.totalDue.toLocaleString()}</p>
-                    <p className="text-xs text-green-600 font-bold">Paid: ₦{row.totalPaid.toLocaleString()}</p>
-                  </div>
-                </div>
-              ))}
+        {/* STEP 1: UPLOAD */}
+        {step === "upload" && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-1">
+                <FileSpreadsheet className="w-4 h-4" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-bold text-blue-900 mb-1">Bring your own format</h3>
+                <p className="text-xs text-blue-700 mb-3">
+                  Upload your existing spreadsheet. We will automatically detect your columns and clean the data.
+                </p>
+                <button 
+                  onClick={handleDownloadTemplate}
+                  className="bg-white text-blue-700 font-bold px-4 py-2 rounded-xl text-sm flex items-center gap-2 hover:bg-blue-100 transition-colors border border-blue-200"
+                >
+                  <Download className="w-4 h-4" /> Download Standard Template
+                </button>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <button
-                onClick={handleImport}
-                disabled={isImporting || validRowsCount === 0}
-                className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
-              >
-                {isImporting ? (
-                  <><Loader2 className="w-5 h-5 animate-spin" /> Importing...</>
-                ) : (
-                  <>Confirm & Import {validRowsCount} Families</>
-                )}
-              </button>
+            <div className="bg-white rounded-2xl p-8 shadow-sm border-2 border-slate-200 border-dashed text-center">
+              <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Upload className="w-8 h-8" />
+              </div>
+              <h3 className="font-bold text-slate-900 mb-1 text-lg">Select Excel File</h3>
+              <p className="text-sm text-slate-500 mb-6">Accepts .xlsx, .xls, or .csv</p>
               
-              <button
-                onClick={handleBackOrCancel}
-                disabled={isImporting}
-                className="w-full bg-slate-200 text-slate-700 font-bold py-3 rounded-2xl hover:bg-slate-300 transition-colors disabled:opacity-50"
-              >
-                Cancel Import
-              </button>
+              <label className="block w-full bg-slate-900 text-white font-bold py-4 rounded-xl cursor-pointer hover:bg-slate-800 transition">
+                Browse Files
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls, .csv" 
+                  className="hidden" 
+                  onChange={handleFileUpload} 
+                />
+              </label>
             </div>
+          </div>
+        )}
+
+        {/* STEP 2: MAPPING */}
+        {step === "mapping" && mapping && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <MappingStep
+              headers={headers}
+              initialMapping={mapping}
+              onConfirm={handleMappingConfirm}
+              onCancel={() => setStep("upload")}
+            />
+          </div>
+        )}
+
+        {/* STEP 3: VALIDATION */}
+        {step === "validation" && (
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+            <ValidationStep
+              rows={parsedRows}
+              feeModel={feeModel}
+              onUpdateRow={handleUpdateRow}
+              onConfirm={handleFinalImport}
+              onBack={() => setStep("mapping")}
+              isImporting={isImporting}
+            />
           </div>
         )}
 
@@ -310,7 +281,7 @@ export default function ImportPage() {
         open={showCancelConfirm}
         onOpenChange={setShowCancelConfirm}
         title="Cancel Import?"
-        description="Your uploaded file will be discarded and no families will be imported. Are you sure?"
+        description="Your progress will be lost and no data will be imported."
         confirmLabel="Yes, cancel"
         destructive={true}
         onConfirm={confirmCancel}

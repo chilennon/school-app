@@ -28,7 +28,7 @@ import { HomeTab } from "./_components/tabs/HomeTab";
 import { StudentsTab } from "./_components/tabs/StudentsTab";
 import { ApprovalsTab } from "./_components/tabs/ApprovalsTab";
 import { FeesTab } from "./_components/tabs/FeesTab";
-import { StudentImportWizard } from "./_components/tabs/StudentImportWizard"; // <-- IMPORT ADDED
+import { StudentImportWizard } from "./_components/tabs/StudentImportWizard";
 import { TeachersSection } from "./_components/sections/TeachersSection";
 import { AdminsSection } from "./_components/sections/AdminsSection";
 import { SubjectsSection } from "./_components/sections/SubjectsSection";
@@ -95,6 +95,27 @@ function AdminDashboardContent() {
     askConfirm: confirm.askConfirm,
   });
 
+  // 🚨 NEW: LOCAL SAVE STUDENT FUNCTION to prevent dropping fields
+  const handleSaveStudent = async (input: any) => {
+    const action = input.id ? "update-student" : "create-student";
+    
+    await callAdminApi(action, {
+      id: input.id,
+      name: input.name,
+      reg_no: input.regNo,
+      class_id: input.classId || null,
+      gender: input.gender,
+      age: input.age,
+      // Pass the family linking data!
+      familyId: input.familyId,
+      newFamilyGuardianName: input.newFamilyGuardianName,
+      guardianPhone1: input.guardianPhone1,
+      guardianPhone2: input.guardianPhone2,
+    });
+    
+    await data.refresh();
+  };
+
   // --- URL PARSING ---
   useEffect(() => {
     if (data.loading) return; 
@@ -103,20 +124,15 @@ function AdminDashboardContent() {
 
     if (tab === "fees") {
       if (isOwner) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setView("fees");
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setPreviousView("home");
       } else {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setView("home");
         toast.error("Unauthorized: Only school owners can view the Fees module.");
         router.replace("/admin");
       }
     } else if (tab === "students") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setView("students");
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviousView("home");
     }
   }, [searchParams, data.callerRole, data.loading, router]);
@@ -134,7 +150,6 @@ function AdminDashboardContent() {
 
   useEffect(() => {
     if (view === "approvals") approvals.load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
   // --- HANDLERS ---
@@ -361,10 +376,11 @@ function AdminDashboardContent() {
             students={data.students}
             classes={data.classes}
             families={data.families || []}
-            onSave={crud.handleSaveStudent}
+            // 🚨 FIX: Use the local handleSaveStudent instead of crud.handleSaveStudent
+            onSave={handleSaveStudent}
             onDelete={crud.askDeleteStudent}
             onBack={() => setView("home")}
-            onOpenImport={() => setView("students-import")} // <-- CONNECTED
+            onOpenImport={() => setView("students-import")}
           />
         )}
 

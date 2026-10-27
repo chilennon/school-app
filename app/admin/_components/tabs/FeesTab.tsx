@@ -554,6 +554,7 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
                  refetch={refetch} 
                  onEdit={handleOpenEdit}
                  onMerge={handleOpenMerge}
+                 onRowClick={(row) => router.push(`/admin/fees/family/${row.familyId}`)}
                />
             </div>
           </>

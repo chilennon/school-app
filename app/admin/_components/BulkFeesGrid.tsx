@@ -63,7 +63,8 @@ function EditableCell({
   };
 
   return (
-    <div className="relative group flex items-center min-w-[120px]">
+    // 🚨 stopPropagation prevents the row click from firing when editing
+    <div className="relative group flex items-center min-w-[120px]" onClick={(e) => e.stopPropagation()}>
       <input
         type="text"
         value={value}
@@ -81,11 +82,13 @@ export function BulkFeesGrid({
   refetch,
   onEdit,
   onMerge,
+  onRowClick, // 1. Destructured correctly here
 }: {
   data: BulkGridRow[];
   refetch: () => Promise<void>;
   onEdit: (row: BulkGridRow) => void;
   onMerge: (row: BulkGridRow) => void;
+  onRowClick?: (row: BulkGridRow) => void;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [isGlobalSaving, setIsGlobalSaving] = useState(false);
@@ -96,7 +99,10 @@ export function BulkFeesGrid({
 
     if (columnId === "guardianPhone") {
       const row = data.find((r) => r.familyId === rowId);
-      if (!row) return;
+      if (!row) {
+        setIsGlobalSaving(false);
+        return;
+      }
 
       res = await feesRepository.updateFamilyDetails(rowId, {
         name: row.familyName,
@@ -205,14 +211,20 @@ export function BulkFeesGrid({
         return (
           <div className="flex items-center gap-2">
             <button 
-              onClick={() => onEdit(row)}
+              onClick={(e) => {
+                e.stopPropagation(); // 🚨 Stop row click
+                onEdit(row);
+              }}
               className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded"
               title="Edit Family"
             >
               <Pencil className="w-4 h-4" />
             </button>
             <button 
-              onClick={() => onMerge(row)}
+              onClick={(e) => {
+                e.stopPropagation(); // 🚨 Stop row click
+                onMerge(row);
+              }}
               className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded"
               title="Merge Family"
             >
@@ -265,7 +277,12 @@ export function BulkFeesGrid({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {table.getRowModel().rows.map((row: Row<BulkGridRow>) => (
-              <tr key={row.id} className="hover:bg-slate-50 transition-colors">
+              <tr 
+                key={row.id} 
+                // 🚨 Fixed syntax: onClick is a prop now, not a child
+                className={`hover:bg-slate-50 transition-colors ${onRowClick ? "cursor-pointer" : ""}`}
+                onClick={() => onRowClick?.(row.original)}
+              >
                 {row.getVisibleCells().map((cell: Cell<BulkGridRow, unknown>) => (
                   <td key={cell.id} className="px-4 py-2">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

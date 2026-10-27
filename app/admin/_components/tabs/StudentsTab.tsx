@@ -5,6 +5,7 @@ import { Search, ArrowLeft, Plus, Loader2, CheckCircle2 } from "lucide-react";
 import type { ClassRoom, Student } from "@/types/school";
 import { supabase } from "@/lib/supabaseClient";
 import { normalizePhone } from "@/lib/utils/phone";
+import { toast } from "sonner"; // Added toast for error handling
 
 export interface StudentsTabProps {
   students: Student[];
@@ -13,7 +14,7 @@ export interface StudentsTabProps {
   onSave: (input: any) => Promise<void>;
   onDelete: (id: string) => void | Promise<void>;
   onBack: () => void;
-  onOpenImport: () => void; // <-- ADDED
+  onOpenImport: () => void;
 }
 
 export function StudentsTab({
@@ -23,7 +24,7 @@ export function StudentsTab({
   onSave,
   onDelete,
   onBack,
-  onOpenImport, // <-- ADDED
+  onOpenImport,
 }: StudentsTabProps) {
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -83,10 +84,14 @@ export function StudentsTab({
           );
         }
 
-        const { data } = await query.maybeSingle();
-        setMatchedFamily(data || null);
+        const { data, error } = await query.limit(1);
+        if (error) throw error;
+
+        // 🚨 FIX: Only set the object. Removed the duplicate line.
+        setMatchedFamily(data && data.length > 0 ? data[0] : null);
       } catch (err) {
         console.error("Lookup failed", err);
+        setMatchedFamily(null);
       } finally {
         setIsLookingUp(false);
       }
@@ -146,7 +151,9 @@ export function StudentsTab({
     e.preventDefault();
     if (!name.trim() || !regNo.trim()) return;
     if (!matchedFamily && !guardianName.trim() && !editingId) {
-      return alert("Please enter a Guardian Name to create a new family.");
+      return toast.error(
+        "Please enter a Guardian Name to create a new family.",
+      );
     }
 
     setBusy(true);
@@ -165,6 +172,11 @@ export function StudentsTab({
       });
       reset();
       setFormOpen(false);
+      toast.success("Student updated successfully");
+    } catch (err: any) {
+      // 🚨 FIX: Catch API errors so the form doesn't silently fail
+      console.error("Save failed:", err);
+      toast.error(err.message || "Failed to save student. Check console.");
     } finally {
       setBusy(false);
     }
@@ -204,7 +216,6 @@ export function StudentsTab({
           </div>
         </div>
         <div className="flex gap-2">
-          {/* CHANGED: Calls onOpenImport instead of router.push */}
           <button
             onClick={onOpenImport}
             className="px-4 py-2 bg-white border border-slate-200 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-50 transition"
@@ -301,7 +312,6 @@ export function StudentsTab({
             </div>
           </div>
 
-          {/* PHONE-CENTRIC FAMILY SECTION */}
           <div className="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-4 mt-2">
             <p className="font-bold text-slate-800 text-sm">
               Parent / Guardian
@@ -344,7 +354,9 @@ export function StudentsTab({
                 <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-bold text-green-800">
-                    {matchedFamily.name}
+                    {matchedFamily.name.endsWith(" Family")
+                      ? matchedFamily.name
+                      : `${matchedFamily.name} Family`}
                   </p>
                   <p className="text-xs text-green-700 mt-1">
                     {name || "This student"} will join this existing family.

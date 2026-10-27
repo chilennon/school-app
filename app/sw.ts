@@ -12,16 +12,13 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
-    // Never cache data. Dexie owns the data layer — the service worker
-    // caches only the app shell (JS/CSS/fonts/icons). Any request to
-    // /api/* or *.supabase.co must always hit the network.
     {
-      matcher: ({ url, sameOrigin }) =>
-        (sameOrigin && url.pathname.startsWith("/api/")) ||
+      // 🚨 FIXED: Removed the non-existent `sameOrigin` check
+      matcher: ({ url }) =>
+        url.pathname.startsWith("/api/") ||
         url.hostname.endsWith("supabase.co"),
       handler: new NetworkOnly(),
     },
-    // Default app-shell caching for everything else.
     ...defaultCache,
   ],
 });
