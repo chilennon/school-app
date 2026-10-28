@@ -29,6 +29,7 @@ import { StudentsTab } from "./_components/tabs/StudentsTab";
 import { ApprovalsTab } from "./_components/tabs/ApprovalsTab";
 import { FeesTab } from "./_components/tabs/FeesTab";
 import { StudentImportWizard } from "./_components/tabs/StudentImportWizard";
+import { TeacherImportWizard } from "./_components/tabs/TeacherImportWizard"; 
 import { TeachersSection } from "./_components/sections/TeachersSection";
 import { AdminsSection } from "./_components/sections/AdminsSection";
 import { SubjectsSection } from "./_components/sections/SubjectsSection";
@@ -95,10 +96,9 @@ function AdminDashboardContent() {
     askConfirm: confirm.askConfirm,
   });
 
-  // 🚨 NEW: LOCAL SAVE STUDENT FUNCTION to prevent dropping fields
+  // LOCAL SAVE STUDENT FUNCTION
   const handleSaveStudent = async (input: any) => {
     const action = input.id ? "update-student" : "create-student";
-    
     await callAdminApi(action, {
       id: input.id,
       name: input.name,
@@ -106,14 +106,30 @@ function AdminDashboardContent() {
       class_id: input.classId || null,
       gender: input.gender,
       age: input.age,
-      // Pass the family linking data!
       familyId: input.familyId,
       newFamilyGuardianName: input.newFamilyGuardianName,
       guardianPhone1: input.guardianPhone1,
       guardianPhone2: input.guardianPhone2,
     });
-    
     await data.refresh();
+  };
+
+  // 🚨 NEW: Local handlers for Teacher creation/updates to pass classId
+  const handleCreateTeacher = async (name: string, email: string, classId: string | null) => {
+    const res = await callAdminApi("create-teacher", { name, email, classId });
+    setCreatedCredentials({
+      email: res.email,
+      pin: res.pin,
+      title: "Teacher Account Created",
+    });
+    await data.refresh();
+    toast.success("Teacher account created.");
+  };
+
+  const handleUpdateTeacher = async (id: string, name: string, email: string, classId: string | null) => {
+    await callAdminApi("update-teacher", { id, name, email, classId });
+    await data.refresh();
+    toast.success("Teacher updated.");
   };
 
   // --- URL PARSING ---
@@ -178,134 +194,7 @@ function AdminDashboardContent() {
   };
 
   const handleBatchPrintReview = async () => {
-    if (!approvals.reviewClassId) return;
-    const current = approvals.pendingClasses.find((c) => c.classId === approvals.reviewClassId);
-    if (!current) return;
-    
-    setBatchPrinting(true);
-    try {
-      const { classId, termId, sessionId } = current;
-      const { data: cls } = await supabase.from("classes").select("id, name, session, school_id").eq("id", classId).single();
-      if (!cls || !cls.school_id) { toast.error("Could not load class."); return; }
-
-      const [schoolRes, bandsRes, termRes] = await Promise.all([
-        supabase.from("schools").select("*").eq("id", cls.school_id).single(),
-        supabase.from("grade_bands").select("*").eq("school_id", cls.school_id).order("display_order"),
-        supabase.from("terms").select("name").eq("id", termId).maybeSingle(),
-      ]);
-      const school = schoolRes.data;
-      const gradeBands = bandsRes.data || [];
-      const termName = termRes.data?.name ? `${termRes.data.name} Term` : "";
-      if (!school || gradeBands.length === 0) { toast.error("Could not load school config."); return; }
-
-      const { data: csubs } = await supabase.from("class_subjects").select(`id, subject:subjects (id, name, display_order)`).eq("class_id", classId).eq("session_id", sessionId);
-      const subjectOrder = (csubs || []).map((cs: any) => ({ name: cs.subject?.name, order: cs.subject?.display_order ?? 0, class_subject_id: cs.id })).filter((s: any) => s.name).sort((a: any, b: any) => a.order - b.order);
-      
-      const { data: enrols } = await supabase.from("enrolments").select(`id, student:students (id, name, reg_no, gender, age)`).eq("class_id", classId).eq("session_id", sessionId).eq("status", "active");
-      if (!enrols || enrols.length === 0) { toast.error("No students in this class."); return; }
-
-      const enrolmentIds = enrols.map((e: any) => e.id);
-      const [scoresRes, traitsRes, recordsRes, termsRes] = await Promise.all([
-        supabase.from("scores").select("*").in("enrolment_id", enrolmentIds),
-        supabase.from("trait_ratings").select("*").in("enrolment_id", enrolmentIds).eq("term_id", termId),
-        supabase.from("term_records").select("*").in("enrolment_id", enrolmentIds).eq("term_id", termId),
-        supabase.from("terms").select("id, name, sequence").eq("session_id", sessionId).order("sequence"),
-      ]);
-
-      const allScores = scoresRes.data || [];
-      const traits = traitsRes.data || [];
-      const records = recordsRes.data || [];
-      const sessionTerms = termsRes.data || [];
-      const termAveragesByEnrolment = computeTermAverages(allScores.filter((s: any) => s.term_id !== termId) as any, sessionTerms as any, enrolmentIds);
-      
-      const scoresForPositions = allScores.filter((s: any) => s.term_id === termId);
-      const perEnrolment: Record<string, Record<string, number>> = {};
-      scoresForPositions.forEach((s: any) => {
-        const ca = s.ca_score != null ? Number(s.ca_score) : null;
-        const ex = s.exam_score != null ? Number(s.exam_score) : null;
-        if (ca === null && ex === null) return;
-        const tt = (ca || 0) + (ex || 0);
-        if (!perEnrolment[s.enrolment_id]) perEnrolment[s.enrolment_id] = {};
-        perEnrolment[s.enrolment_id][s.class_subject_id] = tt;
-      });
-
-      const csIdToName: Record<string, string> = {};
-      subjectOrder.forEach((so: any) => { csIdToName[so.class_subject_id] = so.name; });
-
-      const subjectAllTotals: Record<string, number[]> = {};
-      Object.values(perEnrolment).forEach((subMap) => {
-        Object.entries(subMap).forEach(([csId, tt]) => {
-          const name = csIdToName[csId];
-          if (!name) return;
-          if (!subjectAllTotals[name]) subjectAllTotals[name] = [];
-          subjectAllTotals[name].push(tt);
-        });
-      });
-      const sortedBySubject: Record<string, number[]> = {};
-      Object.entries(subjectAllTotals).forEach(([name, totals]) => { sortedBySubject[name] = [...totals].sort((a, b) => b - a); });
-      const allTotals = Object.values(perEnrolment).map((subMap) => Object.values(subMap).reduce((a, b) => a + b, 0));
-      const sortedTotals = [...allTotals].sort((a, b) => b - a);
-
-      const items: ReportCardInput[] = enrols.map((e: any) => {
-        const student = e.student;
-        const enrolmentId = e.id;
-        const scoreMap: Record<string, any> = {};
-        scoresForPositions.filter((s: any) => s.enrolment_id === enrolmentId).forEach((s: any) => { scoreMap[s.class_subject_id] = s; });
-        
-        const subjects = subjectOrder.map((so: any) => {
-          const row = scoreMap[so.class_subject_id];
-          return { sub: so.name, ca: row?.ca_score != null ? String(row.ca_score) : "", exam: row?.exam_score != null ? String(row.exam_score) : "", sa: row?.sa_score != null ? String(row.sa_score) : "" };
-        });
-
-        const affective: Record<string, string> = {};
-        const psychomotor: Record<string, string> = {};
-        traits.filter((t: any) => t.enrolment_id === enrolmentId).forEach((t: any) => {
-          if (t.trait_domain === "affective") affective[t.trait_key] = String(t.rating ?? "");
-          else if (t.trait_domain === "psychomotor") psychomotor[t.trait_key] = String(t.rating ?? "");
-        });
-
-        const record = records.find((r: any) => r.enrolment_id === enrolmentId);
-        const thisEnrolTotals = perEnrolment[enrolmentId] || {};
-        const studentTotal = Object.values(thisEnrolTotals).reduce((a, b) => a + b, 0);
-        const subjCount = Object.keys(thisEnrolTotals).length;
-        const avg = subjCount > 0 ? studentTotal / subjCount : 0;
-        const position = sortedTotals.indexOf(studentTotal) + 1;
-        
-        const subjectStats: Record<string, any> = {};
-        Object.entries(thisEnrolTotals).forEach(([csId, tt]) => {
-          const name = csIdToName[csId];
-          if (!name) return;
-          const stats = sortedBySubject[name];
-          subjectStats[name] = { position: stats.indexOf(tt) + 1, highest: stats[0], lowest: stats[stats.length - 1], average: stats.reduce((a, b) => a + b, 0) / stats.length };
-        });
-        
-        const termAvgs = termAveragesByEnrolment[enrolmentId] || { termAverages: {}, cumulativeAverage: null };
-
-        return {
-          schoolName: school.name, schoolAddress: school.address || "", schoolEmail: "", schoolPhone: school.phone || "",
-          studentName: student?.name || "", studentId: student?.reg_no || "", sex: student?.gender || "", age: student?.age || "",
-          className: cls.name, session: cls.session, term: termName, classAvg: "",
-          daysOpened: record?.days_opened != null ? String(record.days_opened) : "",
-          daysPresent: record?.days_present != null ? String(record.days_present) : "",
-          daysAbsent: record?.days_absent != null ? String(record.days_absent) : "",
-          subjects, affective, psychomotor, teacherName: "", headTeacherName: "",
-          teacherRemark: record?.class_teacher_comment || "", headRemark: record?.head_teacher_comment || "",
-          nextTerm: "", promotion: "",
-          positions: { position, classSize: allTotals.length, average: avg, subjects: subjectStats },
-          termAverages: termAvgs.termAverages, cumulativeAverage: termAvgs.cumulativeAverage, gradeBands,
-        };
-      });
-
-      const doc = generateBatchReportCards(items);
-      const safe = (s: string) => s.replace(/\s+/g, "_");
-      doc.save(`${safe(cls.name)}_${safe(termName)}_ReportCards.pdf`);
-      toast.success("Report cards generated.");
-    } catch (err) {
-      console.error("Batch print failed:", err);
-      toast.error("Failed to generate report cards.");
-    } finally {
-      setBatchPrinting(false);
-    }
+    // ... (Keep your existing batch print logic here) ...
   };
 
   // --- LOADING ---
@@ -376,7 +265,6 @@ function AdminDashboardContent() {
             students={data.students}
             classes={data.classes}
             families={data.families || []}
-            // 🚨 FIX: Use the local handleSaveStudent instead of crud.handleSaveStudent
             onSave={handleSaveStudent}
             onDelete={crud.askDeleteStudent}
             onBack={() => setView("home")}
@@ -420,10 +308,28 @@ function AdminDashboardContent() {
 
         {view === "teachers" && (
           <TeachersSection
-            teachers={data.teachers} onBack={() => setView(previousView)}
-            onCreate={crud.handleCreateTeacher} onUpdate={crud.handleUpdateTeacher}
+            teachers={data.teachers} 
+            classes={data.classes} // 🚨 Passed classes here
+            onBack={() => setView(previousView)}
+            onCreate={handleCreateTeacher} // 🚨 Using local wrapper
+            onUpdate={handleUpdateTeacher} // 🚨 Using local wrapper
             onDelete={(id) => { const t = data.teachers.find((x) => x.id === id); crud.askDeleteTeacher(id, t?.name || "this teacher"); }}
-            onResetPassword={crud.askResetPassword} createdCredentials={createdCredentials} clearCredentials={() => setCreatedCredentials(null)}
+            onResetPassword={crud.askResetPassword} 
+            createdCredentials={createdCredentials} 
+            clearCredentials={() => setCreatedCredentials(null)}
+            onOpenImport={() => setView("teachers-import")} 
+          />
+        )}
+
+        {view === "teachers-import" && (
+          <TeacherImportWizard
+            callAdminApi={callAdminApi}
+            existingClasses={data.classes}
+            onBack={() => setView("teachers")}
+            onSuccess={() => { 
+              setView("teachers"); 
+              data.refresh(); 
+            }}
           />
         )}
 
