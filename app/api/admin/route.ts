@@ -507,7 +507,7 @@ export async function POST(req: NextRequest) {
       // TEACHERS
       // ──────────────────────────────────────────────────────────
       case "create-teacher": {
-        const { name, email } = body;
+        const { name, email, classId } = body; // 🚨 Added classId
         if (!name || !email) return NextResponse.json({ error: "Name and email required" }, { status: 400 });
 
         const tempPin = Math.floor(100000 + Math.random() * 900000).toString();
@@ -525,6 +525,7 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: createUserError?.message || "User creation failed" }, { status: 500 });
         }
 
+        // 1. Insert into Profiles
         const { error: profileErr } = await supabaseAdmin
           .from("profiles")
           .insert([{ id: newUser.user.id, name, email, role: "teacher", school_id: callerSchoolId }]);
@@ -533,6 +534,15 @@ export async function POST(req: NextRequest) {
           console.error("create-teacher profile error:", profileErr);
           await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
           return NextResponse.json({ error: profileErr.message }, { status: 500 });
+        }
+
+        // 2. 🚨 Handle Class Assignment
+        if (classId) {
+          await supabaseAdmin
+            .from("classes")
+            .update({ teacher_id: newUser.user.id })
+            .eq("id", classId)
+            .eq("school_id", callerSchoolId);
         }
 
         await logAudit(supabaseAdmin, {
@@ -544,7 +554,7 @@ export async function POST(req: NextRequest) {
       }
 
       case "update-teacher": {
-        const { id, name, email } = body;
+        const { id, name, email, classId } = body;
         if (!id || !name || !email) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
 
         const { error } = await supabaseAdmin
@@ -554,6 +564,25 @@ export async function POST(req: NextRequest) {
           .eq("school_id", callerSchoolId);
 
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+        // 🚨 Handle Class Assignment
+        if (classId !== undefined) {
+          // 1. Remove this teacher from any class they are currently assigned to
+          await supabaseAdmin
+            .from("classes")
+            .update({ teacher_id: null })
+            .eq("teacher_id", id)
+            .eq("school_id", callerSchoolId);
+          
+          // 2. Assign to the new class (if one was selected)
+          if (classId) {
+            await supabaseAdmin
+              .from("classes")
+              .update({ teacher_id: id })
+              .eq("id", classId)
+              .eq("school_id", callerSchoolId);
+          }
+        }
 
         await logAudit(supabaseAdmin, {
           schoolId: callerSchoolId, actorId: user.id, actorName: callerName,
@@ -1184,6 +1213,82 @@ export async function POST(req: NextRequest) {
           inserted: data.inserted,
           skipped: data.skipped,
         });
+      }
+
+      // ──────────────────────────────────────────────────────────
+      // BULK IMPORT TEACHERS
+      // ──────────────────────────────────────────────────────────
+      case "import-teachers-bulk": {
+        const { rows } = body;
+        let inserted = 0;
+        const skippedDetails: { name: string; reason: string }[] = []; // 🚨 NEW
+
+        for (const row of rows) {
+          try {
+            let email = row.email;
+            
+            if (!email) {
+              let cleanName = row.teacherName.toLowerCase().replace(/(mr|mrs|miss|dr|prof)\.?\s/g, "");
+              cleanName = cleanName.replace(/[^a-z0-9]/g, ".").replace(/\.+/g, ".");
+              const randomSuffix = Math.floor(100 + Math.random() * 900);
+              email = `${cleanName}.${randomSuffix}@houseofangels.naijaschool.com`;
+            }
+
+            const tempPin = Math.floor(100000 + Math.random() * 900000).toString();
+            const tempPassword = `Teacher#${tempPin}`;
+
+            const { data: newUser, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+              email,
+              password: tempPassword,
+              email_confirm: true,
+              user_metadata: { name: row.teacherName },
+              app_metadata: { role: row.role, school_id: callerSchoolId },
+            });
+
+            if (authErr || !newUser.user) {
+              console.error("Auth error:", authErr);
+              // 🚨 CAPTURE THE REASON
+              skippedDetails.push({ name: row.teacherName, reason: authErr?.message || "Failed to create auth user" });
+              continue;
+            }
+
+            await supabaseAdmin.from("profiles").insert([{
+              id: newUser.user.id,
+              name: row.teacherName,
+              email,
+              phone: row.phone || null,
+              role: row.role,
+              school_id: callerSchoolId,
+            }]);
+
+            if (row.assignedClass) {
+              const { data: cls } = await supabaseAdmin
+                .from("classes")
+                .select("id")
+                .eq("school_id", callerSchoolId)
+                .ilike("name", row.assignedClass)
+                .maybeSingle();
+              
+              if (cls) {
+                await supabaseAdmin.from("classes").update({ teacher_id: newUser.user.id }).eq("id", cls.id);
+              }
+            }
+
+            inserted++;
+          } catch (err: any) {
+            console.error("Teacher import error:", err);
+            // 🚨 CAPTURE THE REASON
+            skippedDetails.push({ name: row.teacherName, reason: err.message || "Unknown error" });
+          }
+        }
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId, actorId: user.id, actorName: callerName,
+          action: "teacher.bulk_imported", targetTable: "profiles", targetId: "bulk", targetLabel: `Imported ${inserted} teachers`,
+        });
+
+        // 🚨 RETURN THE DETAILS
+        return NextResponse.json({ success: true, inserted, skipped: skippedDetails.length, skippedDetails });
       }
 
       default:
