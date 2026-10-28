@@ -843,16 +843,16 @@ export async function POST(req: NextRequest) {
       // STUDENTS (UPDATED FOR PHONE-CENTRIC FLOW)
       // ──────────────────────────────────────────────────────────
       case "create-student": {
-        const { 
-          name, 
-          reg_no, 
-          class_id, 
-          familyId, 
-          newFamilyGuardianName, 
-          guardianPhone1, 
-          guardianPhone2, 
-          gender, 
-          age 
+        const {
+          name,
+          reg_no,
+          class_id,
+          familyId,
+          newFamilyGuardianName,
+          guardianPhone1,
+          guardianPhone2,
+          gender,
+          age
         } = body;
 
         if (!name || !reg_no) {
@@ -881,7 +881,8 @@ export async function POST(req: NextRequest) {
             familyQuery = familyQuery.or(`phone_normalized.eq.${normPhone2},phone_normalized_2.eq.${normPhone2}`);
           }
 
-          const { data: existingFamily } = await familyQuery.maybeSingle();
+          const { data: existingFamilies } = await familyQuery.limit(1);
+          const existingFamily = existingFamilies && existingFamilies.length > 0 ? existingFamilies[0] : null;
 
           if (existingFamily) {
             finalFamilyId = existingFamily.id;
@@ -960,17 +961,17 @@ export async function POST(req: NextRequest) {
       }
 
       case "update-student": {
-        const { 
-          id, 
-          name, 
-          reg_no, 
-          class_id, 
-          familyId, 
-          newFamilyGuardianName, 
-          guardianPhone1, 
-          guardianPhone2, 
-          gender, 
-          age 
+        const {
+          id,
+          name,
+          reg_no,
+          class_id,
+          familyId,
+          newFamilyGuardianName,
+          guardianPhone1,
+          guardianPhone2,
+          gender,
+          age
         } = body;
 
         if (!id || !name || !reg_no) {
@@ -998,7 +999,8 @@ export async function POST(req: NextRequest) {
             familyQuery = familyQuery.or(`phone_normalized.eq.${normPhone2},phone_normalized_2.eq.${normPhone2}`);
           }
 
-          const { data: existingFamily } = await familyQuery.maybeSingle();
+          const { data: existingFamilies } = await familyQuery.limit(1);
+          const existingFamily = existingFamilies && existingFamilies.length > 0 ? existingFamilies[0] : null;
 
           if (existingFamily) {
             finalFamilyId = existingFamily.id;
@@ -1023,9 +1025,23 @@ export async function POST(req: NextRequest) {
         }
 
         if (familyId) {
-          const { data: familyCheck } = await supabaseAdmin
-            .from("families").select("id").eq("id", familyId).eq("school_id", callerSchoolId).is("deleted_at", null).maybeSingle();
-          if (!familyCheck) return NextResponse.json({ error: "Invalid family ID or unauthorized access." }, { status: 403 });
+          const { data: familyCheck, error: familyError } = await supabaseAdmin
+            .from("families")
+            .select("id")
+            .eq("id", familyId)
+            .eq("school_id", callerSchoolId)
+            .is("deleted_at", null)
+            .maybeSingle();
+            
+          // 🚨 If there's a database error, crash the API so the UI knows
+          if (familyError) {
+            console.error("Family check failed:", familyError);
+            return NextResponse.json({ error: familyError.message }, { status: 500 });
+          }
+          
+          if (!familyCheck) {
+            return NextResponse.json({ error: "Invalid family ID or unauthorized access." }, { status: 403 });
+          }
         }
 
         const { error } = await supabaseAdmin
@@ -1080,6 +1096,94 @@ export async function POST(req: NextRequest) {
         });
 
         return NextResponse.json({ success: true });
+      }
+
+
+      // ──────────────────────────────────────────────────────────
+      // BULK IMPORT (ZERO-COST MIGRATION)
+      // ──────────────────────────────────────────────────────────
+      case "import-students-bulk": {
+        const { rows, classesToCreate, sessionId } = body;
+
+        if (!sessionId) {
+          return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
+        }
+
+        // 1. Auto-Create Missing Classes
+        if (classesToCreate && classesToCreate.length > 0) {
+          // We need the session name (e.g. "2026/2027") to save on the class
+          const { data: sessionData } = await supabaseAdmin
+            .from("sessions")
+            .select("name")
+            .eq("id", sessionId)
+            .single();
+
+          const sessionName = sessionData?.name || "Current Session";
+
+          const newClasses = classesToCreate.map((className: string) => ({
+            school_id: callerSchoolId,
+            name: className,
+            session: sessionName,
+            session_id: sessionId,
+            teacher_id: null,
+          }));
+
+          const { error: classErr } = await supabaseAdmin.from("classes").insert(newClasses);
+
+          // If error is a unique violation (class already exists), we can safely ignore it
+          if (classErr && classErr.code !== "23505") {
+            return NextResponse.json(
+              { error: `Failed to create classes: ${classErr.message}` },
+              { status: 500 }
+            );
+          }
+        }
+
+        // 2. Format Payload for the RPC
+        const rpcPayload = rows.map((r: any) => ({
+          studentName: r.studentName,
+          className: r.className,
+          regNo: r.regNo || null,
+          age: r.age || null,
+          gender: r.gender || null,
+          guardianName: r.guardianName || null,
+          phone1: r.phone1 || null,
+          phone2: r.phone2 || null,
+        }));
+
+        // 3. Call the existing RPC
+        const { data, error } = await supabaseAdmin.rpc("import_students_atomic", {
+          p_school_id: callerSchoolId,
+          p_session_id: sessionId,
+          p_user_id: user.id,
+          p_students: rpcPayload,
+        });
+
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // 4. Audit Log
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId,
+          actorId: user.id,
+          actorName: callerName,
+          action: "students.bulk_imported",
+          targetTable: "students",
+          targetId: "bulk",
+          targetLabel: `Imported ${data.inserted} students`,
+          metadata: {
+            inserted: data.inserted,
+            skipped: data.skipped,
+            createdClasses: classesToCreate,
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          inserted: data.inserted,
+          skipped: data.skipped,
+        });
       }
 
       default:
