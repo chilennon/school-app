@@ -387,6 +387,7 @@ function AdminDashboardContent() {
         {view === "students-import" && (
           <StudentImportWizard
             callAdminApi={callAdminApi}
+            existingClasses={data.classes}
             onBack={() => setView("students")}
             onSuccess={() => { setView("students"); data.refresh(); }}
           />
