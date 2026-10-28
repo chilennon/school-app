@@ -22,6 +22,8 @@ export type ParsedRow = {
   children: string;
   totalDue: number;
   totalPaid: number;
+  _isDuplicate?: boolean; 
+  _duplicateReason?: string;
 };
 
 // The row after validation (with inline edits applied)
