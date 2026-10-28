@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCurrentTerm } from "@/hooks/useCurrentTerm";
 import { importFamilies } from "../actions";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Upload, Loader2, Download, FileSpreadsheet } from "lucide-react";
 import * as XLSX from "xlsx";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { supabase } from "@/lib/supabaseClient";
 
 // Our new modular architecture
 import { RawRow, ParsedRow, MappingConfig, FeeModel } from "./_lib/types";
@@ -20,6 +21,25 @@ type Step = "upload" | "mapping" | "validation";
 export default function ImportPage() {
   const router = useRouter();
   const { term } = useCurrentTerm();
+
+  // 🚨 NEW: Fetch existing families to detect duplicates
+  const [existingFamilies, setExistingFamilies] = useState<{ name: string; phone: string | null; phone2: string | null }[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("families")
+      .select("name, phone_normalized, phone_normalized_2")
+      .is("deleted_at", null)
+      .then(({ data }) => {
+        if (data) {
+          setExistingFamilies(data.map(f => ({
+            name: f.name,
+            phone: f.phone_normalized,
+            phone2: f.phone_normalized_2
+          })));
+        }
+      });
+  }, []);
 
   // State Machine
   const [step, setStep] = useState<Step>("upload");
@@ -64,7 +84,6 @@ export default function ImportPage() {
         const wb = XLSX.read(data, { type: "array" });
         const ws = wb.Sheets[wb.SheetNames[0]];
         
-        // Read as raw 2D array
         const rawData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" }) as any[][];
         
         if (rawData.length < 2) {
@@ -73,10 +92,8 @@ export default function ImportPage() {
           return;
         }
 
-        // Extract headers (filter out completely empty columns)
         const rawHeaders = rawData[0].map((h: any) => String(h).trim()).filter(Boolean);
         
-        // Extract rows and map them to objects using the headers as keys
         const extractedRows: RawRow[] = rawData.slice(1).map((row) => {
           const rowObj: RawRow = {};
           rawHeaders.forEach((header, index) => {
@@ -88,7 +105,6 @@ export default function ImportPage() {
         setHeaders(rawHeaders);
         setRawRows(extractedRows);
         
-        // Auto-map and move to next step
         setMapping(autoMapHeaders(rawHeaders));
         setStep("mapping");
 
@@ -106,11 +122,10 @@ export default function ImportPage() {
     setMapping(confirmedMapping);
     setFeeModel(confirmedModel);
 
-    // Parse the raw rows using the confirmed mapping
-    const parsed = parseRows(rawRows, confirmedMapping, confirmedModel);
+    // 🚨 Pass existingFamilies into the parser
+    const parsed = parseRows(rawRows, confirmedMapping, confirmedModel, existingFamilies);
     setParsedRows(parsed);
     
-    // Move to validation
     setStep("validation");
   };
 
@@ -136,7 +151,6 @@ export default function ImportPage() {
     
     try {
       // Filter out any rows that somehow still have errors
-      // (ValidationStep should prevent this, but we double-check)
       const validRows = parsedRows.filter(r => r.familyName.trim().length > 0);
       
       if (validRows.length === 0) {
@@ -178,7 +192,6 @@ export default function ImportPage() {
     setHeaders([]);
     setRawRows([]);
     setParsedRows([]);
-    // If we are deep into the flow, go back to admin
     router.push("/admin?tab=fees");
   };
 
