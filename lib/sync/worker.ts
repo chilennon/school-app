@@ -44,6 +44,10 @@ async function performSync(db: NaijaSchoolDB) {
   }
 
   try {
+    // 🚨 FIX: Reset any items that got stuck in "in_flight" 
+    // (e.g., if the page was refreshed or network died mid-sync)
+    await db.outbox.where("status").equals("in_flight").modify({ status: "pending" });
+
     // 1. Push local changes to server
     await drainOutbox(db);
 
@@ -101,28 +105,31 @@ async function drainOutbox(db: NaijaSchoolDB) {
       // Process results item by item
       for (const result of results) {
         if (result.status === "applied") {
-          // 1. Update local DB with the authoritative server row (e.g. server_updated_at)
-          const table = db.table(batch.find(b => b.id === result.client_id)!.table_name);
-          await table.put(result.server_row);
-          
-          // 2. Remove from outbox
-          await db.outbox.delete(result.client_id);
-          
+          const item = batch.find(b => b.id === result.client_id);
+          if (!item) continue;
+
+          // 🚨 FIX: Handle the synthetic term_result type
+          if (item.table_name === "term_result") {
+            await db.outbox.delete(result.client_id);
+          } else {
+            const table = db.table(item.table_name);
+            await table.put(result.server_row);
+            await db.outbox.delete(result.client_id);
+          }
         } else if (result.status === "rejected") {
-          // Server rejected it (e.g. validation error, RLS). Mark as failed.
           await db.outbox.update(result.client_id, {
             status: "rejected",
             last_error: result.error,
             rejected_reason: result.error,
           });
         } else {
-          // Transient error (server 500, timeout). Put back to pending.
           await db.outbox.update(result.client_id, {
             status: "pending",
             last_error: result.error,
           });
         }
       }
+
     } catch (error: any) {
       console.error("[Sync] Outbox batch failed:", error);
       // Put items back to pending so they try again next time

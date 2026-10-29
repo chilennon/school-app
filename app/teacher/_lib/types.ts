@@ -25,6 +25,7 @@ export interface StudentInfo {
 export interface CatalogSubject {
   id: string;
   name: string;
+  class_subject_id?: string; // 🚨 ADD THIS LINE
 }
 
 export type ClassStatus = "draft" | "submitted" | "approved" | "mixed";

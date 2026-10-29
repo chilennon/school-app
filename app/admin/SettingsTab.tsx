@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ChangePasswordCard } from "./_components/ChangePasswordCard";
-import { ChevronRight } from "lucide-react"; // <-- Added import
+import { ChevronRight } from "lucide-react";
 
 interface Term {
   id: string;
@@ -26,7 +26,7 @@ interface SessionWithTerms {
 interface Props {
   callAdminApi: (action: string, payload: any) => Promise<any>;
   onLogout: () => void;
-  onNavigate: (view: string) => void; // <-- Added prop
+  onNavigate: (view: string) => void;
 }
 
 export default function SettingsTab({ callAdminApi, onLogout, onNavigate }: Props) {
@@ -163,17 +163,30 @@ export default function SettingsTab({ callAdminApi, onLogout, onNavigate }: Prop
   return (
     <div className="space-y-4 sm:space-y-6">
       
-      {/* MANAGE ADMINS SECTION */}
-      <button
-        onClick={() => onNavigate("admins")}
-        className="w-full bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left"
-      >
-        <div>
-          <h2 className="text-sm sm:text-base font-bold text-slate-800">Manage Admins</h2>
-          <p className="text-xs text-slate-500 mt-1">Add or remove head teachers</p>
-        </div>
-        <ChevronRight className="w-5 h-5 text-slate-400" />
-      </button>
+      {/* 🚨 MANAGEMENT SHORTCUTS */}
+      <div className="space-y-3">
+        <button
+          onClick={() => onNavigate("admins")}
+          className="w-full bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left"
+        >
+          <div>
+            <h2 className="text-sm sm:text-base font-bold text-slate-800">Manage Admins</h2>
+            <p className="text-xs text-slate-500 mt-1">Add or remove head teachers</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-400" />
+        </button>
+
+        <button
+          onClick={() => onNavigate("promotion")}
+          className="w-full bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between hover:bg-slate-50 transition text-left"
+        >
+          <div>
+            <h2 className="text-sm sm:text-base font-bold text-slate-800">Promote Students</h2>
+            <p className="text-xs text-slate-500 mt-1">End of session rollover</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-slate-400" />
+        </button>
+      </div>
 
       {/* Current session banner */}
       <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -374,7 +387,7 @@ export default function SettingsTab({ callAdminApi, onLogout, onNavigate }: Prop
 
       <ChangePasswordCard />
 
-       <button
+      <button
         onClick={onLogout}
         className="w-full p-4 bg-red-50 border border-red-200 rounded-2xl text-center font-bold text-red-600 active:bg-red-100 mt-8"
       >

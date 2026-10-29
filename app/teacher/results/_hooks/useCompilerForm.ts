@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { EMPTY_AFFECTIVE, EMPTY_PSYCHOMOTOR } from "../_lib/constants";
 import type { CompilerForm, ResultsPageProps } from "../_lib/types";
 
@@ -45,9 +45,12 @@ export function useCompilerForm(
     cumulativeAverage: null,
   });
 
-  // Hydrate from props
+  // 🚨 Prevent re-hydration from overwriting user input
+  const initialized = useRef(false);
+
   useEffect(() => {
     if (!initialStudent || !initialClass) return;
+    if (initialized.current) return; // 🚨 Guard: only run once on mount
 
     const asm = initialStudent.assessment || {};
 
@@ -79,6 +82,8 @@ export function useCompilerForm(
       termAverages: asm.termAverages || {},
       cumulativeAverage: asm.cumulativeAverage ?? null,
     });
+
+    initialized.current = true;
   }, [initialStudent, initialClass, initialTerm, config]);
 
   const setField = useCallback(
@@ -92,8 +97,6 @@ export function useCompilerForm(
     setFormState((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  // Reset everything except identity fields. The confirm dialog that gates
-  // this lives in the page component, not here.
   const clearAll = useCallback(() => {
     setFormState((prev) => ({
       ...prev,

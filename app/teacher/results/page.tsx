@@ -41,7 +41,6 @@ export default function ResultsPage({
   initialClass,
   term: initialTerm,
   availableSubjects = [],
-  onAddSubject,
   onSaveDraft,
   onComplete,
   onExit,
@@ -54,8 +53,9 @@ export default function ResultsPage({
     initialTerm,
     config,
   );
-  const { subjects, replaceAll, removeRow, updateRow, addRow } =
-    useSubjectRows(initialStudent);
+  
+  // 🚨 FIXED: Only destructure what the hook actually returns now
+  const { subjects, updateRow } = useSubjectRows(initialStudent, availableSubjects);
 
   const [step, setStep] = useState<StepIndex>(0);
   const [busy, setBusy] = useState(false);
@@ -166,12 +166,6 @@ export default function ResultsPage({
     setBusy(false);
   };
 
-  const handleAddFromCatalog = async (id: string, name: string) => {
-    if (!onAddSubject) return;
-    const classSubjectId = await onAddSubject(id, name);
-    if (classSubjectId) addRow(name);
-  };
-
   const exportPDF = () => {
     if (!form.studentName) {
       toast.error("Please enter the student name.");
@@ -241,14 +235,12 @@ export default function ResultsPage({
         <Step3Subjects
           subjects={subjects}
           subjectStats={form.positions?.subjects || {}}
-          availableSubjects={availableSubjects}
           caWeight={caWeight}
           examWeight={examWeight}
           readOnly
           grade={grade}
           onUpdate={updateRow}
-          onRemove={removeRow}
-          onAddFromCatalog={handleAddFromCatalog}
+          // 🚨 onRemove removed
         />
         <SummaryStrip
           summary={summary}
@@ -279,7 +271,12 @@ export default function ResultsPage({
 
       <div className="mx-auto max-w-3xl px-4 py-5 pb-40">
         {step === 0 && (
-          <Step1StudentDetails form={form} setField={setField} readOnly={false} />
+          <Step1StudentDetails
+            form={form}
+            setField={setField}
+            readOnly={false}
+            lockTerm={true} 
+          />
         )}
         {step === 1 && (
           <Step2Attendance form={form} setField={setField} readOnly={false} />
@@ -289,14 +286,12 @@ export default function ResultsPage({
             <Step3Subjects
               subjects={subjects}
               subjectStats={form.positions?.subjects || {}}
-              availableSubjects={availableSubjects}
               caWeight={caWeight}
               examWeight={examWeight}
               readOnly={false}
               grade={grade}
               onUpdate={updateRow}
-              onRemove={removeRow}
-              onAddFromCatalog={handleAddFromCatalog}
+              // 🚨 onRemove removed
             />
             <SummaryStrip
               summary={summary}

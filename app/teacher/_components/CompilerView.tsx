@@ -1,17 +1,9 @@
 "use client";
-
 import ResultsPage from "../results/page";
 import type { CatalogSubject, TermInfo } from "../_lib/types";
 
 export function CompilerView({
-  student,
-  classRoom,
-  termName,
-  catalogSubjects,
-  onBack,
-  onAddSubject,
-  onSaveDraft,
-  onComplete,
+  student, classRoom, termName, catalogSubjects, onBack, onSaveDraft, onComplete,
 }: {
   student: any;
   classRoom: any;
@@ -20,10 +12,6 @@ export function CompilerView({
   selectedTermId: string | null;
   catalogSubjects: CatalogSubject[];
   onBack: () => void;
-  onAddSubject: (
-    subjectId: string,
-    subjectName: string,
-  ) => Promise<string | null>;
   onSaveDraft: (s: any) => void | Promise<void>;
   onComplete: (s: any) => void | Promise<void>;
 }) {
@@ -33,7 +21,6 @@ export function CompilerView({
       initialClass={classRoom}
       term={termName}
       availableSubjects={catalogSubjects}
-      onAddSubject={onAddSubject}
       onSaveDraft={onSaveDraft}
       onComplete={onComplete}
       onExit={onBack}

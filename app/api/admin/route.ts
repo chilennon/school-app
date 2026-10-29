@@ -691,9 +691,11 @@ export async function POST(req: NextRequest) {
         const existingBySubjectId = new Map<string, string>();
         (existing || []).forEach((row) => existingBySubjectId.set(row.subject_id, row.id));
 
-        const desired = new Set(subjectIds);
+        // 🚨 FIX: Deduplicate incoming subjectIds to prevent double inserts
+        const uniqueSubjectIds = Array.from(new Set(subjectIds));
+        const desired = new Set(uniqueSubjectIds);
 
-        const toInsert = subjectIds
+        const toInsert = uniqueSubjectIds
           .filter((sid) => !existingBySubjectId.has(sid))
           .map((sid) => ({
             school_id: callerSchoolId, class_id: classId, subject_id: sid, session_id: cls.session_id, staff_id: null,
@@ -1139,8 +1141,8 @@ export async function POST(req: NextRequest) {
         }
 
         // 1. Auto-Create Missing Classes
+                // 1. Auto-Create Missing Classes Safely
         if (classesToCreate && classesToCreate.length > 0) {
-          // We need the session name (e.g. "2026/2027") to save on the class
           const { data: sessionData } = await supabaseAdmin
             .from("sessions")
             .select("name")
@@ -1149,22 +1151,34 @@ export async function POST(req: NextRequest) {
 
           const sessionName = sessionData?.name || "Current Session";
 
-          const newClasses = classesToCreate.map((className: string) => ({
-            school_id: callerSchoolId,
-            name: className,
-            session: sessionName,
-            session_id: sessionId,
-            teacher_id: null,
-          }));
+          // 🚨 Check which classes already exist to prevent batch failure
+          const { data: existingClasses } = await supabaseAdmin
+            .from("classes")
+            .select("name")
+            .eq("school_id", callerSchoolId)
+            .eq("session_id", sessionId);
 
-          const { error: classErr } = await supabaseAdmin.from("classes").insert(newClasses);
+          const existingNames = new Set((existingClasses || []).map((c: any) => c.name.toLowerCase()));
 
-          // If error is a unique violation (class already exists), we can safely ignore it
-          if (classErr && classErr.code !== "23505") {
-            return NextResponse.json(
-              { error: `Failed to create classes: ${classErr.message}` },
-              { status: 500 }
-            );
+          // Only insert the classes that are truly missing
+          const newClassesToInsert = classesToCreate
+            .filter((className: string) => !existingNames.has(className.toLowerCase()))
+            .map((className: string) => ({
+              school_id: callerSchoolId,
+              name: className,
+              session: sessionName,
+              session_id: sessionId,
+              teacher_id: null,
+            }));
+
+          if (newClassesToInsert.length > 0) {
+            const { error: classErr } = await supabaseAdmin.from("classes").insert(newClassesToInsert);
+            if (classErr) {
+              return NextResponse.json(
+                { error: `Failed to create classes: ${classErr.message}` },
+                { status: 500 }
+              );
+            }
           }
         }
 
@@ -1289,6 +1303,50 @@ export async function POST(req: NextRequest) {
 
         // 🚨 RETURN THE DETAILS
         return NextResponse.json({ success: true, inserted, skipped: skippedDetails.length, skippedDetails });
+      }
+
+            // ──────────────────────────────────────────────────────────
+      // REORDER CLASSES (LADDER)
+      // ──────────────────────────────────────────────────────────
+      case "reorder-classes": {
+        const { updates } = body;
+        if (!updates || !Array.isArray(updates)) {
+          return NextResponse.json({ error: "Invalid updates payload" }, { status: 400 });
+        }
+
+        for (const item of updates) {
+          await supabaseAdmin
+            .from("classes")
+            .update({ sort_order: item.sort_order })
+            .eq("id", item.id)
+            .eq("school_id", callerSchoolId);
+        }
+
+        return NextResponse.json({ success: true });
+      }
+
+            // ──────────────────────────────────────────────────────────
+      // PROMOTE CLASS (END OF SESSION)
+      // ──────────────────────────────────────────────────────────
+      case "promote-class": {
+        const { classId, currentSessionId, nextSessionId, decisions } = body;
+        
+        const { data, error } = await supabaseAdmin.rpc("promote_class_atomic", {
+          p_school_id: callerSchoolId,
+          p_current_session_id: currentSessionId,
+          p_next_session_id: nextSessionId,
+          p_decisions: decisions,
+        });
+
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+        await logAudit(supabaseAdmin, {
+          schoolId: callerSchoolId, actorId: user.id, actorName: callerName,
+          action: "class.promoted", targetTable: "classes", targetId: classId, 
+          targetLabel: `Promoted class to next session`,
+        });
+
+        return NextResponse.json({ success: true, processed: data.processed });
       }
 
       default:

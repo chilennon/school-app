@@ -183,7 +183,8 @@ export interface OutboxEntry {
     | "scores"
     | "trait_ratings"
     | "term_records"
-    | "attendance_logs";
+    | "attendance_logs"
+    | "term_result";
   match_key: string;
   payload: Record<string, unknown>;
   client_updated_at: string;

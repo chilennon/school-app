@@ -66,6 +66,57 @@ export async function POST(req: NextRequest) {
         // etc.). The RPC re-checks school + class ownership because it
         // bypasses RLS.
         // ═══════════════════════════════════════════════════════════════════
+
+                // 🚨 HANDLE ATOMIC TERM RESULT
+        if (table_name === "term_result") {
+          const trData = {
+            ...payload.term_record,
+            school_id: user.app_metadata?.school_id,
+            enrolment_id: payload.enrolment_id,
+            term_id: payload.term_id,
+            client_mutation_id: id,
+            client_updated_at,
+          };
+          
+          const { error: trError } = await supabase
+            .from("term_records")
+            .upsert(trData, { onConflict: "enrolment_id,term_id" });
+          if (trError) throw trError;
+
+          if (payload.scores && payload.scores.length > 0) {
+            const scoresData = payload.scores.map((s: any) => ({
+              ...s,
+              school_id: user.app_metadata?.school_id,
+              enrolment_id: payload.enrolment_id,
+              term_id: payload.term_id,
+              client_mutation_id: id,
+              client_updated_at,
+            }));
+            const { error: scoreError } = await supabase
+              .from("scores")
+              .upsert(scoresData, { onConflict: "enrolment_id,class_subject_id,term_id" });
+            if (scoreError) throw scoreError;
+          }
+
+          if (payload.traits && payload.traits.length > 0) {
+            const traitsData = payload.traits.map((t: any) => ({
+              ...t,
+              school_id: user.app_metadata?.school_id,
+              enrolment_id: payload.enrolment_id,
+              term_id: payload.term_id,
+              client_mutation_id: id,
+              client_updated_at,
+            }));
+            const { error: traitError } = await supabase
+              .from("trait_ratings")
+              .upsert(traitsData, { onConflict: "enrolment_id,term_id,trait_domain,trait_key" });
+            if (traitError) throw traitError;
+          }
+
+          results.push({ client_id: id, status: "applied", server_row: { success: true } });
+          continue;
+        }
+        
         if (table_name === "term_result") {
           const p = payload as any;
 
