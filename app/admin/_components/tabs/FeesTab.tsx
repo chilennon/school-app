@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowLeft, Search, Plus, Loader2, Upload, Download, Wand2, Trash2, X } from "lucide-react";
+import { ArrowLeft, Search, Plus, Loader2, Upload, Download, Wand2, Trash2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { importFamilies, generateTermCharges, updateFamilyDetails, mergeFamilies } from "../../fees/actions";
@@ -17,15 +17,15 @@ import { useBulkFeesData } from "../../_hooks/useBulkFeesData";
 import { FeesSummaryDesktop } from "../FeesSummaryDesktop";
 import { BulkFeesGrid } from "../BulkFeesGrid";
 
+// 🚨 NEW: Import the modal
+import { SetupTermFeesModal } from "../../fees/_components/SetupTermFeesModal";
+
 export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) {
   const router = useRouter();
   
-  // 1. Destructure termLoading from the hook
   const { term, loading: termLoading } = useCurrentTerm(); 
-  
   const { data, loading: dataLoading, refetch } = useBulkFeesData(term?.id);
   
-  // 2. Combine loading states
   const isLoading = termLoading || dataLoading;
 
   const [filter, setFilter] = useState<"all" | "unpaid" | "partial" | "paid">("all");
@@ -39,12 +39,11 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
   ]);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
 
-  // Generate Charges State
+  // 🚨 NEW: Setup Term Fees State
   const [isOwner, setIsOwner] = useState(false);
-  const [isGenOpen, setIsGenOpen] = useState(false);
-  const [genAmount, setGenAmount] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [showGenConfirm, setShowGenConfirm] = useState(false);
+  const [showFeesModal, setShowFeesModal] = useState(false);
+  const [isGeneratingFees, setIsGeneratingFees] = useState(false);
+  const [classes, setClasses] = useState<any[]>([]);
 
   // Edit/Merge State
   const [editingFamily, setEditingFamily] = useState<any>(null);
@@ -60,11 +59,16 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user?.app_metadata?.role === 'owner') setIsOwner(true);
+      if (data.user?.app_metadata?.role === 'owner') {
+        setIsOwner(true);
+        // Fetch classes for the setup modal
+        supabase.from("classes").select("id, name, sort_order").then(({ data: classData }) => {
+          if (classData) setClasses(classData);
+        });
+      }
     });
   }, []);
 
-  // Moved filteredData UP to be accessible by handleExport
   const filteredData = data.filter((f) => {
     const matchesFilter = 
       filter === "all" || 
@@ -154,31 +158,21 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
     }
   };
 
-  const handleGenerateCharges = async () => {
-    if (!term?.id || !genAmount || Number(genAmount) <= 0) return;
-    setIsGenerating(true);
+  // 🚨 NEW: Handler for the per-class fees
+  const handleGenerateFees = async (classFees: { class_id: string; amount: number }[]) => {
+    if (!term?.id) return;
+    setIsGeneratingFees(true);
     try {
-      const { data: schoolClasses, error } = await supabase.from('classes').select('id');
-      if (error) throw error;
-
-      const feesToGenerate = (schoolClasses || []).map(c => ({
-        class_id: c.id,
-        amount: Number(genAmount)
-      }));
-
-      const res = await generateTermCharges(term.id, feesToGenerate);
-      
+      const res = await generateTermCharges(term.id, classFees);
       if (res.success) {
         toast.success(`Successfully generated ${res.generatedCharges} tuition charges.`);
-        setIsGenOpen(false);
-        setGenAmount("");
+        setShowFeesModal(false);
         await refetch();
       }
     } catch (err: any) {
       toast.error(err.message);
     } finally {
-      setIsGenerating(false);
-      setShowGenConfirm(false);
+      setIsGeneratingFees(false);
     }
   };
 
@@ -281,7 +275,6 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
           </div>
         </header>
 
-        {/* 3. Updated Conditional Rendering */}
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-4">
             <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
@@ -358,43 +351,14 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
                 />
               </div>
 
-              {/* Responsive Grid for buttons */}
               <div className="grid grid-cols-2 md:flex md:flex-row gap-2 w-full md:w-auto">
                 {isOwner && (
-                  <Dialog open={isGenOpen} onOpenChange={setIsGenOpen}>
-                    <DialogTrigger asChild>
-                      <button className="w-full md:w-auto bg-emerald-600 text-white font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm text-[15px] whitespace-nowrap">
-                        <Wand2 className="w-4 h-4" /> Setup Term Fees
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px] w-[90%] rounded-2xl">
-                      <DialogHeader>
-                        <DialogTitle>Generate Term Charges</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Base Tuition Amount (₦)</label>
-                          <input 
-                            type="number" 
-                            value={genAmount} 
-                            onChange={(e) => setGenAmount(e.target.value)} 
-                            placeholder="e.g. 50000"
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-lg font-bold focus:outline-none focus:border-emerald-500" 
-                          />
-                          <p className="text-xs text-slate-500 mt-2">
-                            This amount will be applied to every active student for the current term. Previous debts remain on the ledger.
-                          </p>
-                        </div>
-                        <button 
-                          onClick={() => setShowGenConfirm(true)} 
-                          disabled={!genAmount || Number(genAmount) <= 0}
-                          className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl mt-2 disabled:opacity-50"
-                        >
-                          Generate Charges
-                        </button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <button 
+                    onClick={() => setShowFeesModal(true)}
+                    className="w-full md:w-auto bg-emerald-600 text-white font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm text-[15px] whitespace-nowrap"
+                  >
+                    <Wand2 className="w-4 h-4" /> Setup Term Fees
+                  </button>
                 )}
 
                 <button 
@@ -561,15 +525,13 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
         )}
       </div>
 
-      <ConfirmDialog
-        open={showGenConfirm}
-        onOpenChange={setShowGenConfirm}
-        title="Generate Term Charges?"
-        description={`This will generate a charge of ₦${Number(genAmount).toLocaleString()} for all active families. Previous unpaid balances will remain on their ledger and be calculated automatically. This cannot be undone.`}
-        confirmLabel="Yes, Generate"
-        destructive={false}
-        loading={isGenerating}
-        onConfirm={handleGenerateCharges}
+      {/* 🚨 NEW: Setup Term Fees Modal */}
+      <SetupTermFeesModal
+        isOpen={showFeesModal}
+        onClose={() => setShowFeesModal(false)}
+        classes={classes}
+        onSubmit={handleGenerateFees}
+        isSubmitting={isGeneratingFees}
       />
 
       <ConfirmDialog
@@ -598,7 +560,7 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Guardian Phone</label>
-                <input type="tel" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-500" />
+                <input type="tel" value={editPhone || ""} onChange={(e) => setEditPhone(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:border-blue-500" />
               </div>
             </div>
             <div className="flex gap-3">

@@ -10,12 +10,18 @@ export function Step1StudentDetails({
   form,
   setField,
   readOnly,
+  lockTerm = false,
 }: {
   form: CompilerForm;
   setField: <K extends keyof CompilerForm>(k: K, v: CompilerForm[K]) => void;
   readOnly: boolean;
+  lockTerm?: boolean;
 }) {
   const ro = readOnly;
+  
+  // 🚨 Helper to disable fields if readOnly OR if lockTerm is true for specific fields
+  const disableTermFields = ro || lockTerm;
+
   return (
     <div className={cardCls}>
       <div className={cardTitleCls}>
@@ -86,14 +92,21 @@ export function Step1StudentDetails({
             value={form.className}
             onChange={(e) => setField("className", e.target.value)} />
         </Field>
+        
+        {/* 🚨 LOCKED FIELDS: Session and Term */}
         <Field label="Academic Session">
-          <Input className="h-11 text-base" disabled={ro}
+          <Input 
+            className={`h-11 text-base ${lockTerm ? "bg-slate-50 text-slate-500" : ""}`} 
+            disabled={disableTermFields}
             placeholder="e.g. 2025/2026"
             value={form.session}
-            onChange={(e) => setField("session", e.target.value)} />
+            onChange={(e) => setField("session", e.target.value)} 
+          />
         </Field>
         <Field label="Term">
-          <select className={selectCls} disabled={ro}
+          <select 
+            className={`${selectCls} ${lockTerm ? "bg-slate-50 text-slate-500" : ""}`} 
+            disabled={disableTermFields}
             value={form.term}
             onChange={(e) => setField("term", e.target.value)}>
             <option value="">— Select —</option>
@@ -102,6 +115,7 @@ export function Step1StudentDetails({
             <option>Third Term</option>
           </select>
         </Field>
+        
         <Field label="Class Average Score (%)">
           <Input className="h-11 text-base" type="number" min="0" max="100" step="0.1"
             disabled={ro} placeholder="e.g. 85.7"

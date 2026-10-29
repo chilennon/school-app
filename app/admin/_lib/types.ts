@@ -32,6 +32,7 @@ export type AdminView =
   | "teachers"
   | "teachers-import"
   | "classes"
+  | "promotion" 
   | "subjects"
   | "approvals"
   | "fees"

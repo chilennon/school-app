@@ -34,6 +34,8 @@ import { TeachersSection } from "./_components/sections/TeachersSection";
 import { AdminsSection } from "./_components/sections/AdminsSection";
 import { SubjectsSection } from "./_components/sections/SubjectsSection";
 import { ClassesSection } from "./_components/sections/ClassesSection";
+import { PromotionSection } from "./_components/sections/PromotionSection";
+import { PromotionReview } from "./_components/sections/PromotionReview"; // 🚨 IMPORTED
 
 import type { AdminView, PendingClass, ReviewStudent } from "./_lib/types";
 
@@ -56,10 +58,16 @@ function AdminDashboardContent() {
   const [activityOpen, setActivityOpen] = useState(false);
   const [viewingStudent, setViewingStudent] = useState<{ student: any; classRoom: any } | null>(null);
 
+  // 🚨 PROMOTION STATE
+  const [reviewingClassId, setReviewingClassId] = useState<string | null>(null);
+  const [nextSessionId, setNextSessionId] = useState<string | null>(null);
+  const [nextSessionName, setNextSessionName] = useState<string>("Next Session");
+
   const [bulkComment, setBulkComment] = useState("");
   const [batchPrinting, setBatchPrinting] = useState(false);
   const [busyEnrolmentId, setBusyEnrolmentId] = useState<string | null>(null);
   const [createdCredentials, setCreatedCredentials] = useState<any>(null);
+  const [sessions, setSessions] = useState<{ id: string; name: string }[]>([]);
 
   // --- CORE API WRAPPER ---
   const getToken = async () => {
@@ -114,7 +122,6 @@ function AdminDashboardContent() {
     await data.refresh();
   };
 
-  // 🚨 NEW: Local handlers for Teacher creation/updates to pass classId
   const handleCreateTeacher = async (name: string, email: string, classId: string | null) => {
     const res = await callAdminApi("create-teacher", { name, email, classId });
     setCreatedCredentials({
@@ -130,6 +137,17 @@ function AdminDashboardContent() {
     await callAdminApi("update-teacher", { id, name, email, classId });
     await data.refresh();
     toast.success("Teacher updated.");
+  };
+
+  const handleReorderClasses = async (updates: { id: string; sort_order: number }[]) => {
+    try {
+      await callAdminApi("reorder-classes", { updates });
+      await data.refresh();
+      toast.success("Class order saved successfully.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save class order");
+      throw err;
+    }
   };
 
   // --- URL PARSING ---
@@ -161,8 +179,51 @@ function AdminDashboardContent() {
       const { data: profile } = await supabase.from("profiles").select("name").eq("id", user.id).single();
       if (profile) setAdminName(profile.name);
       setCurrentAdminId(user.id);
+
+      // 🚨 FETCH NEXT SESSION
+      if (user.app_metadata?.school_id) {
+        const { data: sessions } = await supabase
+          .from("sessions")
+          .select("id, name, created_at")
+          .eq("school_id", user.app_metadata.school_id)
+          .order("created_at", { ascending: true });
+
+        if (sessions && sessions.length > 0) {
+          const currentIdx = sessions.findIndex(s => s.id === currentSession?.id);
+          // If there is a session after the current one, use it
+          if (currentIdx !== -1 && currentIdx < sessions.length - 1) {
+            setNextSessionId(sessions[currentIdx + 1].id);
+            setNextSessionName(sessions[currentIdx + 1].name);
+          } else {
+            // Fallback: just use the last session if we can't find a "next" one
+            setNextSessionId(sessions[sessions.length - 1].id);
+            setNextSessionName(sessions[sessions.length - 1].name);
+          }
+        }
+      }
     })();
-  }, [router]);
+  }, [router, currentSession?.id]);
+
+    // 🚨 NEW: Fetch sessions for the Class dropdown
+  useEffect(() => {
+    async function fetchSessions() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.app_metadata?.school_id) return;
+
+      const { data, error } = await supabase
+        .from("sessions")
+        .select("id, name")
+        .eq("school_id", user.app_metadata.school_id)
+        .order("name", { ascending: false });
+
+      if (data) {
+        setSessions(data);
+      } else if (error) {
+        console.error("Failed to load sessions:", error);
+      }
+    }
+    fetchSessions();
+  }, []);
 
   useEffect(() => {
     if (view === "approvals") approvals.load();
@@ -309,10 +370,10 @@ function AdminDashboardContent() {
         {view === "teachers" && (
           <TeachersSection
             teachers={data.teachers} 
-            classes={data.classes} // 🚨 Passed classes here
+            classes={data.classes}
             onBack={() => setView(previousView)}
-            onCreate={handleCreateTeacher} // 🚨 Using local wrapper
-            onUpdate={handleUpdateTeacher} // 🚨 Using local wrapper
+            onCreate={handleCreateTeacher}
+            onUpdate={handleUpdateTeacher}
             onDelete={(id) => { const t = data.teachers.find((x) => x.id === id); crud.askDeleteTeacher(id, t?.name || "this teacher"); }}
             onResetPassword={crud.askResetPassword} 
             createdCredentials={createdCredentials} 
@@ -347,10 +408,43 @@ function AdminDashboardContent() {
 
         {view === "classes" && (
           <ClassesSection
-            classes={data.classes} subjects={data.subjects} teachers={data.teachers} classSubjectIds={data.classSubjectIds}
-            onBack={() => setView(previousView)} onSave={crud.handleSaveClass}
+            classes={data.classes} 
+            subjects={data.subjects} 
+            teachers={data.teachers} 
+            sessions={sessions}
+            classSubjectIds={data.classSubjectIds}
+            onBack={() => setView(previousView)} 
+            onSave={crud.handleSaveClass}
             onDelete={(id) => { const c = data.classes.find((x) => x.id === id); crud.askDeleteClass(id, c?.name || "this class"); }}
             onAssignTeacher={crud.handleAssignTeacher}
+            onReorder={handleReorderClasses}
+          />
+        )}
+
+        {view === "promotion" && !reviewingClassId && (
+          <PromotionSection
+            classes={data.classes}
+            currentSessionName={currentSession?.name || "Current Session"}
+            nextSessionName={nextSessionName}
+            onBack={() => setView("settings")}
+            onReviewClass={(id) => setReviewingClassId(id)}
+          />
+        )}
+
+        {/* 🚨 NEW: PROMOTION REVIEW SCREEN */}
+        {view === "promotion" && reviewingClassId && (
+          <PromotionReview
+            classId={reviewingClassId}
+            currentSessionId={currentSession?.id || ""}
+            nextSessionId={nextSessionId || ""}
+            passMark={config?.promotion_threshold || 40}
+            onBack={() => setReviewingClassId(null)}
+            onComplete={() => {
+              setReviewingClassId(null);
+              setView("settings");
+              data.refresh();
+              toast.success("Students promoted successfully!");
+            }}
           />
         )}
 

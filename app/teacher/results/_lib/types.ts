@@ -4,6 +4,7 @@ export interface Subject {
   ca: string;
   exam: string;
   sa: string;
+  class_subject_id?: string; // 🚨 ADDED: Maps the row to the database UUID
 }
 
 export interface ProcessedSubject {
@@ -100,11 +101,7 @@ export interface ResultsPageProps {
     studentIds?: string[];
   };
   term: string;
-  availableSubjects?: { id: string; name: string }[];
-  onAddSubject?: (
-    subjectId: string,
-    subjectName: string,
-  ) => Promise<string | null>;
+  availableSubjects?: { id: string; name: string; class_subject_id?: string }[]; // 🚨 ADDED class_subject_id
   onSaveDraft?: (updatedStudent: any) => void | Promise<void>;
   onComplete?: (updatedStudent: any) => void | Promise<void>;
   onExit?: () => void;

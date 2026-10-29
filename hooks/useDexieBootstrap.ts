@@ -45,7 +45,7 @@ export function useDexieBootstrap() {
 
         // 4. Run the initial sync (this pulls all data if it's a fresh install)
         // We don't await this completely so the UI can render, but we do want to know when it's done
-        await syncNow(localDb);
+        syncNow(localDb);
 
         if (isMounted) setIsReady(true);
 
