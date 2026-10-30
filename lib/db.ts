@@ -171,20 +171,31 @@ export interface AttendanceLog extends SyncMeta {
 // ---------------------------------------------------------------------------
 export type OutboxStatus = "pending" | "in_flight" | "failed" | "rejected";
 
+/**
+ * Every table an outbox row may target.
+ *
+ * "term_result" is synthetic: it never corresponds to a Dexie table of its
+ * own. One row of this type carries the whole atomic payload for
+ * scores + trait_ratings + term_records + students for a single
+ * (enrolment, term) pair, and is unpacked server-side by
+ * apply_term_result_atomic. See app/api/sync-push/route.ts.
+ */
+export type OutboxTableName =
+  | "classes"
+  | "class_subjects"
+  | "enrolments"
+  | "students"
+  | "scores"
+  | "trait_ratings"
+  | "term_records"
+  | "attendance_logs"
+  | "term_result";
+
 export interface OutboxEntry {
   id: string;
   school_id: string;
   user_id: string;
-  table_name:
-    | "classes"
-    | "class_subjects"
-    | "enrolments"
-    | "students"
-    | "scores"
-    | "trait_ratings"
-    | "term_records"
-    | "attendance_logs"
-    | "term_result";
+  table_name: OutboxTableName;
   match_key: string;
   payload: Record<string, unknown>;
   client_updated_at: string;

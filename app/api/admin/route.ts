@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       // APPROVALS
       // ──────────────────────────────────────────────────────────
       case "approve-student": {
-        const { enrolmentId, termId, headComment } = body;
+        const { enrolmentId, termId, headComment, promotion } = body;
         if (!enrolmentId || !termId) {
           return NextResponse.json({ error: "Missing fields" }, { status: 400 });
         }

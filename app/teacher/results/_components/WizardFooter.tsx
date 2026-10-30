@@ -1,11 +1,12 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Save, Check } from "lucide-react";
 import { WIZARD_STEPS, type StepIndex } from "./WizardHeader";
 
 export function WizardFooter({
   step,
   busy,
+  readOnly,
   onPrevious,
   onNext,
   onFinish,
@@ -13,61 +14,60 @@ export function WizardFooter({
 }: {
   step: StepIndex;
   busy: boolean;
+  readOnly?: boolean;
   onPrevious: () => void;
   onNext: () => void;
   onFinish: () => void;
   onSaveAndExit: () => void;
 }) {
-  const isFirst = step === 0;
-  const isLast = step === WIZARD_STEPS.length - 1;
-  const nextLabel = isLast
-    ? "Finish"
-    : `Next: ${WIZARD_STEPS[step + 1].label}`;
+  const isLastStep = step === WIZARD_STEPS.length - 1;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-slate-200 pb-[env(safe-area-inset-bottom)]">
-      <div className="max-w-3xl mx-auto px-4 py-3 space-y-2">
-        <div className="flex gap-2">
-          {!isFirst && (
-            <button
-              type="button"
-              onClick={onPrevious}
-              disabled={busy}
-              className="flex items-center gap-1.5 px-4 py-3.5 bg-slate-100 text-slate-700 font-semibold rounded-2xl active:bg-slate-200 disabled:opacity-50"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Previous
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={isLast ? onFinish : onNext}
-            disabled={busy}
-            className="flex-1 flex items-center justify-center gap-1.5 py-3.5 bg-blue-600 text-white font-bold rounded-2xl active:bg-blue-700 disabled:opacity-60"
-          >
-            {busy ? (
-              "Saving…"
-            ) : isLast ? (
-              <>
-                <Check className="w-4 h-4" />
-                Finish
-              </>
-            ) : (
-              <>
-                {nextLabel}
-                <ChevronRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        </div>
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 pb-8 sm:pb-4 z-40">
+      <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
+        
+        {/* Previous Button */}
         <button
-          type="button"
-          onClick={onSaveAndExit}
-          disabled={busy}
-          className="w-full text-center text-xs font-semibold text-slate-500 py-1 active:text-slate-700 disabled:opacity-50"
+          onClick={onPrevious}
+          disabled={step === 0 || busy}
+          className="flex items-center gap-1 px-4 py-2 text-sm font-semibold text-slate-600 bg-slate-100 rounded-xl disabled:opacity-50 hover:bg-slate-200 transition-colors"
         >
-          Save draft and exit
+          <ChevronLeft className="w-4 h-4" /> Previous
         </button>
+
+        {/* Center: Save and Exit (Hidden if read-only) */}
+        {!readOnly && (
+          <button
+            onClick={onSaveAndExit}
+            disabled={busy}
+            className="hidden sm:flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors disabled:opacity-50"
+          >
+            <Save className="w-4 h-4" /> Save draft and exit
+          </button>
+        )}
+
+        {/* Next / Finish Button */}
+        {isLastStep ? (
+          <button
+            onClick={onFinish}
+            disabled={busy}
+            className={`flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-colors disabled:opacity-50 ${
+              readOnly ? "bg-slate-600 hover:bg-slate-700" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
+            <Check className="w-4 h-4" /> {readOnly ? "Close" : "Finish"}
+          </button>
+        ) : (
+          <button
+            onClick={onNext}
+            disabled={busy}
+            className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            {/* 🚨 FIX: Use .label to render the string */}
+            Next: {WIZARD_STEPS[step + 1]?.label || "Next"} 
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );

@@ -22,6 +22,7 @@ export interface ReviewStudent {
   regNo: string;
   status: string;
   comment: string;
+  promotion?: string; // 🚨 ADDED
   approvedAt: string | null;
 }
 

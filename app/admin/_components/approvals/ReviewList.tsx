@@ -9,6 +9,7 @@ export function ReviewList({
   loading,
   busyEnrolmentId,
   onCommentChange,
+  onPromotionChange, // 🚨 NEW
   onView,
   onApprove,
   onReopen,
@@ -17,6 +18,7 @@ export function ReviewList({
   loading: boolean;
   busyEnrolmentId: string | null;
   onCommentChange: (enrolmentId: string, v: string) => void;
+  onPromotionChange: (enrolmentId: string, v: string) => void; // 🚨 NEW
   onView: (s: ReviewStudent) => void;
   onApprove: (s: ReviewStudent) => void;
   onReopen: (s: ReviewStudent) => void;
@@ -46,6 +48,7 @@ export function ReviewList({
       </div>
     );
   }
+
   if (students.length === 0) {
     return (
       <div className="p-8 text-center text-sm text-slate-500">
@@ -53,6 +56,7 @@ export function ReviewList({
       </div>
     );
   }
+
   return (
     <div className="p-4 space-y-3">
       {students.map((s) => (
@@ -61,6 +65,7 @@ export function ReviewList({
           student={s}
           busy={busyEnrolmentId === s.enrolmentId}
           onCommentChange={(v) => onCommentChange(s.enrolmentId, v)}
+          onPromotionChange={(v) => onPromotionChange(s.enrolmentId, v)} // 🚨 PASSED DOWN
           onView={() => onView(s)}
           onApprove={() => onApprove(s)}
           onReopen={() => onReopen(s)}

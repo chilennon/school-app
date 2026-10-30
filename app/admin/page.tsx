@@ -355,6 +355,10 @@ function AdminDashboardContent() {
               if (current) crud.askApproveAll(current.termId, approvals.reviewStudents.filter(s => s.status === "submitted").length);
             }}
             onCommentChange={(enrolmentId, v) => approvals.setReviewStudents((prev) => prev.map((x) => x.enrolmentId === enrolmentId ? { ...x, comment: v } : x))}
+            
+            // 🚨 ADD THIS LINE:
+            onPromotionChange={(enrolmentId, v) => approvals.setReviewStudents((prev) => prev.map((x) => x.enrolmentId === enrolmentId ? { ...x, promotion: v } : x))}
+            
             onView={handleViewResult}
             onApprove={(s) => {
               const current = approvals.pendingClasses.find((c) => c.classId === approvals.reviewClassId);

@@ -19,6 +19,7 @@ export function ApprovalsTab({
   onBatchPrint,
   onApproveAll,
   onCommentChange,
+  onPromotionChange, // 🚨 ADDED
   onView,
   onApprove,
   onReopen,
@@ -36,6 +37,7 @@ export function ApprovalsTab({
   onBatchPrint: () => void;
   onApproveAll: () => void;
   onCommentChange: (enrolmentId: string, v: string) => void;
+  onPromotionChange: (enrolmentId: string, v: string) => void; // 🚨 ADDED
   onView: (s: ReviewStudent) => void;
   onApprove: (s: ReviewStudent) => void;
   onReopen: (s: ReviewStudent) => void;
@@ -59,6 +61,7 @@ export function ApprovalsTab({
           loading={reviewLoading}
           busyEnrolmentId={busyEnrolmentId}
           onCommentChange={onCommentChange}
+          onPromotionChange={onPromotionChange} // 🚨 PASSED DOWN
           onView={onView}
           onApprove={onApprove}
           onReopen={onReopen}

@@ -21,6 +21,8 @@ export function RosterList({
     <div className="space-y-2">
       {students.map((student) => {
         const st = student.assessment?.status || "draft";
+        const isDraft = st === "draft" || st === "not_started";
+        
         return (
           <div
             key={student.id}
@@ -34,22 +36,30 @@ export function RosterList({
                 {student.reg_no}
               </p>
             </div>
-            {st === "draft" || st === "not_started" ? (
+            
+            <div className="flex items-center gap-2">
+              {st === "submitted" && (
+                <span className="text-[10px] text-amber-700 font-bold uppercase tracking-wider bg-amber-50 px-2 py-1 rounded-md">
+                  Awaiting
+                </span>
+              )}
+              {st === "approved" && (
+                <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded-md">
+                  Approved
+                </span>
+              )}
+
               <button
                 onClick={() => onEnterScores(student)}
-                className="flex-shrink-0 px-4 py-2.5 bg-blue-50 text-blue-600 font-semibold text-sm rounded-xl border border-blue-200 active:bg-blue-100"
+                className={`flex-shrink-0 px-4 py-2 font-semibold text-sm rounded-xl border transition-colors ${
+                  isDraft
+                    ? "bg-blue-50 text-blue-600 border-blue-200 active:bg-blue-100"
+                    : "bg-slate-50 text-slate-600 border-slate-200 active:bg-slate-100"
+                }`}
               >
-                {st === "draft" ? "Edit" : "Enter"}
+                {isDraft ? "Edit" : "View"}
               </button>
-            ) : st === "submitted" ? (
-              <span className="flex-shrink-0 text-xs text-amber-700 font-semibold px-2">
-                Awaiting
-              </span>
-            ) : (
-              <span className="flex-shrink-0 text-xs text-emerald-700 font-semibold px-2">
-                Approved
-              </span>
-            )}
+            </div>
           </div>
         );
       })}
