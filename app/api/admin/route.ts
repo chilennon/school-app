@@ -507,15 +507,20 @@ export async function POST(req: NextRequest) {
       // TEACHERS
       // ──────────────────────────────────────────────────────────
       case "create-teacher": {
-        const { name, email, classId } = body; // 🚨 Added classId
-        if (!name || !email) return NextResponse.json({ error: "Name and email required" }, { status: 400 });
+        const { name, email } = body;
+        if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
 
         const tempPin = Math.floor(100000 + Math.random() * 900000).toString();
         const tempPassword = `Teacher#${tempPin}`;
+        
+        // Use internal UUID if email is missing to satisfy Supabase Auth
+        const authEmail = email || `${crypto.randomUUID()}@internal.naijaschool.local`;
 
         const { data: newUser, error: createUserError } =
           await supabaseAdmin.auth.admin.createUser({
-            email, password: tempPassword, email_confirm: true,
+            email: authEmail, 
+            password: tempPassword, 
+            email_confirm: true,
             user_metadata: { name },
             app_metadata: { role: "teacher", school_id: callerSchoolId },
           });
@@ -525,10 +530,9 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: createUserError?.message || "User creation failed" }, { status: 500 });
         }
 
-        // 1. Insert into Profiles
         const { error: profileErr } = await supabaseAdmin
           .from("profiles")
-          .insert([{ id: newUser.user.id, name, email, role: "teacher", school_id: callerSchoolId }]);
+          .insert([{ id: newUser.user.id, name, email: email || null, role: "teacher", school_id: callerSchoolId }]);
 
         if (profileErr) {
           console.error("create-teacher profile error:", profileErr);
@@ -536,53 +540,43 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: profileErr.message }, { status: 500 });
         }
 
-        // 2. 🚨 Handle Class Assignment
-        if (classId) {
-          await supabaseAdmin
-            .from("classes")
-            .update({ teacher_id: newUser.user.id })
-            .eq("id", classId)
-            .eq("school_id", callerSchoolId);
-        }
-
         await logAudit(supabaseAdmin, {
           schoolId: callerSchoolId, actorId: user.id, actorName: callerName,
           action: "teacher.created", targetTable: "profiles", targetId: newUser.user.id, targetLabel: name,
         });
 
-        return NextResponse.json({ email, pin: tempPassword });
+        return NextResponse.json({ email: email || null, pin: tempPassword });
       }
 
       case "update-teacher": {
-        const { id, name, email, classId } = body;
-        if (!id || !name || !email) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+        const { id, name, email } = body;
+        if (!id || !name) return NextResponse.json({ error: "Name is required" }, { status: 400 });
+
+        // 🚨 FETCH ROLE TO ENFORCE SECURITY
+        const { data: target } = await supabaseAdmin
+          .from("profiles")
+          .select("role")
+          .eq("id", id)
+          .eq("school_id", callerSchoolId)
+          .maybeSingle();
+
+        if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+        // 🚨 SECURITY GUARD: Only Owner can edit Admins/Owners
+        if (!callerIsOwner && (target.role === "admin" || target.role === "owner")) {
+          return NextResponse.json(
+            { error: "Only the owner can edit admin accounts." },
+            { status: 403 }
+          );
+        }
 
         const { error } = await supabaseAdmin
           .from("profiles")
-          .update({ name, email })
+          .update({ name, email: email || null })
           .eq("id", id)
           .eq("school_id", callerSchoolId);
 
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-        // 🚨 Handle Class Assignment
-        if (classId !== undefined) {
-          // 1. Remove this teacher from any class they are currently assigned to
-          await supabaseAdmin
-            .from("classes")
-            .update({ teacher_id: null })
-            .eq("teacher_id", id)
-            .eq("school_id", callerSchoolId);
-          
-          // 2. Assign to the new class (if one was selected)
-          if (classId) {
-            await supabaseAdmin
-              .from("classes")
-              .update({ teacher_id: id })
-              .eq("id", classId)
-              .eq("school_id", callerSchoolId);
-          }
-        }
 
         await logAudit(supabaseAdmin, {
           schoolId: callerSchoolId, actorId: user.id, actorName: callerName,
@@ -596,10 +590,23 @@ export async function POST(req: NextRequest) {
         const { id } = body;
         if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
+        // 🚨 FETCH ROLE TO ENFORCE SECURITY
         const { data: target } = await supabaseAdmin
-          .from("profiles").select("id, name").eq("id", id).eq("school_id", callerSchoolId).maybeSingle();
+          .from("profiles")
+          .select("id, name, role")
+          .eq("id", id)
+          .eq("school_id", callerSchoolId)
+          .maybeSingle();
 
-        if (!target) return NextResponse.json({ error: "Teacher not found" }, { status: 404 });
+        if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+        // 🚨 SECURITY GUARD: Only Owner can delete Admins/Owners
+        if (!callerIsOwner && (target.role === "admin" || target.role === "owner")) {
+          return NextResponse.json(
+            { error: "Only the owner can delete admin accounts." },
+            { status: 403 }
+          );
+        }
 
         const { error } = await supabaseAdmin.auth.admin.deleteUser(id);
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -896,20 +903,23 @@ export async function POST(req: NextRequest) {
         if (!finalFamilyId && (guardianPhone1 || guardianPhone2)) {
           const normPhone1 = normalizePhone(guardianPhone1);
           const normPhone2 = normalizePhone(guardianPhone2);
+          const raw1 = guardianPhone1?.replace(/\D/g, "");
+          const raw2 = guardianPhone2?.replace(/\D/g, "");
 
-          // 1. Try to find an existing family by either phone number
           let familyQuery = supabaseAdmin
             .from("families")
             .select("id")
             .eq("school_id", callerSchoolId)
             .is("deleted_at", null);
 
-          if (normPhone1 && normPhone2) {
-            familyQuery = familyQuery.or(`phone_normalized.eq.${normPhone1},phone_normalized_2.eq.${normPhone1},phone_normalized.eq.${normPhone2},phone_normalized_2.eq.${normPhone2}`);
-          } else if (normPhone1) {
-            familyQuery = familyQuery.or(`phone_normalized.eq.${normPhone1},phone_normalized_2.eq.${normPhone1}`);
-          } else if (normPhone2) {
-            familyQuery = familyQuery.or(`phone_normalized.eq.${normPhone2},phone_normalized_2.eq.${normPhone2}`);
+          // 🚨 BULLETPROOF SEARCH: Check normalized, raw, and both columns
+          const searchTerms = Array.from(new Set([normPhone1, raw1, normPhone2, raw2])).filter(Boolean);
+          
+          if (searchTerms.length > 0) {
+            const orConditions = searchTerms.map(term => 
+              `phone_normalized.eq.${term},phone_normalized_2.eq.${term},guardian_phone.eq.${term},guardian_phone_2.eq.${term}`
+            ).join(",");
+            familyQuery = familyQuery.or(orConditions);
           }
 
           const { data: existingFamilies } = await familyQuery.limit(1);
@@ -918,7 +928,7 @@ export async function POST(req: NextRequest) {
           if (existingFamily) {
             finalFamilyId = existingFamily.id;
           } else if (newFamilyGuardianName) {
-            // 2. Create a new family if one doesn't exist
+            // Create a new family if one doesn't exist
             const { data: newFamily, error: famError } = await supabaseAdmin
               .from("families")
               .insert({
@@ -1015,6 +1025,8 @@ export async function POST(req: NextRequest) {
         if (!finalFamilyId && (guardianPhone1 || guardianPhone2)) {
           const normPhone1 = normalizePhone(guardianPhone1);
           const normPhone2 = normalizePhone(guardianPhone2);
+          const raw1 = guardianPhone1?.replace(/\D/g, "");
+          const raw2 = guardianPhone2?.replace(/\D/g, "");
 
           let familyQuery = supabaseAdmin
             .from("families")
@@ -1022,12 +1034,14 @@ export async function POST(req: NextRequest) {
             .eq("school_id", callerSchoolId)
             .is("deleted_at", null);
 
-          if (normPhone1 && normPhone2) {
-            familyQuery = familyQuery.or(`phone_normalized.eq.${normPhone1},phone_normalized_2.eq.${normPhone1},phone_normalized.eq.${normPhone2},phone_normalized_2.eq.${normPhone2}`);
-          } else if (normPhone1) {
-            familyQuery = familyQuery.or(`phone_normalized.eq.${normPhone1},phone_normalized_2.eq.${normPhone1}`);
-          } else if (normPhone2) {
-            familyQuery = familyQuery.or(`phone_normalized.eq.${normPhone2},phone_normalized_2.eq.${normPhone2}`);
+          // 🚨 BULLETPROOF SEARCH: Check normalized, raw, and both columns
+          const searchTerms = Array.from(new Set([normPhone1, raw1, normPhone2, raw2])).filter(Boolean);
+          
+          if (searchTerms.length > 0) {
+            const orConditions = searchTerms.map(term => 
+              `phone_normalized.eq.${term},phone_normalized_2.eq.${term},guardian_phone.eq.${term},guardian_phone_2.eq.${term}`
+            ).join(",");
+            familyQuery = familyQuery.or(orConditions);
           }
 
           const { data: existingFamilies } = await familyQuery.limit(1);
@@ -1064,7 +1078,6 @@ export async function POST(req: NextRequest) {
             .is("deleted_at", null)
             .maybeSingle();
             
-          // 🚨 If there's a database error, crash the API so the UI knows
           if (familyError) {
             console.error("Family check failed:", familyError);
             return NextResponse.json({ error: familyError.message }, { status: 500 });
@@ -1234,34 +1247,53 @@ export async function POST(req: NextRequest) {
       // ──────────────────────────────────────────────────────────
       case "import-teachers-bulk": {
         const { rows } = body;
+
+        // 🚨 SECURITY GUARD: Prevent non-owners from sneaking in Admin roles via API manipulation
+        if (!callerIsOwner) {
+          const containsElevatedRole = rows.some((r: any) => r.role && r.role !== "teacher");
+          if (containsElevatedRole) {
+            return NextResponse.json(
+              { error: "Only the owner can import admin accounts." },
+              { status: 403 }
+            );
+          }
+        }
+
         let inserted = 0;
-        const skippedDetails: { name: string; reason: string }[] = []; // 🚨 NEW
+        const skippedDetails: { name: string; reason: string }[] = [];
 
         for (const row of rows) {
           try {
-            let email = row.email;
-            
-            if (!email) {
-              let cleanName = row.teacherName.toLowerCase().replace(/(mr|mrs|miss|dr|prof)\.?\s/g, "");
-              cleanName = cleanName.replace(/[^a-z0-9]/g, ".").replace(/\.+/g, ".");
-              const randomSuffix = Math.floor(100 + Math.random() * 900);
-              email = `${cleanName}.${randomSuffix}@houseofangels.naijaschool.com`;
+            // 🚨 FIX: Prevent duplicate names if there is no email
+            if (!row.email) {
+              const { data: existingProfile } = await supabaseAdmin
+                .from("profiles")
+                .select("id")
+                .eq("school_id", callerSchoolId)
+                .ilike("name", row.teacherName)
+                .is("email", null)
+                .maybeSingle();
+
+              if (existingProfile) {
+                skippedDetails.push({ name: row.teacherName, reason: "Teacher with this exact name and no email already exists." });
+                continue; // Skip creating a duplicate
+              }
             }
 
+            const authEmail = row.email || `${crypto.randomUUID()}@internal.naijaschool.local`;
             const tempPin = Math.floor(100000 + Math.random() * 900000).toString();
             const tempPassword = `Teacher#${tempPin}`;
 
             const { data: newUser, error: authErr } = await supabaseAdmin.auth.admin.createUser({
-              email,
+              email: authEmail,
               password: tempPassword,
               email_confirm: true,
               user_metadata: { name: row.teacherName },
-              app_metadata: { role: row.role, school_id: callerSchoolId },
+              app_metadata: { role: "teacher", school_id: callerSchoolId },
             });
 
             if (authErr || !newUser.user) {
               console.error("Auth error:", authErr);
-              // 🚨 CAPTURE THE REASON
               skippedDetails.push({ name: row.teacherName, reason: authErr?.message || "Failed to create auth user" });
               continue;
             }
@@ -1269,9 +1301,9 @@ export async function POST(req: NextRequest) {
             await supabaseAdmin.from("profiles").insert([{
               id: newUser.user.id,
               name: row.teacherName,
-              email,
+              email: row.email || null,
               phone: row.phone || null,
-              role: row.role,
+              role: "teacher", // 🚨 FORCE TEACHER
               school_id: callerSchoolId,
             }]);
 
@@ -1291,7 +1323,6 @@ export async function POST(req: NextRequest) {
             inserted++;
           } catch (err: any) {
             console.error("Teacher import error:", err);
-            // 🚨 CAPTURE THE REASON
             skippedDetails.push({ name: row.teacherName, reason: err.message || "Unknown error" });
           }
         }
@@ -1301,7 +1332,6 @@ export async function POST(req: NextRequest) {
           action: "teacher.bulk_imported", targetTable: "profiles", targetId: "bulk", targetLabel: `Imported ${inserted} teachers`,
         });
 
-        // 🚨 RETURN THE DETAILS
         return NextResponse.json({ success: true, inserted, skipped: skippedDetails.length, skippedDetails });
       }
 

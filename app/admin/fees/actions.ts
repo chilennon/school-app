@@ -2,8 +2,15 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { logAudit } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
+
+// 🚨 ADDED: Admin client for audit logs (bypasses RLS)
+const supabaseAdmin = createAdminClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // Helper to enforce owner role across all actions
 function enforceOwner(user: any) {
@@ -52,7 +59,8 @@ export async function recordPayment(data: {
   if (rpcError) throw new Error(rpcError.message);
   const receiptNo = rpcData.receipt_no;
 
-  await logAudit(supabase, {
+  // 🚨 FIX: Use supabaseAdmin
+  await logAudit(supabaseAdmin, {
     schoolId: schoolId,
     actorId: user.id,
     actorName: user.user_metadata?.name || "Admin",
@@ -63,9 +71,7 @@ export async function recordPayment(data: {
     metadata: { receiptNo, method: data.method }
   });
 
-  // FIXED: Revalidate the shell, not the dead route
   revalidatePath('/admin');
-  
   return { success: true, receiptNo };
 }
 
@@ -97,7 +103,8 @@ export async function voidPayment(
 
   if (error) throw new Error(error.message);
   
-  await logAudit(supabase, {
+  // 🚨 FIX: Use supabaseAdmin
+  await logAudit(supabaseAdmin, {
     schoolId: schoolId,
     actorId: user.id,
     actorName: user.user_metadata?.name || "Admin",
@@ -165,7 +172,8 @@ export async function addFamily(data: {
     });
   }
 
-  await logAudit(supabase, {
+  // 🚨 FIX: Use supabaseAdmin
+  await logAudit(supabaseAdmin, {
     schoolId: schoolId,
     actorId: user.id,
     actorName: user.user_metadata?.name || "Admin",
@@ -221,7 +229,8 @@ export async function importFamilies(rows: ImportRow[], termId: string) {
     throw new Error(error.message);
   }
 
-  await logAudit(supabase, {
+  // 🚨 FIX: Use supabaseAdmin
+  await logAudit(supabaseAdmin, {
     schoolId: schoolId,
     actorId: user.id,
     actorName: user.user_metadata?.name || "Admin",
@@ -265,7 +274,8 @@ export async function updateFamilyDetails(
 
   if (error) throw new Error(error.message);
 
-  await logAudit(supabase, {
+  // 🚨 FIX: Use supabaseAdmin
+  await logAudit(supabaseAdmin, {
     schoolId: schoolId,
     actorId: user.id,
     actorName: user.user_metadata?.name || "Admin",
@@ -297,7 +307,8 @@ export async function updatePaymentNote(paymentId: string, note: string) {
 
   if (error) throw new Error(error.message);
 
-  await logAudit(supabase, {
+  // 🚨 FIX: Use supabaseAdmin
+  await logAudit(supabaseAdmin, {
     schoolId: schoolId,
     actorId: user.id,
     actorName: user.user_metadata?.name || "Admin",
@@ -339,7 +350,8 @@ export async function deleteFamily(familyId: string) {
 
   if (error) throw new Error(error.message);
 
-  await logAudit(supabase, {
+  // 🚨 FIX: Use supabaseAdmin
+  await logAudit(supabaseAdmin, {
     schoolId: schoolId,
     actorId: user.id,
     actorName: user.user_metadata?.name || "Admin",
@@ -354,8 +366,6 @@ export async function deleteFamily(familyId: string) {
   return { success: true };
 }
 
-// app/admin/fees/actions.ts
-
 export async function mergeFamilies(
   primaryFamilyId: string, 
   duplicateFamilyId: string
@@ -364,7 +374,7 @@ export async function mergeFamilies(
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) throw new Error('Unauthorized');
-  enforceOwner(user); // Assuming you have this helper defined at the top
+  enforceOwner(user); 
 
   const schoolId = user.app_metadata?.school_id;
   if (!schoolId) throw new Error('Missing school context');
@@ -378,7 +388,8 @@ export async function mergeFamilies(
 
   if (error) throw new Error(error.message);
 
-  await logAudit(supabase, {
+  // 🚨 FIX: Use supabaseAdmin
+  await logAudit(supabaseAdmin, {
     schoolId: schoolId,
     actorId: user.id,
     actorName: user.user_metadata?.name || "Admin",
@@ -401,7 +412,7 @@ export async function generateTermCharges(
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) throw new Error('Unauthorized');
-  enforceOwner(user); // Assuming you have this helper defined at the top
+  enforceOwner(user);
 
   const schoolId = user.app_metadata?.school_id;
   if (!schoolId) throw new Error('Missing school context');
@@ -410,12 +421,13 @@ export async function generateTermCharges(
     p_school_id: schoolId,
     p_term_id: termId,
     p_user_id: user.id,
-    p_class_fees: classFees, // Supabase automatically JSON.stringifies objects/arrays
+    p_class_fees: classFees, 
   });
 
   if (error) throw new Error(error.message);
 
-  await logAudit(supabase, {
+  // 🚨 FIX: Use supabaseAdmin
+  await logAudit(supabaseAdmin, {
     schoolId: schoolId,
     actorId: user.id,
     actorName: user.user_metadata?.name || "Admin",

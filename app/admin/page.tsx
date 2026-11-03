@@ -122,10 +122,10 @@ function AdminDashboardContent() {
     await data.refresh();
   };
 
-  const handleCreateTeacher = async (name: string, email: string, classId: string | null) => {
-    const res = await callAdminApi("create-teacher", { name, email, classId });
+  const handleCreateTeacher = async (name: string, email: string) => {
+    const res = await callAdminApi("create-teacher", { name, email });
     setCreatedCredentials({
-      email: res.email,
+      email: res.email || "No email provided",
       pin: res.pin,
       title: "Teacher Account Created",
     });
@@ -133,8 +133,8 @@ function AdminDashboardContent() {
     toast.success("Teacher account created.");
   };
 
-  const handleUpdateTeacher = async (id: string, name: string, email: string, classId: string | null) => {
-    await callAdminApi("update-teacher", { id, name, email, classId });
+  const handleUpdateTeacher = async (id: string, name: string, email: string) => {
+    await callAdminApi("update-teacher", { id, name, email });
     await data.refresh();
     toast.success("Teacher updated.");
   };

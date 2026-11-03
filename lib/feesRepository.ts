@@ -1,6 +1,8 @@
 // lib/feesRepository.ts
-import { updateFamilyDetails } from "@/app/admin/fees/actions";
-import { supabase } from "@/lib/supabaseClient"; // Temporary until we create a Server Action for notes
+import { 
+  updateFamilyDetails, 
+  updatePaymentNote 
+} from "@/app/admin/fees/actions";
 
 export const feesRepository = {
   /**
@@ -26,17 +28,12 @@ export const feesRepository = {
 
   /**
    * Updates the remark/note on a specific payment.
-   * Note: This is currently a direct client call, but should be moved to a Server Action later.
+   * Moved to a Server Action to ensure logAudit() is always called.
    */
   updatePaymentNote: async (paymentId: string, note: string) => {
     try {
-      const { error } = await supabase
-        .from("payments")
-        .update({ note })
-        .eq("id", paymentId);
-        
-      if (error) throw new Error(error.message);
-      return { success: true };
+      const res = await updatePaymentNote(paymentId, note);
+      return { success: true, data: res };
     } catch (error: any) {
       console.error("Repository: Failed to update payment note", error);
       return { success: false, error: error.message };
