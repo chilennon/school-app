@@ -2,13 +2,14 @@
 // Users & roles
 // ============================================================
 
-export type UserRole = "admin" | "teacher" | "parent";
+export type UserRole = "owner" | "admin" | "teacher" | "parent";
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  school_id?: string;
   passwordHash?: string;
   assignedClassIds?: string[];
 }
@@ -17,18 +18,13 @@ export interface User {
 // Classes & students
 // ============================================================
 
-/**
- * Registry-level class room — used by admin & teacher dashboards.
- * Does NOT carry a student list; use ClassRoomWithStudents when
- * you need the roster inline.
- */
 export interface ClassRoom {
   id: string;
   name: string;
   session: string;
-  session_id?: string | null;
-  assignedTeacherId: string | null;
-  studentIds: string[];
+  session_id: string | null; // 🚨 Made required (can be null) for reliable filtering
+  teacher_id: string | null; // 🚨 Renamed from assignedTeacherId to match DB
+  studentIds?: string[];
 }
 
 /** Registry-level student — used by admin dashboard listings. */
@@ -40,6 +36,7 @@ export interface Student {
   age?: string;
   gender?: string;
   createdAt?: string;
+  family_id?: string | null;
 }
 
 // ============================================================
@@ -98,7 +95,8 @@ export interface Enrolment {
   student_id: string;
   class_id: string;
   session_id: string;
-  status: "active" | "transferred" | "withdrawn";
+  // 🚨 FIX: Aligned with Dexie/DB (was previously transferred/withdrawn)
+  status: "active" | "inactive" | "graduated"; 
   created_at?: string;
 }
 
@@ -118,7 +116,7 @@ export interface ScoreRow {
 // ============================================================
 
 export interface Subject {
-  id: number;
+  id: string; // 🚨 FIX: Changed from number to string (UUID)
   sub: string;
   ca: string;
   exam: string;
@@ -158,12 +156,8 @@ export interface StudentPositions {
   subjects: Record<string, SubjectStats>;
 }
 
-export type AssessmentStatus =
-  | "not_started"
-  | "draft"
-  | "submitted"
-  | "approved"
-  | "completed"; // legacy — do not use in new code
+// 🚨 FIX: Removed legacy "not_started" and "completed". Use only DB statuses.
+export type AssessmentStatus = "draft" | "submitted" | "approved";
 
 export interface StudentAssessment {
   schoolName: string;
@@ -195,6 +189,7 @@ export interface StudentAssessment {
  */
 export interface StudentWithAssessment {
   id: string;
+  enrolment_id: string; // 🚨 Added for the compiler save path
   name: string;
   gender: "Male" | "Female" | "";
   age: string;

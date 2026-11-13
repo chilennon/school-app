@@ -42,9 +42,11 @@ export function ScoresTab({
   onSubmit: () => void;
   onReopen: () => void;
 }) {
+  // 🚨 Calculate how many are still drafts
   const draftCount = students.filter(
-    (s) => s.assessment?.status === "draft",
+    (s) => !s.assessment?.status || s.assessment.status === "draft"
   ).length;
+
   const selectedTermName =
     classTerms.find((t) => t.id === selectedTermId)?.name || "";
 
@@ -67,6 +69,7 @@ export function ScoresTab({
         terms={classTerms}
         selectedId={selectedTermId}
         onSelect={onSelectTerm}
+        currentTermId={classTerms.find(t => t.is_current)?.id}
       />
 
       {classStatus === "mixed" && <MixedBanner count={draftCount} />}
@@ -102,6 +105,7 @@ export function ScoresTab({
           onBatchPrint={onBatchPrint}
           onSubmit={onSubmit}
           onReopen={onReopen}
+          // 🚨 OPTIONAL: Pass draftCount to StickyActionBar so you can disable the button if 0
         />
       )}
     </div>

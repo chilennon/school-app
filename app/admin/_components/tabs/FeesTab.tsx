@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { importFamilies, generateTermCharges, updateFamilyDetails, mergeFamilies } from "../../fees/actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { useCurrentTerm } from "@/hooks/useCurrentTerm";
 import type { AdminView } from "../../_lib/types";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { supabase } from "@/lib/supabaseClient";
@@ -16,36 +15,53 @@ import { supabase } from "@/lib/supabaseClient";
 import { useBulkFeesData } from "../../_hooks/useBulkFeesData";
 import { FeesSummaryDesktop } from "../FeesSummaryDesktop";
 import { BulkFeesGrid } from "../BulkFeesGrid";
-
-// 🚨 NEW: Import the modal
 import { SetupTermFeesModal } from "../../fees/_components/SetupTermFeesModal";
 
-export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) {
+export function FeesTab({ 
+  onNavigate, 
+  currentSessionId 
+}: { 
+  onNavigate: (v: AdminView) => void;
+  currentSessionId: string;
+}) {
   const router = useRouter();
   
-  const { term, loading: termLoading } = useCurrentTerm(); 
+  const [term, setTerm] = useState<{ id: string } | null>(null);
+  const [termLoading, setTermLoading] = useState(true);
+
+  useEffect(() => {
+    if (!currentSessionId) {
+      setTermLoading(false);
+      return;
+    }
+    supabase
+      .from("terms")
+      .select("id")
+      .eq("session_id", currentSessionId)
+      .eq("is_current", true)
+      .maybeSingle()
+      .then(({ data }) => {
+        setTerm(data);
+        setTermLoading(false);
+      });
+  }, [currentSessionId]);
+
   const { data, loading: dataLoading, refetch } = useBulkFeesData(term?.id);
-  
   const isLoading = termLoading || dataLoading;
 
   const [filter, setFilter] = useState<"all" | "unpaid" | "partial" | "paid">("all");
   const [search, setSearch] = useState("");
   
-  // Bulk Add Family State
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [bulkFamilies, setBulkFamilies] = useState([
-    { name: "", guardianName: "", guardianPhone: "", initialCharge: "" }
-  ]);
+  const [bulkFamilies, setBulkFamilies] = useState([{ name: "", guardianName: "", guardianPhone: "", initialCharge: "" }]);
   const [rowToDelete, setRowToDelete] = useState<number | null>(null);
 
-  // 🚨 NEW: Setup Term Fees State
   const [isOwner, setIsOwner] = useState(false);
   const [showFeesModal, setShowFeesModal] = useState(false);
   const [isGeneratingFees, setIsGeneratingFees] = useState(false);
   const [classes, setClasses] = useState<any[]>([]);
 
-  // Edit/Merge State
   const [editingFamily, setEditingFamily] = useState<any>(null);
   const [mergingFamily, setMergingFamily] = useState<any>(null);
   const [editName, setEditName] = useState("");
@@ -58,16 +74,23 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
   const [otherFamilies, setOtherFamilies] = useState<any[]>([]);
 
   useEffect(() => {
+    if (!currentSessionId) return; 
+
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.app_metadata?.role === 'owner') {
         setIsOwner(true);
-        // Fetch classes for the setup modal
-        supabase.from("classes").select("id, name, sort_order").then(({ data: classData }) => {
-          if (classData) setClasses(classData);
-        });
+        supabase
+          .from("classes")
+          .select("id, name")
+          .eq("session_id", currentSessionId) 
+          .order("name")
+          .then(({ data: classData, error }) => {
+            if (error) console.error("Failed to fetch classes:", error.message);
+            if (classData) setClasses(classData);
+          });
       }
     });
-  }, []);
+  }, [currentSessionId]);
 
   const filteredData = data.filter((f) => {
     const matchesFilter = 
@@ -89,18 +112,10 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
 
   const handleRemoveRow = (index: number) => {
     if (bulkFamilies.length === 1) return;
-    
     const row = bulkFamilies[index];
-    const hasData = row.name.trim() !== "" || 
-                    row.guardianName.trim() !== "" || 
-                    row.guardianPhone.trim() !== "" || 
-                    row.initialCharge.trim() !== "";
-
-    if (hasData) {
-      setRowToDelete(index);
-    } else {
-      setBulkFamilies(bulkFamilies.filter((_, i) => i !== index));
-    }
+    const hasData = row.name.trim() !== "" || row.guardianName.trim() !== "" || row.guardianPhone.trim() !== "" || row.initialCharge.trim() !== "";
+    if (hasData) setRowToDelete(index);
+    else setBulkFamilies(bulkFamilies.filter((_, i) => i !== index));
   };
 
   const confirmRemoveRow = () => {
@@ -121,9 +136,7 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
       toast.error("No active term found.");
       return;
     }
-
     const validRows = bulkFamilies.filter(f => f.name.trim() && f.guardianPhone.trim());
-    
     if (validRows.length === 0) {
       toast.error("Please fill in at least one family name and phone number.");
       return;
@@ -142,11 +155,8 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
       const res = await importFamilies(rowsToImport, term.id);
       
       if (res.success) {
-        if (res.skipped > 0) {
-          toast.success(`Added ${res.inserted} families. ${res.skipped} duplicates skipped.`);
-        } else {
-          toast.success(`Successfully added ${res.inserted} families!`);
-        }
+        if (res.skipped > 0) toast.success(`Added ${res.inserted} families. ${res.skipped} duplicates skipped.`);
+        else toast.success(`Successfully added ${res.inserted} families!`);
         setIsAddOpen(false);
         setBulkFamilies([{ name: "", guardianName: "", guardianPhone: "", initialCharge: "" }]);
         await refetch();
@@ -158,14 +168,19 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
     }
   };
 
-  // 🚨 NEW: Handler for the per-class fees
   const handleGenerateFees = async (classFees: { class_id: string; amount: number }[]) => {
     if (!term?.id) return;
     setIsGeneratingFees(true);
     try {
       const res = await generateTermCharges(term.id, classFees);
       if (res.success) {
-        toast.success(`Successfully generated ${res.generatedCharges} tuition charges.`);
+        if (res.updatedCharges > 0 && res.generatedCharges > 0) {
+          toast.success(`Updated ${res.updatedCharges} existing charges and generated ${res.generatedCharges} new charges.`);
+        } else if (res.updatedCharges > 0) {
+          toast.success(`Successfully updated ${res.updatedCharges} existing charges.`);
+        } else {
+          toast.success(`Successfully generated ${res.generatedCharges} tuition charges.`);
+        }
         setShowFeesModal(false);
         await refetch();
       }
@@ -181,7 +196,6 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
       toast.error("No data to export");
       return;
     }
-
     const exportData = filteredData.map((row) => ({
       "Family Name": row.familyName,
       "Children": row.children,
@@ -193,19 +207,13 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
       "Guardian Phone": row.guardianPhone,
       "Remarks": row.latestPaymentNote || "",
     }));
-
     const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Fees Data");
-
-    const wscols = [
-      { wch: 25 }, { wch: 35 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 30 }
-    ];
+    const wscols = [{ wch: 25 }, { wch: 35 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 30 }];
     ws["!cols"] = wscols;
-
     const date = new Date().toISOString().split("T")[0];
     XLSX.writeFile(wb, `Fees_Export_${date}.xlsx`);
-    
     toast.success("Exported to Excel successfully");
   };
 
@@ -301,20 +309,11 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
                   of ₦{((data || []).reduce((sum, r) => sum + r.broughtForward + r.termFee, 0) / 1000000).toFixed(2)}M
                 </span>
               </div>
-              
               <div className="h-2 w-full bg-slate-100 rounded-full mb-4 overflow-hidden">
-                <div 
-                  className="h-full bg-blue-600 rounded-full" 
-                  style={{ 
-                    width: `${((data || []).reduce((sum, r) => sum + r.amountPaid, 0) / Math.max(1, (data || []).reduce((sum, r) => sum + r.broughtForward + r.termFee, 0))) * 100}%` 
-                  }}
-                ></div>
+                <div className="h-full bg-blue-600 rounded-full" style={{ width: `${((data || []).reduce((sum, r) => sum + r.amountPaid, 0) / Math.max(1, (data || []).reduce((sum, r) => sum + r.broughtForward + r.termFee, 0))) * 100}%` }}></div>
               </div>
-              
               <div className="flex justify-between items-center text-sm">
-                <span className="font-bold text-slate-800">
-                  ₦{((data || []).reduce((sum, r) => sum + r.amountOwed, 0) / 1000000).toFixed(2)}M left to collect
-                </span>
+                <span className="font-bold text-slate-800">₦{((data || []).reduce((sum, r) => sum + r.amountOwed, 0) / 1000000).toFixed(2)}M left to collect</span>
                 <span className="text-slate-400 font-medium">{data.length} families</span>
               </div>
             </div>
@@ -326,13 +325,7 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
                 { id: "partial", label: "Part paid", count: data.filter(f => f.status === "Part Payment").length, bg: "bg-white", text: "text-orange-500" },
                 { id: "paid", label: "Paid", count: data.filter(f => f.status === "Fully Paid").length, bg: "bg-white", text: "text-green-600" },
               ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setFilter(tab.id as any)}
-                  className={`flex flex-col items-center justify-center min-w-[76px] py-2.5 px-3 rounded-2xl border transition-all ${
-                    filter === tab.id ? "bg-blue-600 border-blue-600 shadow-sm" : `${tab.bg} border-slate-200`
-                  }`}
-                >
+                <button key={tab.id} onClick={() => setFilter(tab.id as any)} className={`flex flex-col items-center justify-center min-w-[76px] py-2.5 px-3 rounded-2xl border transition-all ${filter === tab.id ? "bg-blue-600 border-blue-600 shadow-sm" : `${tab.bg} border-slate-200`}`}>
                   <span className={`text-lg font-bold ${filter === tab.id ? "text-white" : tab.text}`}>{tab.count}</span>
                   <span className={`text-[11px] font-semibold ${filter === tab.id ? "text-blue-100" : "text-slate-500"}`}>{tab.label}</span>
                 </button>
@@ -342,51 +335,32 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
             <div className="flex flex-col md:flex-row gap-3 mb-5 max-w-lg md:max-w-none mx-auto">
               <div className="relative flex-1">
                 <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search family or child..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
-                />
+                <input type="text" placeholder="Search family or child..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-4 py-3.5 text-[15px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm" />
               </div>
 
               <div className="grid grid-cols-2 md:flex md:flex-row gap-2 w-full md:w-auto">
                 {isOwner && (
-                  <button 
-                    onClick={() => setShowFeesModal(true)}
-                    className="w-full md:w-auto bg-emerald-600 text-white font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm text-[15px] whitespace-nowrap"
-                  >
+                  <button onClick={() => setShowFeesModal(true)} className="w-full md:w-auto bg-emerald-600 text-white font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors shadow-sm text-[15px] whitespace-nowrap">
                     <Wand2 className="w-4 h-4" /> Setup Term Fees
                   </button>
                 )}
-
-                <button 
-                  onClick={() => router.push("/admin/fees/import")}
-                  className="w-full md:w-auto bg-white border border-slate-200 text-slate-700 font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors shadow-sm text-[15px] whitespace-nowrap"
-                >
+                <button onClick={() => router.push("/admin/fees/import")} className="w-full md:w-auto bg-white border border-slate-200 text-slate-700 font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors shadow-sm text-[15px] whitespace-nowrap">
                   <Download className="w-4 h-4" /> Import
                 </button>
-
-                <button 
-                  onClick={handleExport}
-                  className="w-full md:w-auto bg-white border border-slate-200 text-slate-700 font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors shadow-sm text-[15px] whitespace-nowrap"
-                >
+                <button onClick={handleExport} className="w-full md:w-auto bg-white border border-slate-200 text-slate-700 font-bold px-4 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors shadow-sm text-[15px] whitespace-nowrap">
                   <Upload className="w-4 h-4" /> Export
                 </button>
-
+                
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                   <DialogTrigger asChild>
                     <button className="w-full md:w-auto bg-blue-600 text-white font-bold px-6 py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors shadow-sm text-[15px] whitespace-nowrap">
                       <Plus className="w-4 h-4" /> Add Families
                     </button>
                   </DialogTrigger>
-                  
                   <DialogContent className="sm:max-w-4xl w-[95%] max-h-[90vh] flex flex-col rounded-2xl p-0 overflow-hidden">
                     <DialogHeader className="p-6 border-b border-slate-100">
                       <DialogTitle>Add Families</DialogTitle>
                     </DialogHeader>
-                    
                     <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50">
                       <div className="hidden md:grid grid-cols-12 gap-3 px-2 mb-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
                         <div className="col-span-3">Family Name</div>
@@ -395,90 +369,40 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
                         <div className="col-span-2">Initial Fee (₦)</div>
                         <div className="col-span-1"></div>
                       </div>
-
                       {bulkFamilies.map((row, index) => (
                         <div key={index} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm md:shadow-none md:border-none md:bg-transparent md:p-0 md:grid md:grid-cols-12 md:gap-3 md:items-center relative space-y-3 md:space-y-0">
-                          
                           <div className="md:col-span-3">
                             <label className="block md:hidden text-xs font-bold text-slate-500 mb-1">Family Name</label>
-                            <input 
-                              type="text" 
-                              value={row.name} 
-                              onChange={(e) => handleUpdateRow(index, "name", e.target.value)} 
-                              placeholder="e.g. Adeyemi Family"
-                              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" 
-                            />
+                            <input type="text" value={row.name} onChange={(e) => handleUpdateRow(index, "name", e.target.value)} placeholder="e.g. Adeyemi Family" className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
                           </div>
-                          
                           <div className="md:col-span-3">
                             <label className="block md:hidden text-xs font-bold text-slate-500 mb-1">Guardian Name</label>
-                            <input 
-                              type="text" 
-                              value={row.guardianName} 
-                              onChange={(e) => handleUpdateRow(index, "guardianName", e.target.value)} 
-                              placeholder="e.g. Mr. Tunde"
-                              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" 
-                            />
+                            <input type="text" value={row.guardianName} onChange={(e) => handleUpdateRow(index, "guardianName", e.target.value)} placeholder="e.g. Mr. Tunde" className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
                           </div>
-
                           <div className="md:col-span-2">
                             <label className="block md:hidden text-xs font-bold text-slate-500 mb-1">Phone</label>
-                            <input 
-                              type="tel" 
-                              value={row.guardianPhone} 
-                              onChange={(e) => handleUpdateRow(index, "guardianPhone", e.target.value)} 
-                              placeholder="080..."
-                              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" 
-                            />
+                            <input type="tel" value={row.guardianPhone} onChange={(e) => handleUpdateRow(index, "guardianPhone", e.target.value)} placeholder="080..." className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
                           </div>
-
                           <div className="md:col-span-2">
                             <label className="block md:hidden text-xs font-bold text-slate-500 mb-1">Initial Fee (₦)</label>
-                            <input 
-                              type="number" 
-                              value={row.initialCharge} 
-                              onChange={(e) => handleUpdateRow(index, "initialCharge", e.target.value)} 
-                              placeholder="0"
-                              className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" 
-                            />
+                            <input type="number" value={row.initialCharge} onChange={(e) => handleUpdateRow(index, "initialCharge", e.target.value)} placeholder="0" className="w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
                           </div>
-
                           <div className="md:col-span-2 flex justify-end md:justify-center pt-2 md:pt-0">
-                            <button 
-                              onClick={() => handleRemoveRow(index)}
-                              disabled={bulkFamilies.length === 1}
-                              className="p-2 text-red-400 hover:text-red-600 bg-red-50 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
+                            <button onClick={() => handleRemoveRow(index)} disabled={bulkFamilies.length === 1} className="p-2 text-red-400 hover:text-red-600 bg-red-50 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
                       ))}
-
-                      <button 
-                        onClick={handleAddRow}
-                        className="w-full py-3 border-2 border-dashed border-slate-300 text-slate-500 font-bold rounded-xl hover:bg-slate-100 hover:border-slate-400 transition-colors flex items-center justify-center gap-2 text-sm"
-                      >
+                      <button onClick={handleAddRow} className="w-full py-3 border-2 border-dashed border-slate-300 text-slate-500 font-bold rounded-xl hover:bg-slate-100 hover:border-slate-400 transition-colors flex items-center justify-center gap-2 text-sm">
                         <Plus className="w-4 h-4" /> Add Another Row
                       </button>
                     </div>
-
                     <div className="p-4 border-t border-slate-200 bg-white flex justify-between items-center sticky bottom-0 z-10">
-                      <p className="text-xs text-slate-500 font-medium hidden md:block">
-                        Total rows: {bulkFamilies.length}
-                      </p>
+                      <p className="text-xs text-slate-500 font-medium hidden md:block">Total rows: {bulkFamilies.length}</p>
                       <div className="flex gap-3 w-full md:w-auto">
-                        <button 
-                          onClick={() => setIsAddOpen(false)} 
-                          className="flex-1 md:flex-none px-6 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200"
-                        >
-                          Cancel
-                        </button>
-                        <button 
-                          onClick={handleSaveFamilies} 
-                          disabled={isSaving}
-                          className="flex-1 md:flex-none px-8 bg-blue-600 text-white font-bold py-3 rounded-xl disabled:opacity-50 hover:bg-blue-700 flex justify-center items-center gap-2"
-                        >
+                        <button onClick={() => setIsAddOpen(false)} className="flex-1 md:flex-none px-6 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200">Cancel</button>
+                        <button onClick={handleSaveFamilies} disabled={isSaving} className="flex-1 md:flex-none px-8 bg-blue-600 text-white font-bold py-3 rounded-xl disabled:opacity-50 hover:bg-blue-700 flex justify-center items-center gap-2">
                           {isSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : `Save ${bulkFamilies.length} Families`}
                         </button>
                       </div>
@@ -513,38 +437,16 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
             </div>
 
             <div className="hidden md:block w-full overflow-x-auto">
-               <BulkFeesGrid 
-                 data={filteredData} 
-                 refetch={refetch} 
-                 onEdit={handleOpenEdit}
-                 onMerge={handleOpenMerge}
-                 onRowClick={(row) => router.push(`/admin/fees/family/${row.familyId}`)}
-               />
+               <BulkFeesGrid data={filteredData} refetch={refetch} onEdit={handleOpenEdit} onMerge={handleOpenMerge} onRowClick={(row) => router.push(`/admin/fees/family/${row.familyId}`)} />
             </div>
           </>
         )}
       </div>
 
-      {/* 🚨 NEW: Setup Term Fees Modal */}
-      <SetupTermFeesModal
-        isOpen={showFeesModal}
-        onClose={() => setShowFeesModal(false)}
-        classes={classes}
-        onSubmit={handleGenerateFees}
-        isSubmitting={isGeneratingFees}
-      />
+      <SetupTermFeesModal isOpen={showFeesModal} onClose={() => setShowFeesModal(false)} classes={classes} onSubmit={handleGenerateFees} isSubmitting={isGeneratingFees} />
 
-      <ConfirmDialog
-        open={rowToDelete !== null}
-        onOpenChange={(open) => !open && setRowToDelete(null)}
-        title="Delete this row?"
-        description="Are you sure you want to delete this row? Any unsaved data you have typed will be lost."
-        confirmLabel="Delete Row"
-        destructive={true}
-        onConfirm={confirmRemoveRow}
-      />
+      <ConfirmDialog open={rowToDelete !== null} onOpenChange={(open) => !open && setRowToDelete(null)} title="Delete this row?" description="Are you sure you want to delete this row? Any unsaved data you have typed will be lost." confirmLabel="Delete Row" destructive={true} onConfirm={confirmRemoveRow} />
 
-      {/* EDIT FAMILY MODAL */}
       {editingFamily && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-xl">
@@ -573,7 +475,6 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
         </div>
       )}
 
-      {/* MERGE FAMILY MODAL */}
       {mergingFamily && (
         <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-xl">
@@ -582,11 +483,7 @@ export function FeesTab({ onNavigate }: { onNavigate: (v: AdminView) => void }) 
               Merge <strong>{mergingFamily.familyName}</strong> into another family. All charges, payments, and children will be moved.
             </p>
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Target Family</label>
-            <select 
-              value={mergeTargetId} 
-              onChange={(e) => setMergeTargetId(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500 mb-6"
-            >
+            <select value={mergeTargetId} onChange={(e) => setMergeTargetId(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500 mb-6">
               <option value="">Select a family...</option>
               {otherFamilies.map(f => (
                 <option key={f.id} value={f.id}>{f.name}</option>

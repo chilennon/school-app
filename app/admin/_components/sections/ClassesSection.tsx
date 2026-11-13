@@ -10,7 +10,7 @@ export function ClassesSection({
   classes,
   subjects,
   teachers,
-  sessions, // 🚨 NEW: Pass the school's sessions
+  sessions,
   classSubjectIds,
   onBack,
   onSave,
@@ -21,7 +21,7 @@ export function ClassesSection({
   classes: ClassRoom[];
   subjects: SubjectRow[];
   teachers: User[];
-  sessions: { id: string; name: string }[]; // 🚨 NEW
+  sessions: { id: string; name: string }[];
   classSubjectIds: Record<string, string[]>;
   onBack: () => void;
   onSave: (input: { id?: string; name: string; session: string; subjectIds: string[] }) => Promise<void>;
@@ -32,16 +32,14 @@ export function ClassesSection({
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [session, setSession] = useState(""); // Store the session NAME
+  const [session, setSession] = useState("");
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
 
-  // DRAFT MODE STATE
   const [localClasses, setLocalClasses] = useState<ClassRoom[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Sync local state when props change
   useEffect(() => {
     const sorted = [...classes].sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0));
     setLocalClasses(sorted);
@@ -64,7 +62,7 @@ export function ClassesSection({
         id: editingId || undefined,
         name: name.trim(),
         session: session.trim(),
-        subjectIds, // 🚨 Pass the selected subjects!
+        subjectIds,
       });
       reset();
       setFormOpen(false);
@@ -138,7 +136,6 @@ export function ClassesSection({
               />
             </div>
 
-            {/* 🚨 FIX: Session Dropdown */}
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Session</label>
               <select
@@ -154,7 +151,6 @@ export function ClassesSection({
               </select>
             </div>
 
-            {/* 🚨 FIX: Restored Subject Checklist */}
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Subjects Offered</label>
               <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-2">
@@ -256,8 +252,9 @@ export function ClassesSection({
 
                   <div className="mt-3">
                     <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Form Teacher</label>
+                    {/* 🚨 FIX: Changed cls.assignedTeacherId to cls.teacher_id */}
                     <select
-                      value={cls.assignedTeacherId || ""}
+                      value={cls.teacher_id || ""}
                       onChange={(e) => onAssignTeacher(cls.id, e.target.value)}
                       className="w-full text-sm bg-white border border-slate-300 rounded-lg p-2 outline-none"
                     >

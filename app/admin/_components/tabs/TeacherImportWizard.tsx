@@ -22,7 +22,6 @@ type MappingConfig = {
   teacherName: string | null;
   email: string | null;
   phone: string | null;
-  position: string | null;
   assignedClass: string | null;
 };
 
@@ -31,7 +30,6 @@ type ParsedTeacher = {
   teacherName: string;
   email: string;
   phone: string;
-  role: "teacher" | "admin";
   assignedClass: string;
   _isDuplicate?: boolean;
   _duplicateReason?: string;
@@ -60,31 +58,37 @@ export function TeacherImportWizard({
   const [rawRows, setRawRows] = useState<RawRow[]>([]);
   const [mapping, setMapping] = useState<MappingConfig | null>(null);
   const [parsedTeachers, setParsedTeachers] = useState<ParsedTeacher[]>([]);
-    const [duplicateRowNumbers, setDuplicateRowNumbers] = useState<number[]>([]);
+  const [duplicateRowNumbers, setDuplicateRowNumbers] = useState<number[]>([]);
 
   // DB State
   const [existingEmails, setExistingEmails] = useState<string[]>([]);
+  const [existingNames, setExistingNames] = useState<string[]>([]);
+
   useEffect(() => {
     supabase
       .from("profiles")
-      .select("email")
+      .select("name, email")
       .then(({ data }) => {
-        if (data) setExistingEmails(data.map((d) => d.email.toLowerCase()));
+        if (data) {
+          setExistingEmails(
+            data.filter((d) => d.email).map((d) => d.email!.toLowerCase())
+          );
+          setExistingNames(
+            data.filter((d) => d.name).map((d) => d.name.toLowerCase().trim())
+          );
+        }
       });
   }, []);
 
-  // 🚨 RESTORED: Template Download
   const handleDownloadTemplate = () => {
     const headers = [
       "Staff Name",
-      "Position",
       "Email AD",
       "Phone No.",
       "Assigned Class",
     ];
     const sample = [
       "Mr. John Doe",
-      "Teacher",
       "john@school.com",
       "08031234567",
       "Basic 1",
@@ -116,14 +120,12 @@ export function TeacherImportWizard({
           return;
         }
 
-        // 🚨 FIX: Find the actual header row (skip the giant title row)
         let headerRowIndex = 0;
         for (let i = 0; i < rawData.length; i++) {
           const nonEmptyCells = rawData[i].filter(
             (c: any) => String(c).trim().length > 0,
           );
-          // A real header row has at least 3 non-empty columns (e.g., S/N, Staff Name, Position)
-          if (nonEmptyCells.length >= 3) {
+          if (nonEmptyCells.length >= 2) {
             headerRowIndex = i;
             break;
           }
@@ -148,7 +150,6 @@ export function TeacherImportWizard({
           teacherName: null,
           email: null,
           phone: null,
-          position: null,
           assignedClass: null,
         };
         rawHeaders.forEach((h) => {
@@ -164,11 +165,6 @@ export function TeacherImportWizard({
             (lower.includes("phone") || lower.includes("tel"))
           )
             config.phone = h;
-          else if (
-            !config.position &&
-            (lower.includes("position") || lower.includes("role"))
-          )
-            config.position = h;
           else if (!config.assignedClass && lower.includes("class"))
             config.assignedClass = h;
         });
@@ -188,6 +184,7 @@ export function TeacherImportWizard({
     }
 
     const seenEmails = new Set<string>();
+    const seenNames = new Set<string>();
 
     const parsed = rawRows
       .map((row, idx) => {
@@ -198,28 +195,15 @@ export function TeacherImportWizard({
         const phone = mapping.phone
           ? String(row[mapping.phone] || "").trim()
           : "";
-        const position = mapping.position
-          ? String(row[mapping.position] || "").toLowerCase()
-          : "";
         const assignedClass = mapping.assignedClass
           ? String(row[mapping.assignedClass] || "").trim()
           : "";
-
-        // Role detection
-        let role: "teacher" | "admin" = "teacher";
-        if (
-          position.includes("head") ||
-          position.includes("admin") ||
-          position.includes("bursar") ||
-          position.includes("proprietor")
-        ) {
-          role = "admin";
-        }
 
         // Duplicate check
         let _isDuplicate = false;
         let _duplicateReason = "";
         const emailKey = email.toLowerCase();
+        const nameKey = teacherName.toLowerCase().trim();
 
         if (emailKey) {
           if (existingEmails.includes(emailKey)) {
@@ -230,6 +214,16 @@ export function TeacherImportWizard({
             _duplicateReason = "Duplicate Email in this Excel file.";
           }
           seenEmails.add(emailKey);
+        } else {
+          // 🚨 NEW: Check by name if no email is provided
+          if (existingNames.includes(nameKey)) {
+            _isDuplicate = true;
+            _duplicateReason = "Teacher with this name already exists (and has no email).";
+          } else if (seenNames.has(nameKey)) {
+            _isDuplicate = true;
+            _duplicateReason = "Duplicate Teacher Name in this Excel file.";
+          }
+          seenNames.add(nameKey);
         }
 
         return {
@@ -237,7 +231,6 @@ export function TeacherImportWizard({
           teacherName,
           email,
           phone,
-          role,
           assignedClass,
           _isDuplicate,
           _duplicateReason,
@@ -250,22 +243,27 @@ export function TeacherImportWizard({
     setStep("check");
   };
 
-  // Updates the email as you type (does not remove the UI)
   const handleEditDuplicate = (index: number, newEmail: string) => {
     const newTeachers = [...parsedTeachers];
     newTeachers[index] = { ...newTeachers[index], email: newEmail };
     setParsedTeachers(newTeachers);
   };
 
-  // Validates the email when you click away
   const handleValidateEmail = (index: number) => {
     const newTeachers = [...parsedTeachers];
     const row = { ...newTeachers[index] };
     const emailKey = row.email.toLowerCase();
+    const nameKey = row.teacherName.toLowerCase().trim();
 
     const existsInDb = existingEmails.includes(emailKey);
     const existsInFile = parsedTeachers.some(
       (t, i) => i !== index && t.email.toLowerCase() === emailKey
+    );
+
+    // 🚨 NEW: Check name duplicates if email is empty
+    const nameExistsInDb = !emailKey && existingNames.includes(nameKey);
+    const nameExistsInFile = !emailKey && parsedTeachers.some(
+      (t, i) => i !== index && t.teacherName.toLowerCase().trim() === nameKey
     );
 
     if (existsInDb) {
@@ -274,6 +272,12 @@ export function TeacherImportWizard({
     } else if (existsInFile) {
       row._isDuplicate = true;
       row._duplicateReason = "Duplicate Email in this Excel file.";
+    } else if (nameExistsInDb) {
+      row._isDuplicate = true;
+      row._duplicateReason = "Teacher with this name already exists (and has no email).";
+    } else if (nameExistsInFile) {
+      row._isDuplicate = true;
+      row._duplicateReason = "Duplicate Teacher Name in this Excel file.";
     } else {
       row._isDuplicate = false;
       row._duplicateReason = "";
@@ -338,7 +342,7 @@ export function TeacherImportWizard({
               </p>
               <p className="text-xs text-blue-700 mb-3">
                 Upload your existing spreadsheet. We will automatically detect
-                your columns like "Staff Name", "Email AD", and "Position".
+                your columns. Note: Imports only create Teacher accounts. Admins must be added manually in Settings.
               </p>
               <button
                 onClick={handleDownloadTemplate}
@@ -375,9 +379,7 @@ export function TeacherImportWizard({
           {Object.keys(mapping).map((key) => (
             <div key={key} className="flex flex-col gap-1">
               <label className="text-sm font-bold text-slate-700 capitalize">
-                {key === "position"
-                  ? "Role / Job Title"
-                  : key.replace(/([A-Z])/g, " $1")}
+                {key.replace(/([A-Z])/g, " $1")}
               </label>
               <select
                 value={mapping[key as keyof MappingConfig] || ""}
@@ -427,7 +429,7 @@ export function TeacherImportWizard({
                 <Copy className="w-4 h-4" /> Duplicates Detected ({parsedTeachers.filter(t => t._isDuplicate).length})
               </h3>
               <p className="text-xs text-orange-700 mt-1 mb-3">
-                These emails already exist in the system or are repeated in this file. Edit the email to make it unique. Unresolved rows will be skipped.
+                These emails or names already exist in the system or are repeated in this file. Edit the email to make it unique. Unresolved rows will be skipped.
               </p>
 
               <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
@@ -505,7 +507,6 @@ export function TeacherImportWizard({
             </div>
           </div>
 
-          {/* 🚨 NEW: SHOW SKIPPED DETAILS */}
           {results.skippedDetails && results.skippedDetails.length > 0 && (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-4 mt-4 max-w-sm mx-auto text-left">
               <h3 className="text-sm font-bold text-red-800 mb-2 flex items-center gap-2">

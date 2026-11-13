@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter, useParams } from "next/navigation";
 import { recordPayment } from "../../../actions";
-import { ChevronLeft, CheckCircle2, Download, Printer, Share2, FileImage, FileText } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Download, Printer, Share2, FileImage, FileText, AlertTriangle } from "lucide-react";
 import { calculateFamilyBalances } from "@/lib/fees";
 import { useSchoolConfig } from "@/hooks/useSchoolConfig";
 import { amountToWords } from "@/lib/utils/amountToWords";
@@ -13,13 +13,20 @@ import html2canvas from "html2canvas-pro";
 import jsPDF from "jspdf";
 import { toast } from "sonner";
 
+interface FamilyData {
+  name: string;
+  guardian_name: string;
+  guardian_phone: string;
+  balance: number;
+}
+
 export default function RecordPayment() {
   const router = useRouter();
   const params = useParams();
   const { config: school } = useSchoolConfig();
   const receiptRef = useRef<HTMLDivElement>(null);
 
-  const [family, setFamily] = useState<any>(null);
+  const [family, setFamily] = useState<FamilyData | null>(null);
   const [amount, setAmount] = useState<string>("");
   const [method, setMethod] = useState<"cash" | "transfer" | "pos">("transfer");
   const [reference, setReference] = useState("");
@@ -31,6 +38,7 @@ export default function RecordPayment() {
     paymentObj: any;
     newBalance: number;
   } | null>(null);
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
 
@@ -53,8 +61,19 @@ export default function RecordPayment() {
       });
   }, [params.id]);
 
+  // 🚨 CLIENT-SIDE GUARD: Calculate if the amount exceeds the balance
+  const numericBalance = family?.balance ?? 0;
+  const isOverpaying = amount !== "" && Number(amount) > numericBalance;
+
   const handleSave = async () => {
     if (!amount || Number(amount) <= 0) return;
+    
+    // 🚨 Immediate UI block
+    if (isOverpaying) {
+      toast.error(`Amount cannot exceed the outstanding balance of ₦${family?.balance.toLocaleString()}`);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const res = await recordPayment({
@@ -74,7 +93,7 @@ export default function RecordPayment() {
           note: "School Fees",
         };
         
-        const newBalance = Math.max(0, (family.balance || 0) - Number(amount));
+        const newBalance = Math.max(0, (family?.balance || 0) - Number(amount));
         
         setSuccess({ 
           receiptNo: res.receiptNo, 
@@ -84,6 +103,7 @@ export default function RecordPayment() {
         });
       }
     } catch (err: any) {
+      // 🚨 SERVER-SIDE CATCH: Shows the exact message from the database RPC
       toast.error(err.message || "Failed to save payment");
     } finally {
       setIsSaving(false);
@@ -168,6 +188,7 @@ export default function RecordPayment() {
     }
   };
 
+  // --- SUCCESS SCREEN ---
   if (success) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 py-12 print:hidden">
@@ -227,6 +248,7 @@ export default function RecordPayment() {
     );
   }
 
+  // --- FORM SCREEN ---
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col pb-24">
       <div className="p-4 bg-white border-b border-slate-100">
@@ -234,7 +256,9 @@ export default function RecordPayment() {
           <ChevronLeft className="w-4 h-4" /> Cancel
         </button>
         <h1 className="text-2xl font-black text-slate-900 mb-1">Record payment</h1>
-        <p className="text-slate-500 text-sm font-medium">{family?.name} · owes ₦{family?.balance?.toLocaleString()}</p>
+        <p className="text-slate-500 text-sm font-medium">
+          {family?.name} · owes ₦{(family?.balance || 0).toLocaleString()}
+        </p>
       </div>
 
       <div className="p-4 flex-1 space-y-5">
@@ -247,23 +271,28 @@ export default function RecordPayment() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="0"
-              className="w-full text-4xl font-black pl-12 pr-4 py-4 rounded-2xl border-2 border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-100"
+              className={`w-full text-4xl font-black pl-12 pr-4 py-4 rounded-2xl border-2 focus:outline-none focus:ring-4 transition-colors ${
+                isOverpaying 
+                  ? "border-red-500 focus:ring-red-100 text-red-600" 
+                  : "border-blue-500 focus:ring-blue-100 text-slate-900"
+              }`}
             />
           </div>
         </div>
 
+        {/* 🚨 QUICK SELECT BUTTONS */}
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           <button
             onClick={() => setAmount(family?.balance?.toString() || "")}
             className="whitespace-nowrap bg-white border border-slate-200 text-sm font-bold px-4 py-2 rounded-full text-slate-700 shadow-sm"
           >
-            Full balance ₦{family?.balance?.toLocaleString()}
+            Full balance ₦{(family?.balance || 0).toLocaleString()}
           </button>
           <button
-            onClick={() => setAmount((family?.balance / 2).toString())}
+            onClick={() => setAmount(((family?.balance || 0) / 2).toString())}
             className="whitespace-nowrap bg-white border border-slate-200 text-sm font-bold px-4 py-2 rounded-full text-slate-700 shadow-sm"
           >
-            Half ₦{(family?.balance / 2)?.toLocaleString()}
+            Half ₦{((family?.balance || 0) / 2).toLocaleString()}
           </button>
         </div>
 
@@ -302,16 +331,33 @@ export default function RecordPayment() {
           <span className="font-bold text-slate-900">Today, {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
         </div>
 
-        {amount && Number(amount) > 0 && (
-          <div className="bg-blue-50 rounded-2xl p-5 border border-blue-100">
-            <p className="text-xs font-black text-blue-800 uppercase tracking-wider mb-2">After this payment</p>
-            <div className="flex justify-between items-end">
-              <div>
-                <p className="text-2xl font-black text-orange-600">Owes ₦{Math.max(0, (family?.balance || 0) - Number(amount)).toLocaleString()}</p>
-                <p className="text-xs text-blue-800 font-medium mt-1">Applied to oldest outstanding charges first</p>
+        {/* 🚨 THE PREVIEW BOX */}
+        {amount && Number(amount) > 0 && family && (
+          <div className={`rounded-2xl p-5 border ${isOverpaying ? "bg-red-50 border-red-200" : "bg-blue-50 border-blue-100"}`}>
+            <p className={`text-xs font-black uppercase tracking-wider mb-2 ${isOverpaying ? "text-red-800" : "text-blue-800"}`}>
+              {isOverpaying ? "Invalid Amount" : "After this payment"}
+            </p>
+            
+            {isOverpaying ? (
+              <div className="flex items-start gap-2 text-red-700">
+                <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                <p className="text-sm font-medium">
+                  You cannot collect more than the outstanding balance of ₦{family.balance.toLocaleString()}.
+                </p>
               </div>
-              <span className="text-xs font-bold bg-orange-100 text-orange-700 px-2 py-1 rounded-md">Part payment</span>
-            </div>
+            ) : (
+              <div className="flex justify-between items-end">
+                <div>
+                  <p className="text-2xl font-black text-orange-600">
+                    Owes ₦{Math.max(0, family.balance - Number(amount)).toLocaleString()}
+                  </p>
+                  <p className="text-xs text-blue-800 font-medium mt-1">Applied to oldest outstanding charges first</p>
+                </div>
+                <span className="text-xs font-bold bg-orange-100 text-orange-700 px-2 py-1 rounded-md">
+                  {Number(amount) === family.balance ? "Full payment" : "Part payment"}
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -320,7 +366,7 @@ export default function RecordPayment() {
         <div className="max-w-lg mx-auto">
           <button
             onClick={handleSave}
-            disabled={!amount || Number(amount) <= 0 || isSaving}
+            disabled={!amount || Number(amount) <= 0 || isSaving || isOverpaying}
             className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl disabled:opacity-50 shadow-lg hover:bg-blue-700 transition-colors"
           >
             {isSaving ? "Saving..." : "Save payment"}

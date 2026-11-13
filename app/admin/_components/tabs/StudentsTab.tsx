@@ -55,8 +55,11 @@ export function StudentsTab({
 
     const norm1 = normalizePhone(phone1);
     const norm2 = normalizePhone(phone2);
+    // 🚨 FIX: Also check the raw digits in case the DB wasn't perfectly normalized
+    const raw1 = phone1.replace(/\D/g, "");
+    const raw2 = phone2.replace(/\D/g, "");
 
-    if (!norm1 && !norm2) {
+    if (!norm1 && !norm2 && !raw1 && !raw2) {
       setMatchedFamily(null);
       setIsLookingUp(false);
       return;
@@ -70,24 +73,20 @@ export function StudentsTab({
           .select("id, name")
           .is("deleted_at", null);
 
-        if (norm1 && norm2) {
-          query = query.or(
-            `phone_normalized.eq.${norm1},phone_normalized_2.eq.${norm1},phone_normalized.eq.${norm2},phone_normalized_2.eq.${norm2}`,
-          );
-        } else if (norm1) {
-          query = query.or(
-            `phone_normalized.eq.${norm1},phone_normalized_2.eq.${norm1}`,
-          );
-        } else if (norm2) {
-          query = query.or(
-            `phone_normalized.eq.${norm2},phone_normalized_2.eq.${norm2}`,
-          );
-        }
+        // 🚨 FIX: Construct an OR query that checks all combinations
+        const searchTerms = Array.from(new Set([
+          norm1, raw1, norm2, raw2
+        ])).filter(Boolean);
+
+        const orConditions = searchTerms.map(term => 
+          `phone_normalized.eq.${term},phone_normalized_2.eq.${term},guardian_phone.eq.${term},guardian_phone_2.eq.${term}`
+        ).join(",");
+
+        query = query.or(orConditions);
 
         const { data, error } = await query.limit(1);
         if (error) throw error;
 
-        // 🚨 FIX: Only set the object. Removed the duplicate line.
         setMatchedFamily(data && data.length > 0 ? data[0] : null);
       } catch (err) {
         console.error("Lookup failed", err);

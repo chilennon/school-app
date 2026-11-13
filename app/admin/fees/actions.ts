@@ -2,10 +2,15 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { logAudit } from '@/lib/audit';
 import { revalidatePath } from 'next/cache';
 
-// Helper to enforce owner role across all actions
+const supabaseAdmin = createAdminClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
 function enforceOwner(user: any) {
   if (user.app_metadata?.role !== 'owner') {
     throw new Error('Forbidden: Only school owners can manage fees.');
@@ -37,7 +42,6 @@ export async function recordPayment(data: {
 
   if (!currentSession) throw new Error('No active session found');
 
-  // Call the Atomic Postgres RPC
   const { data: rpcData, error: rpcError } = await supabase.rpc('record_payment_atomic', {
     p_school_id: schoolId,
     p_session_id: currentSession.id,
@@ -52,29 +56,18 @@ export async function recordPayment(data: {
   if (rpcError) throw new Error(rpcError.message);
   const receiptNo = rpcData.receipt_no;
 
-  await logAudit(supabase, {
-    schoolId: schoolId,
-    actorId: user.id,
-    actorName: user.user_metadata?.name || "Admin",
-    action: 'RECORD_PAYMENT',
-    targetTable: 'payments',
-    targetId: data.familyId,
+  await logAudit(supabaseAdmin, {
+    schoolId: schoolId, actorId: user.id, actorName: user.user_metadata?.name || "Admin",
+    action: 'RECORD_PAYMENT', targetTable: 'payments', targetId: data.familyId,
     targetLabel: `Payment of ₦${data.amount.toLocaleString()} (${receiptNo})`,
     metadata: { receiptNo, method: data.method }
   });
 
-  // FIXED: Revalidate the shell, not the dead route
   revalidatePath('/admin');
-  
   return { success: true, receiptNo };
 }
 
-export async function voidPayment(
-  paymentId: string, 
-  amount: number, 
-  reason: string, 
-  familyId: string
-) {
+export async function voidPayment(paymentId: string, amount: number, reason: string, familyId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -85,25 +78,16 @@ export async function voidPayment(
   if (!schoolId) throw new Error('Missing school context');
 
   const { error } = await supabase.from('payments').insert({
-    school_id: schoolId,
-    family_id: familyId,
-    amount: -Math.abs(amount), 
-    method: 'other',
-    note: `VOID: ${reason}`,
-    receipt_no: `VOID-${Date.now()}`,
-    paid_on: new Date().toISOString().split('T')[0],
-    recorded_by: user.id,
+    school_id: schoolId, family_id: familyId, amount: -Math.abs(amount), method: 'other',
+    note: `VOID: ${reason}`, receipt_no: `VOID-${Date.now()}`,
+    paid_on: new Date().toISOString().split('T')[0], recorded_by: user.id,
   });
 
   if (error) throw new Error(error.message);
   
-  await logAudit(supabase, {
-    schoolId: schoolId,
-    actorId: user.id,
-    actorName: user.user_metadata?.name || "Admin",
-    action: 'VOID_PAYMENT',
-    targetTable: 'payments',
-    targetId: familyId,
+  await logAudit(supabaseAdmin, {
+    schoolId: schoolId, actorId: user.id, actorName: user.user_metadata?.name || "Admin",
+    action: 'VOID_PAYMENT', targetTable: 'payments', targetId: familyId,
     targetLabel: `Voided ₦${Math.abs(amount).toLocaleString()} — ${reason}`,
     metadata: { originalPaymentId: paymentId, reason }
   });
@@ -112,12 +96,9 @@ export async function voidPayment(
 }
 
 export async function addFamily(data: {
-  name: string;
-  guardianName: string;
-  guardianPhone: string;
+  name: string; guardianName: string; guardianPhone: string;
   students: { name: string; classId: string; regNo: string }[];
-  initialCharge: number;
-  termId: string;
+  initialCharge: number; termId: string;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -130,50 +111,30 @@ export async function addFamily(data: {
 
   const { data: family, error: famError } = await supabase
     .from('families')
-    .insert({
-      school_id: schoolId,
-      name: data.name,
-      guardian_name: data.guardianName,
-      guardian_phone: data.guardianPhone,
-    })
-    .select()
-    .single();
+    .insert({ school_id: schoolId, name: data.name, guardian_name: data.guardianName, guardian_phone: data.guardianPhone })
+    .select().single();
 
   if (famError) throw new Error(famError.message);
 
   if (data.students.length > 0) {
     const studentRecords = data.students.map(s => ({
-      school_id: schoolId,
-      name: s.name,
-      reg_no: s.regNo,
-      class_id: s.classId,
-      family_id: family.id,
+      school_id: schoolId, name: s.name, reg_no: s.regNo, class_id: s.classId, family_id: family.id,
     }));
-
     const { error: studentError } = await supabase.from('students').insert(studentRecords);
     if (studentError) throw new Error(studentError.message);
   }
 
   if (data.initialCharge > 0) {
     await supabase.from('charges').insert({
-      school_id: schoolId,
-      family_id: family.id,
-      term_id: data.termId,
-      description: 'Initial Term Fees',
-      amount: data.initialCharge,
-      created_by: user.id,
+      school_id: schoolId, family_id: family.id, term_id: data.termId,
+      description: 'Initial Term Fees', amount: data.initialCharge, created_by: user.id,
     });
   }
 
-  await logAudit(supabase, {
-    schoolId: schoolId,
-    actorId: user.id,
-    actorName: user.user_metadata?.name || "Admin",
-    action: 'CREATE_FAMILY',
-    targetTable: 'families',
-    targetId: family.id,
-    targetLabel: data.name,
-    metadata: { initialCharge: data.initialCharge }
+  await logAudit(supabaseAdmin, {
+    schoolId: schoolId, actorId: user.id, actorName: user.user_metadata?.name || "Admin",
+    action: 'CREATE_FAMILY', targetTable: 'families', targetId: family.id,
+    targetLabel: data.name, metadata: { initialCharge: data.initialCharge }
   });
 
   revalidatePath('/admin');
@@ -181,12 +142,8 @@ export async function addFamily(data: {
 }
 
 export interface ImportRow {
-  familyName: string;
-  guardianName?: string;
-  guardianPhone?: string;
-  children?: string;
-  totalDue: number;
-  totalPaid: number;
+  familyName: string; guardianName?: string; guardianPhone?: string;
+  children?: string; totalDue: number; totalPaid: number;
 }
 
 export async function importFamilies(rows: ImportRow[], termId: string) {
@@ -200,20 +157,12 @@ export async function importFamilies(rows: ImportRow[], termId: string) {
   if (!schoolId) throw new Error('Missing school context');
 
   const { data: currentSession } = await supabase
-    .from('sessions')
-    .select('id')
-    .eq('school_id', schoolId)
-    .eq('is_current', true)
-    .single();
+    .from('sessions').select('id').eq('school_id', schoolId).eq('is_current', true).single();
 
   if (!currentSession) throw new Error('No active session found');
 
   const { data, error } = await supabase.rpc('import_families_bulk', {
-    p_school_id: schoolId,
-    p_term_id: termId,
-    p_session_id: currentSession.id,
-    p_user_id: user.id,
-    p_rows: rows,
+    p_school_id: schoolId, p_term_id: termId, p_session_id: currentSession.id, p_user_id: user.id, p_rows: rows,
   });
 
   if (error) {
@@ -221,30 +170,18 @@ export async function importFamilies(rows: ImportRow[], termId: string) {
     throw new Error(error.message);
   }
 
-  await logAudit(supabase, {
-    schoolId: schoolId,
-    actorId: user.id,
-    actorName: user.user_metadata?.name || "Admin",
-    action: 'IMPORT_FAMILIES',
-    targetTable: 'families',
-    targetId: 'bulk',
+  await logAudit(supabaseAdmin, {
+    schoolId: schoolId, actorId: user.id, actorName: user.user_metadata?.name || "Admin",
+    action: 'IMPORT_FAMILIES', targetTable: 'families', targetId: 'bulk',
     targetLabel: `Imported ${data.inserted} families, skipped ${data.skipped}`,
     metadata: { inserted: data.inserted, skipped: data.skipped }
   });
 
   revalidatePath('/admin');
-  
-  return { 
-    success: true, 
-    inserted: data.inserted as number, 
-    skipped: data.skipped as number 
-  };
+  return { success: true, inserted: data.inserted as number, skipped: data.skipped as number };
 }
 
-export async function updateFamilyDetails(
-  familyId: string,
-  data: { name: string; guardianName: string; guardianPhone: string }
-) {
+export async function updateFamilyDetails(familyId: string, data: { name: string; guardianName: string; guardianPhone: string }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -255,25 +192,15 @@ export async function updateFamilyDetails(
 
   const { error } = await supabase
     .from('families')
-    .update({
-      name: data.name,
-      guardian_name: data.guardianName,
-      guardian_phone: data.guardianPhone,
-    })
-    .eq('id', familyId)
-    .eq('school_id', schoolId);
+    .update({ name: data.name, guardian_name: data.guardianName, guardian_phone: data.guardianPhone })
+    .eq('id', familyId).eq('school_id', schoolId);
 
   if (error) throw new Error(error.message);
 
-  await logAudit(supabase, {
-    schoolId: schoolId,
-    actorId: user.id,
-    actorName: user.user_metadata?.name || "Admin",
-    action: 'UPDATE_FAMILY',
-    targetTable: 'families',
-    targetId: familyId,
-    targetLabel: data.name,
-    metadata: { guardianPhone: data.guardianPhone }
+  await logAudit(supabaseAdmin, {
+    schoolId: schoolId, actorId: user.id, actorName: user.user_metadata?.name || "Admin",
+    action: 'UPDATE_FAMILY', targetTable: 'families', targetId: familyId,
+    targetLabel: data.name, metadata: { guardianPhone: data.guardianPhone }
   });
 
   revalidatePath('/admin');
@@ -289,23 +216,13 @@ export async function updatePaymentNote(paymentId: string, note: string) {
 
   const schoolId = user.app_metadata?.school_id;
 
-  const { error } = await supabase
-    .from('payments')
-    .update({ note })
-    .eq('id', paymentId)
-    .eq('school_id', schoolId);
-
+  const { error } = await supabase.from('payments').update({ note }).eq('id', paymentId).eq('school_id', schoolId);
   if (error) throw new Error(error.message);
 
-  await logAudit(supabase, {
-    schoolId: schoolId,
-    actorId: user.id,
-    actorName: user.user_metadata?.name || "Admin",
-    action: 'UPDATE_PAYMENT_NOTE',
-    targetTable: 'payments',
-    targetId: paymentId,
-    targetLabel: `Updated note: ${note}`,
-    metadata: { note }
+  await logAudit(supabaseAdmin, {
+    schoolId: schoolId, actorId: user.id, actorName: user.user_metadata?.name || "Admin",
+    action: 'UPDATE_PAYMENT_NOTE', targetTable: 'payments', targetId: paymentId,
+    targetLabel: `Updated note: ${note}`, metadata: { note }
   });
 
   revalidatePath('/admin');
@@ -321,7 +238,6 @@ export async function deleteFamily(familyId: string) {
 
   const schoolId = user.app_metadata?.school_id;
 
-  // Verify the ledger is empty
   const [chargesRes, paymentsRes] = await Promise.all([
     supabase.from('charges').select('id', { count: 'exact', head: true }).eq('family_id', familyId),
     supabase.from('payments').select('id', { count: 'exact', head: true }).eq('family_id', familyId)
@@ -331,60 +247,38 @@ export async function deleteFamily(familyId: string) {
     throw new Error("Cannot delete a family with existing financial records. Preserve the audit trail.");
   }
 
-  const { error } = await supabase
-    .from('families')
-    .update({ deleted_at: new Date().toISOString() })
-    .eq('id', familyId)
-    .eq('school_id', schoolId);
-
+  const { error } = await supabase.from('families').update({ deleted_at: new Date().toISOString() }).eq('id', familyId).eq('school_id', schoolId);
   if (error) throw new Error(error.message);
 
-  await logAudit(supabase, {
-    schoolId: schoolId,
-    actorId: user.id,
-    actorName: user.user_metadata?.name || "Admin",
-    action: 'DELETE_FAMILY',
-    targetTable: 'families',
-    targetId: familyId,
-    targetLabel: 'Deleted Family',
-    metadata: {}
+  await logAudit(supabaseAdmin, {
+    schoolId: schoolId, actorId: user.id, actorName: user.user_metadata?.name || "Admin",
+    action: 'DELETE_FAMILY', targetTable: 'families', targetId: familyId,
+    targetLabel: 'Deleted Family', metadata: {}
   });
 
   revalidatePath('/admin');
   return { success: true };
 }
 
-// app/admin/fees/actions.ts
-
-export async function mergeFamilies(
-  primaryFamilyId: string, 
-  duplicateFamilyId: string
-) {
+export async function mergeFamilies(primaryFamilyId: string, duplicateFamilyId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) throw new Error('Unauthorized');
-  enforceOwner(user); // Assuming you have this helper defined at the top
+  enforceOwner(user); 
 
   const schoolId = user.app_metadata?.school_id;
   if (!schoolId) throw new Error('Missing school context');
 
   const { error } = await supabase.rpc('merge_families_atomic', {
-    p_school_id: schoolId,
-    p_primary_family_id: primaryFamilyId,
-    p_duplicate_family_id: duplicateFamilyId,
-    p_user_id: user.id,
+    p_school_id: schoolId, p_primary_family_id: primaryFamilyId, p_duplicate_family_id: duplicateFamilyId, p_user_id: user.id,
   });
 
   if (error) throw new Error(error.message);
 
-  await logAudit(supabase, {
-    schoolId: schoolId,
-    actorId: user.id,
-    actorName: user.user_metadata?.name || "Admin",
-    action: 'MERGE_FAMILIES',
-    targetTable: 'families',
-    targetId: primaryFamilyId,
+  await logAudit(supabaseAdmin, {
+    schoolId: schoolId, actorId: user.id, actorName: user.user_metadata?.name || "Admin",
+    action: 'MERGE_FAMILIES', targetTable: 'families', targetId: primaryFamilyId,
     targetLabel: `Merged family ${duplicateFamilyId} into ${primaryFamilyId}`,
     metadata: { primaryFamilyId, duplicateFamilyId }
   });
@@ -395,13 +289,13 @@ export async function mergeFamilies(
 
 export async function generateTermCharges(
   termId: string, 
-  classFees: { class_id: string; amount: number }[]
+  classFees: { class_id: string; amount: number }[] // 🚨 CHANGED: Back to class_id
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) throw new Error('Unauthorized');
-  enforceOwner(user); // Assuming you have this helper defined at the top
+  enforceOwner(user);
 
   const schoolId = user.app_metadata?.school_id;
   if (!schoolId) throw new Error('Missing school context');
@@ -410,22 +304,24 @@ export async function generateTermCharges(
     p_school_id: schoolId,
     p_term_id: termId,
     p_user_id: user.id,
-    p_class_fees: classFees, // Supabase automatically JSON.stringifies objects/arrays
+    p_class_fees: classFees, 
   });
 
   if (error) throw new Error(error.message);
 
-  await logAudit(supabase, {
-    schoolId: schoolId,
-    actorId: user.id,
-    actorName: user.user_metadata?.name || "Admin",
-    action: 'GENERATE_TERM_CHARGES',
-    targetTable: 'charges',
-    targetId: termId,
-    targetLabel: `Generated ${data.generated_charges} tuition charges for term ${termId}`,
-    metadata: { termId, generated_charges: data.generated_charges, classFees }
+  await logAudit(supabaseAdmin, {
+    schoolId: schoolId, actorId: user.id, actorName: user.user_metadata?.name || "Admin",
+    action: 'GENERATE_TERM_CHARGES', targetTable: 'charges', targetId: termId,
+    targetLabel: `Generated ${data.generated_charges} and updated ${data.updated_charges} charges`,
+    metadata: { termId, generated: data.generated_charges, updated: data.updated_charges, classFees }
   });
 
   revalidatePath('/admin');
-  return { success: true, generatedCharges: data.generated_charges as number };
+  
+  // 🚨 RETURN BOTH COUNTS
+  return { 
+    success: true, 
+    generatedCharges: data.generated_charges as number,
+    updatedCharges: data.updated_charges as number 
+  };
 }

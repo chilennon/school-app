@@ -14,6 +14,8 @@ export interface PendingClass {
   submittedCount: number;
   approvedCount: number;
   totalStudents: number;
+  isCurrentTerm: boolean;
+  termSequence: number; 
 }
 
 export interface ReviewStudent {
@@ -22,6 +24,7 @@ export interface ReviewStudent {
   regNo: string;
   status: string;
   comment: string;
+  promotion?: string; // 🚨 ADDED
   approvedAt: string | null;
 }
 

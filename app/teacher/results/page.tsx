@@ -44,7 +44,7 @@ export default function ResultsPage({
   onSaveDraft,
   onComplete,
   onExit,
-  readOnly = false,
+  readOnly = false, // 🚨 Read only prop
 }: ResultsPageProps) {
   const { config, gradeBands, gradeFor } = useSchoolConfig();
   const { form, setField, clearAll } = useCompilerForm(
@@ -54,7 +54,6 @@ export default function ResultsPage({
     config,
   );
   
-  // 🚨 FIXED: Only destructure what the hook actually returns now
   const { subjects, updateRow } = useSubjectRows(initialStudent, availableSubjects);
 
   const [step, setStep] = useState<StepIndex>(0);
@@ -120,6 +119,7 @@ export default function ResultsPage({
   };
 
   const saveWithToast = async (completed: boolean): Promise<boolean> => {
+    if (readOnly) return true;
     try {
       if (completed) {
         await onComplete?.(buildUpdatedStudent("completed"));
@@ -137,23 +137,33 @@ export default function ResultsPage({
   };
 
   const handleNext = async () => {
-    setBusy(true);
-    const ok = await saveSilently();
-    setBusy(false);
-    if (ok && step < WIZARD_STEPS.length - 1) {
+    if (!readOnly) {
+      setBusy(true);
+      const ok = await saveSilently();
+      setBusy(false);
+      if (!ok) return;
+    }
+    if (step < WIZARD_STEPS.length - 1) {
       setStep((step + 1) as StepIndex);
     }
   };
 
   const handlePrevious = async () => {
     if (step === 0) return;
-    setBusy(true);
-    const ok = await saveSilently();
-    setBusy(false);
-    if (ok) setStep((step - 1) as StepIndex);
+    if (!readOnly) {
+      setBusy(true);
+      const ok = await saveSilently();
+      setBusy(false);
+      if (!ok) return;
+    }
+    setStep((step - 1) as StepIndex);
   };
 
   const handleSaveAndExit = async () => {
+    if (readOnly) {
+      onExit?.();
+      return;
+    }
     setBusy(true);
     const ok = await saveWithToast(false);
     setBusy(false);
@@ -161,6 +171,10 @@ export default function ResultsPage({
   };
 
   const handleFinish = async () => {
+    if (readOnly) {
+      onExit?.();
+      return;
+    }
     setBusy(true);
     await saveWithToast(true);
     setBusy(false);
@@ -227,32 +241,41 @@ export default function ResultsPage({
     .join(" · ");
 
   // ── Read-only view (admin): stacked, no wizard ──
-  if (readOnly) {
+if (readOnly) {
     return (
-      <div className="space-y-4">
-        <Step1StudentDetails form={form} setField={setField} readOnly />
-        <Step2Attendance form={form} setField={setField} readOnly />
-        <Step3Subjects
-          subjects={subjects}
-          subjectStats={form.positions?.subjects || {}}
-          caWeight={caWeight}
-          examWeight={examWeight}
-          readOnly
-          grade={grade}
-          onUpdate={updateRow}
-          // 🚨 onRemove removed
+      <div className="min-h-screen bg-slate-50">
+        <WizardHeader
+          studentName={form.studentName}
+          meta={meta}
+          status="View Only"
+          step={step}
+          onExit={onExit}
+          onExport={exportPDF}
         />
-        <SummaryStrip
-          summary={summary}
-          studentPosition={form.positions?.position ?? null}
-          classSize={form.positions?.classSize ?? null}
-        />
-        <CumulativeCard
-          termAverages={form.termAverages}
-          cumulativeAverage={form.cumulativeAverage}
-        />
-        <Step4Traits form={form} setField={setField} readOnly />
-        <Step5Remarks form={form} setField={setField} readOnly />
+        <div className="mx-auto max-w-3xl px-4 py-5 pb-40 space-y-4">
+          <Step1StudentDetails form={form} setField={setField} readOnly />
+          <Step2Attendance form={form} setField={setField} readOnly />
+          <Step3Subjects
+            subjects={subjects}
+            subjectStats={form.positions?.subjects || {}}
+            caWeight={caWeight}
+            examWeight={examWeight}
+            readOnly
+            grade={grade}
+            onUpdate={() => {}} // No-op
+          />
+          <SummaryStrip
+            summary={summary}
+            studentPosition={form.positions?.position ?? null}
+            classSize={form.positions?.classSize ?? null}
+          />
+          <CumulativeCard
+            termAverages={form.termAverages}
+            cumulativeAverage={form.cumulativeAverage}
+          />
+          <Step4Traits form={form} setField={setField} readOnly />
+          <Step5Remarks form={form} setField={setField} readOnly />
+        </div>
       </div>
     );
   }
@@ -291,7 +314,6 @@ export default function ResultsPage({
               readOnly={false}
               grade={grade}
               onUpdate={updateRow}
-              // 🚨 onRemove removed
             />
             <SummaryStrip
               summary={summary}
@@ -315,6 +337,7 @@ export default function ResultsPage({
       <WizardFooter
         step={step}
         busy={busy}
+        readOnly={readOnly}
         onPrevious={handlePrevious}
         onNext={handleNext}
         onFinish={handleFinish}

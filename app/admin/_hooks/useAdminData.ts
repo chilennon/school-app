@@ -13,7 +13,7 @@ export interface AdminData {
   classes: ClassRoom[];
   students: Student[];
   subjects: SubjectRow[];
-  families: { id: string; name: string }[]; // <-- Added
+  families: { id: string; name: string }[];
   classSubjectIds: Record<string, string[]>;
   refresh: () => Promise<void>;
 }
@@ -28,7 +28,7 @@ export function useAdminData(): AdminData {
   const [classes, setClasses] = useState<ClassRoom[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [subjects, setSubjects] = useState<SubjectRow[]>([]);
-  const [families, setFamilies] = useState<{ id: string; name: string }[]>([]); // <-- Added
+  const [families, setFamilies] = useState<{ id: string; name: string }[]>([]);
   const [classSubjectIds, setClassSubjectIds] = useState<
     Record<string, string[]>
   >({});
@@ -46,11 +46,10 @@ export function useAdminData(): AdminData {
         .from("profiles")
         .select("role")
         .eq("id", user.id)
-        .maybeSingle(); // Changed from .single() to avoid throwing errors
+        .maybeSingle();
 
-      // 🔒 PRODUCTION FIX: Trust the JWT metadata first, fallback to profile table
       const role = profile?.role || user.app_metadata?.role;
-      
+
       if (role) {
         setCallerRole(role as "owner" | "admin" | "teacher");
       }
@@ -63,18 +62,19 @@ export function useAdminData(): AdminData {
       studentsRes,
       subjectsRes,
       classSubsRes,
-      familiesRes, // <-- Added
+      familiesRes,
     ] = await Promise.all([
       supabase.from("profiles").select("*").eq("role", "teacher"),
       supabase.from("profiles").select("*").eq("role", "admin"),
       supabase.from("classes").select("*"),
-      supabase.from("students").select("*"),
+      // 🚨 FIX: Only fetch ACTIVE students
+      supabase.from("students").select("*").eq("status", "active"), 
       supabase.from("subjects").select("*").order("name"),
       supabase.from("class_subjects").select("class_id, subject_id"),
       supabase
         .from("families")
         .select("id, name")
-        .is("deleted_at", null) // <-- CRITICAL: Ignore soft-deleted families
+        .is("deleted_at", null)
         .order("name"),
     ]);
 
@@ -107,7 +107,7 @@ export function useAdminData(): AdminData {
           name: c.name,
           session: c.session,
           session_id: c.session_id ?? null,
-          assignedTeacherId: c.teacher_id,
+          teacher_id: c.teacher_id ?? null,
           studentIds: [],
         })),
       );
@@ -120,7 +120,7 @@ export function useAdminData(): AdminData {
           name: s.name,
           regNo: s.reg_no,
           currentClassId: s.class_id,
-          family_id: s.family_id, // <-- Ensure family_id is mapped
+          family_id: s.family_id,
           gender: s.gender || "",
           age: s.age || "",
         })),
@@ -128,8 +128,6 @@ export function useAdminData(): AdminData {
     }
 
     if (subjectsRes.data) setSubjects(subjectsRes.data as SubjectRow[]);
-
-    // <-- Added: Map families
     if (familiesRes.data) setFamilies(familiesRes.data);
 
     const grouped: Record<string, string[]> = {};
@@ -153,7 +151,7 @@ export function useAdminData(): AdminData {
     classes,
     students,
     subjects,
-    families, // <-- Added
+    families,
     classSubjectIds,
     refresh,
     callerRole,

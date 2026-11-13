@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { calculateFamilyBalances } from "@/lib/fees";
 import type { BulkGridRow } from "../_components/BulkFeesGrid";
 
 export function useBulkFeesData(currentTermId?: string) {
@@ -9,16 +8,13 @@ export function useBulkFeesData(currentTermId?: string) {
   const isFetching = useRef(false);
 
   const fetchData = useCallback(async () => {
-    // 1. Guard: If no term, we aren't loading, we just have no data.
     if (!currentTermId) {
       setLoading(false);
       return;
     }
     
-    // 2. Lock: Prevent double firing
     if (isFetching.current) return;
     isFetching.current = true;
-
     setLoading(true);
     
     try {
@@ -33,35 +29,55 @@ export function useBulkFeesData(currentTermId?: string) {
         .is("deleted_at", null)
         .order("name");
 
-      if (error) throw error; // Throw to catch block
+      if (error) throw error;
 
       if (families) {
         const processed = families.map((family) => {
-          const calc = calculateFamilyBalances(family.charges || [], family.payments || []);
-          
-          let broughtForward = 0;
-          let termFee = 0;
-
-          calc.breakdown.forEach((charge: any) => {
-            if (charge.term_id === currentTermId) {
-              termFee += charge.amount; 
-            } else {
-              broughtForward += charge.remaining; 
-            }
-          });
-
-          const sortedPayments = [...(family.payments || [])].sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-          const latestPayment = sortedPayments[0];
-
           const childrenNames = family.students
             ?.map((s: any) => `${s.name} (${s.classes?.name || 'No Class'})`)
             .join(", ") || "";
 
+          // --- MANUAL FIFO CALCULATION (Bulletproof) ---
+          const allCharges = family.charges || [];
+          const allPayments = family.payments || [];
+
+          // 1. Total billed for THIS term
+          const termCharges = allCharges.filter((c: any) => c.term_id === currentTermId);
+          const termFee = termCharges.reduce((sum: number, c: any) => sum + Number(c.amount), 0);
+
+          // 2. Total billed for PREVIOUS terms
+          const pastCharges = allCharges.filter((c: any) => c.term_id !== currentTermId);
+          const pastTotalFee = pastCharges.reduce((sum: number, c: any) => sum + Number(c.amount), 0);
+
+          // 3. Total money paid by this family EVER
+          const allTimePayments = allPayments.reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+
+          // 4. FIFO Logic: Payments clear old debt first
+          const paidTowardsPast = Math.min(allTimePayments, pastTotalFee);
+          const broughtForward = Math.max(0, pastTotalFee - paidTowardsPast); // Old debt remaining
+
+          // 5. Any money left over goes to the current term
+          const remainingPayment = Math.max(0, allTimePayments - pastTotalFee);
+          const amountPaidThisTerm = Math.min(remainingPayment, termFee);
+
+          // 6. What is left to pay for this term?
+          const currentTermBalance = termFee - amountPaidThisTerm;
+          const totalBalanceOwed = broughtForward + currentTermBalance;
+
+          const sortedPayments = [...allPayments].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          const latestPayment = sortedPayments[0];
+
+          // Determine Status
           let status = "Not Paid";
-          if (calc.currentBalance <= 0) status = "Fully Paid";
-          else if (calc.totalPaid > 0) status = "Part Payment";
+          if (termFee === 0 && broughtForward > 0) {
+             status = "Not Paid"; // Owes old debt, nothing billed yet
+          } else if (termFee > 0 && currentTermBalance <= 0) {
+             status = "Fully Paid";
+          } else if (amountPaidThisTerm > 0) {
+             status = "Part Payment";
+          }
 
           return {
             familyId: family.id,
@@ -71,20 +87,20 @@ export function useBulkFeesData(currentTermId?: string) {
             children: childrenNames,
             broughtForward: broughtForward,
             termFee: termFee,
-            amountPaid: calc.totalPaid,
-            amountOwed: calc.currentBalance,
+            amountPaid: amountPaidThisTerm, // 🚨 NOW IT ONLY SHOWS MONEY FOR THIS TERM
+            totalPaidOverall: allTimePayments, 
+            amountOwed: totalBalanceOwed,
             status: status,
             latestPaymentId: latestPayment?.id,
             latestPaymentNote: latestPayment?.note || "",
           };
-        });
+        }); // 🚨 FIXED: Closed the .map() function properly here
 
         setData(processed);
       }
     } catch (err) {
       console.error("Failed to fetch bulk fees data:", err);
     } finally {
-      // 🔒 GUARANTEED: Unlock and stop loading, no matter what happened above.
       setLoading(false);
       isFetching.current = false;
     }
