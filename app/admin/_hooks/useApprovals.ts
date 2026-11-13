@@ -10,12 +10,8 @@ export interface ApprovalsState {
   reviewStudents: ReviewStudent[];
   reviewLoading: boolean;
   loading: boolean;
-  load: () => Promise<void>;
-  openReview: (
-    classId: string,
-    termId: string,
-    sessionId: string,
-  ) => Promise<void>;
+  load: (currentSessionId: string) => Promise<void>;
+  openReview: (classId: string, termId: string, sessionId: string) => Promise<void>;
   closeReview: () => void;
   setReviewStudents: React.Dispatch<React.SetStateAction<ReviewStudent[]>>;
 }
@@ -27,90 +23,73 @@ export function useApprovals(): ApprovalsState {
   const [reviewLoading, setReviewLoading] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (currentSessionId: string) => {
     setLoading(true);
 
-    const { data: records, error: recErr } = await supabase
+    const { data: classesData } = await supabase
+      .from("classes")
+      .select("id, name, session, session_id")
+      .eq("session_id", currentSessionId);
+
+    if (!classesData || classesData.length === 0) {
+      setPendingClasses([]);
+      setLoading(false);
+      return;
+    }
+
+    const classIds = classesData.map(c => c.id);
+
+    const { data: enrolsData } = await supabase
+      .from("enrolments")
+      .select("id, class_id")
+      .in("class_id", classIds)
+      .eq("status", "active");
+
+    if (!enrolsData || enrolsData.length === 0) {
+      setPendingClasses([]);
+      setLoading(false);
+      return;
+    }
+
+    const enrolmentIds = enrolsData.map(e => e.id);
+
+    const { data: recordsData } = await supabase
       .from("term_records")
-      .select("enrolment_id, term_id, status")
+      .select("enrolment_id, term_id, status, promotion_status")
+      .in("enrolment_id", enrolmentIds)
       .in("status", ["submitted", "approved"]);
 
-    if (recErr) {
-      console.error("Failed to load approvals:", recErr);
-      setLoading(false);
-      return;
-    }
-    if (!records || records.length === 0) {
+    if (!recordsData || recordsData.length === 0) {
       setPendingClasses([]);
       setLoading(false);
       return;
     }
 
-    const enrolmentIds = Array.from(
-      new Set(records.map((r) => r.enrolment_id)),
-    );
-    const termIds = Array.from(new Set(records.map((r) => r.term_id)));
+    const termIds = Array.from(new Set(recordsData.map(r => r.term_id)));
+    
+    // 🚨 Fetch is_current and sequence
+    const { data: termsData } = await supabase
+      .from("terms")
+      .select("id, name, is_current, sequence")
+      .in("id", termIds);
 
-    const [enrolsRes, termsRes] = await Promise.all([
-      supabase
-        .from("enrolments")
-        .select("id, class_id, session_id")
-        .in("id", enrolmentIds),
-      supabase.from("terms").select("id, name").in("id", termIds),
-    ]);
-
-    const enrols = enrolsRes.data || [];
-    const terms = termsRes.data || [];
-
-    if (enrols.length === 0) {
-      setPendingClasses([]);
-      setLoading(false);
-      return;
-    }
-
-    const classIds = Array.from(new Set(enrols.map((e) => e.class_id)));
-
-    const [classRowsRes, allEnrolsRes] = await Promise.all([
-      supabase
-        .from("classes")
-        .select("id, name, session, session_id")
-        .in("id", classIds),
-      supabase
-        .from("enrolments")
-        .select("id, class_id")
-        .in("class_id", classIds)
-        .eq("status", "active"),
-    ]);
-
-    const classRows = classRowsRes.data || [];
-    const allEnrols = allEnrolsRes.data || [];
+    const termInfoById: Record<string, any> = {};
+    (termsData || []).forEach(t => termInfoById[t.id] = t);
 
     const classById: Record<string, any> = {};
-    classRows.forEach((c) => {
-      classById[c.id] = c;
-    });
+    classesData.forEach(c => classById[c.id] = c);
 
-    const termNameById: Record<string, string> = {};
-    terms.forEach((t) => {
-      termNameById[t.id] = t.name;
-    });
+    const enrolToClass: Record<string, string> = {};
+    enrolsData.forEach(e => enrolToClass[e.id] = e.class_id);
 
     const totalByClass: Record<string, number> = {};
-    allEnrols.forEach((e) => {
+    enrolsData.forEach(e => {
       totalByClass[e.class_id] = (totalByClass[e.class_id] || 0) + 1;
     });
 
-    const enrolToClass: Record<string, string> = {};
-    enrols.forEach((e) => {
-      enrolToClass[e.id] = e.class_id;
-    });
+    const byKey: Record<string, { classId: string; termId: string; submitted: number; approved: number }> = {};
 
-    const byKey: Record<
-      string,
-      { classId: string; termId: string; submitted: number; approved: number }
-    > = {};
-
-    records.forEach((r) => {
+    recordsData.forEach((r) => {
       const classId = enrolToClass[r.enrolment_id];
       if (!classId) return;
       const key = `${classId}::${r.term_id}`;
@@ -124,16 +103,20 @@ export function useApprovals(): ApprovalsState {
     const list: PendingClass[] = Object.values(byKey).map(
       ({ classId, termId, submitted, approved }) => {
         const c = classById[classId];
+        const tInfo = termInfoById[termId] || {};
+        
         return {
           classId,
           className: c?.name || "—",
           sessionName: c?.session || "—",
-          termLabel: `${termNameById[termId] || "Term"} Term`,
+          termLabel: `${tInfo.name || "Term"} Term`,
           termId,
           sessionId: c?.session_id || "",
           submittedCount: submitted,
           approvedCount: approved,
           totalStudents: totalByClass[classId] || 0,
+          isCurrentTerm: tInfo.is_current || false, // 🚨 Added
+          termSequence: tInfo.sequence || 0,        // 🚨 Added
         };
       },
     );
@@ -164,7 +147,7 @@ export function useApprovals(): ApprovalsState {
 
       const { data: records } = await supabase
         .from("term_records")
-        .select("enrolment_id, status, head_teacher_comment, approved_at")
+        .select("enrolment_id, status, head_teacher_comment, approved_at, promotion_status")
         .in("enrolment_id", enrolmentIds)
         .eq("term_id", termId);
 
@@ -181,6 +164,7 @@ export function useApprovals(): ApprovalsState {
           regNo: e.student?.reg_no || "—",
           status: rec?.status || "draft",
           comment: rec?.head_teacher_comment || "",
+          promotion: rec?.promotion_status || "",
           approvedAt: rec?.approved_at || null,
         };
       });

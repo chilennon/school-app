@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabaseClient";
@@ -35,7 +35,6 @@ import { AdminsSection } from "./_components/sections/AdminsSection";
 import { SubjectsSection } from "./_components/sections/SubjectsSection";
 import { ClassesSection } from "./_components/sections/ClassesSection";
 import { PromotionSection } from "./_components/sections/PromotionSection";
-import { PromotionReview } from "./_components/sections/PromotionReview"; // 🚨 IMPORTED
 
 import type { AdminView, PendingClass, ReviewStudent } from "./_lib/types";
 
@@ -57,11 +56,6 @@ function AdminDashboardContent() {
   const [previousView, setPreviousView] = useState<AdminView>("home");
   const [activityOpen, setActivityOpen] = useState(false);
   const [viewingStudent, setViewingStudent] = useState<{ student: any; classRoom: any } | null>(null);
-
-  // 🚨 PROMOTION STATE
-  const [reviewingClassId, setReviewingClassId] = useState<string | null>(null);
-  const [nextSessionId, setNextSessionId] = useState<string | null>(null);
-  const [nextSessionName, setNextSessionName] = useState<string>("Next Session");
 
   const [bulkComment, setBulkComment] = useState("");
   const [batchPrinting, setBatchPrinting] = useState(false);
@@ -153,20 +147,32 @@ function AdminDashboardContent() {
   // --- URL PARSING ---
   useEffect(() => {
     if (data.loading) return; 
-    const tab = searchParams.get("tab");
+    const tab = searchParams.get("tab") as AdminView | null;
     const isOwner = data.callerRole === "owner";
 
-    if (tab === "fees") {
-      if (isOwner) {
-        setView("fees");
-        setPreviousView("home");
-      } else {
-        setView("home");
-        toast.error("Unauthorized: Only school owners can view the Fees module.");
-        router.replace("/admin");
-      }
-    } else if (tab === "students") {
-      setView("students");
+    if (!tab) {
+      setView("home");
+      setPreviousView("home");
+      return;
+    }
+
+    if (tab === "fees" && !isOwner) {
+      setView("home");
+      toast.error("Unauthorized: Only school owners can view the Fees module.");
+      router.replace("/admin");
+      return;
+    }
+
+    const validTabs: AdminView[] = [
+      "home", "fees", "attendance", "approvals",
+      "students", "students-import",
+      "teachers", "teachers-import",
+      "admins", "subjects", "classes",
+      "promotion", "settings"
+    ];
+
+    if (validTabs.includes(tab)) {
+      setView(tab);
       setPreviousView("home");
     }
   }, [searchParams, data.callerRole, data.loading, router]);
@@ -179,32 +185,9 @@ function AdminDashboardContent() {
       const { data: profile } = await supabase.from("profiles").select("name").eq("id", user.id).single();
       if (profile) setAdminName(profile.name);
       setCurrentAdminId(user.id);
-
-      // 🚨 FETCH NEXT SESSION
-      if (user.app_metadata?.school_id) {
-        const { data: sessions } = await supabase
-          .from("sessions")
-          .select("id, name, created_at")
-          .eq("school_id", user.app_metadata.school_id)
-          .order("created_at", { ascending: true });
-
-        if (sessions && sessions.length > 0) {
-          const currentIdx = sessions.findIndex(s => s.id === currentSession?.id);
-          // If there is a session after the current one, use it
-          if (currentIdx !== -1 && currentIdx < sessions.length - 1) {
-            setNextSessionId(sessions[currentIdx + 1].id);
-            setNextSessionName(sessions[currentIdx + 1].name);
-          } else {
-            // Fallback: just use the last session if we can't find a "next" one
-            setNextSessionId(sessions[sessions.length - 1].id);
-            setNextSessionName(sessions[sessions.length - 1].name);
-          }
-        }
-      }
     })();
-  }, [router, currentSession?.id]);
+  }, [router]);
 
-    // 🚨 NEW: Fetch sessions for the Class dropdown
   useEffect(() => {
     async function fetchSessions() {
       const { data: { user } } = await supabase.auth.getUser();
@@ -226,8 +209,14 @@ function AdminDashboardContent() {
   }, []);
 
   useEffect(() => {
-    if (view === "approvals") approvals.load();
-  }, [view]);
+    if (view === "approvals" && currentSession?.id) {
+      approvals.load(currentSession.id);
+    }
+  }, [view, currentSession?.id]);
+
+  const currentSessionClasses = useMemo(() => {
+    return data.classes.filter(c => c.session_id === currentSession?.id);
+  }, [data.classes, currentSession?.id]);
 
   // --- HANDLERS ---
   const handleLogout = async () => {
@@ -310,7 +299,10 @@ function AdminDashboardContent() {
         )}
 
         {view === "fees" && isOwner && (
-          <FeesTab onNavigate={(v) => { setPreviousView("home"); setView(v); }} />
+          <FeesTab 
+            onNavigate={(v) => { setPreviousView("home"); setView(v); }} 
+            currentSessionId={currentSession?.id || ""} 
+          />
         )}
 
         {view === "attendance" && (
@@ -324,7 +316,7 @@ function AdminDashboardContent() {
         {view === "students" && (
           <StudentsTab
             students={data.students}
-            classes={data.classes}
+            classes={currentSessionClasses}
             families={data.families || []}
             onSave={handleSaveStudent}
             onDelete={crud.askDeleteStudent}
@@ -336,7 +328,7 @@ function AdminDashboardContent() {
         {view === "students-import" && (
           <StudentImportWizard
             callAdminApi={callAdminApi}
-            existingClasses={data.classes}
+            existingClasses={currentSessionClasses}
             onBack={() => setView("students")}
             onSuccess={() => { setView("students"); data.refresh(); }}
           />
@@ -348,17 +340,14 @@ function AdminDashboardContent() {
             reviewStudents={approvals.reviewStudents} reviewLoading={approvals.reviewLoading}
             bulkComment={bulkComment} setBulkComment={setBulkComment} batchPrinting={batchPrinting} busyEnrolmentId={busyEnrolmentId}
             onOpenReview={(c: PendingClass) => approvals.openReview(c.classId, c.termId, c.sessionId)}
-            onCloseReview={() => { approvals.closeReview(); setBulkComment(""); }}
+            onCloseReview={() => { approvals.closeReview(); setBulkComment(""); if (currentSession?.id) approvals.load(currentSession.id); }}
             onBatchPrint={handleBatchPrintReview}
             onApproveAll={() => {
               const current = approvals.pendingClasses.find((c) => c.classId === approvals.reviewClassId);
               if (current) crud.askApproveAll(current.termId, approvals.reviewStudents.filter(s => s.status === "submitted").length);
             }}
             onCommentChange={(enrolmentId, v) => approvals.setReviewStudents((prev) => prev.map((x) => x.enrolmentId === enrolmentId ? { ...x, comment: v } : x))}
-            
-            // 🚨 ADD THIS LINE:
             onPromotionChange={(enrolmentId, v) => approvals.setReviewStudents((prev) => prev.map((x) => x.enrolmentId === enrolmentId ? { ...x, promotion: v } : x))}
-            
             onView={handleViewResult}
             onApprove={(s) => {
               const current = approvals.pendingClasses.find((c) => c.classId === approvals.reviewClassId);
@@ -374,7 +363,7 @@ function AdminDashboardContent() {
         {view === "teachers" && (
           <TeachersSection
             teachers={data.teachers} 
-            classes={data.classes}
+            classes={currentSessionClasses}
             onBack={() => setView(previousView)}
             onCreate={handleCreateTeacher}
             onUpdate={handleUpdateTeacher}
@@ -389,7 +378,7 @@ function AdminDashboardContent() {
         {view === "teachers-import" && (
           <TeacherImportWizard
             callAdminApi={callAdminApi}
-            existingClasses={data.classes}
+            existingClasses={currentSessionClasses}
             onBack={() => setView("teachers")}
             onSuccess={() => { 
               setView("teachers"); 
@@ -412,7 +401,7 @@ function AdminDashboardContent() {
 
         {view === "classes" && (
           <ClassesSection
-            classes={data.classes} 
+            classes={currentSessionClasses}
             subjects={data.subjects} 
             teachers={data.teachers} 
             sessions={sessions}
@@ -425,29 +414,16 @@ function AdminDashboardContent() {
           />
         )}
 
-        {view === "promotion" && !reviewingClassId && (
+        {view === "promotion" && (
           <PromotionSection
-            classes={data.classes}
-            currentSessionName={currentSession?.name || "Current Session"}
-            nextSessionName={nextSessionName}
-            onBack={() => setView("settings")}
-            onReviewClass={(id) => setReviewingClassId(id)}
-          />
-        )}
-
-        {/* 🚨 NEW: PROMOTION REVIEW SCREEN */}
-        {view === "promotion" && reviewingClassId && (
-          <PromotionReview
-            classId={reviewingClassId}
             currentSessionId={currentSession?.id || ""}
-            nextSessionId={nextSessionId || ""}
-            passMark={config?.promotion_threshold || 40}
-            onBack={() => setReviewingClassId(null)}
+            currentSessionName={currentSession?.name || "Current Session"}
+            currentTermSequence={currentTerm?.sequence || 1} // 🚨 Passed properly here
+            onBack={() => setView("settings")}
             onComplete={() => {
-              setReviewingClassId(null);
               setView("settings");
               data.refresh();
-              toast.success("Students promoted successfully!");
+              toast.success("Session rollover complete!");
             }}
           />
         )}
@@ -456,7 +432,12 @@ function AdminDashboardContent() {
           <>
             <SectionHeader title="Settings" onBack={() => setView("home")} />
             <div className="p-4">
-              <SettingsTab callAdminApi={callAdminApi} onLogout={handleLogout} onNavigate={(v) => setView(v as AdminView)} />
+              <SettingsTab 
+                callAdminApi={callAdminApi} 
+                onLogout={handleLogout} 
+                onNavigate={(v) => setView(v as AdminView)} 
+                isOwner={data.callerRole === "owner"}
+              />
             </div>
           </>
         )}

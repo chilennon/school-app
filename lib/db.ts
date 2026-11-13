@@ -171,15 +171,6 @@ export interface AttendanceLog extends SyncMeta {
 // ---------------------------------------------------------------------------
 export type OutboxStatus = "pending" | "in_flight" | "failed" | "rejected";
 
-/**
- * Every table an outbox row may target.
- *
- * "term_result" is synthetic: it never corresponds to a Dexie table of its
- * own. One row of this type carries the whole atomic payload for
- * scores + trait_ratings + term_records + students for a single
- * (enrolment, term) pair, and is unpacked server-side by
- * apply_term_result_atomic. See app/api/sync-push/route.ts.
- */
 export type OutboxTableName =
   | "classes"
   | "class_subjects"
@@ -189,7 +180,7 @@ export type OutboxTableName =
   | "trait_ratings"
   | "term_records"
   | "attendance_logs"
-  | "term_result";
+  | "term_result"; // Synthetic unpacking
 
 export interface OutboxEntry {
   id: string;
@@ -211,13 +202,16 @@ export interface Meta {
   value: unknown;
 }
 
+// 🚨 FIX: Added the rollover keys so we don't use magic strings
 export const META_KEYS = {
   USER_ID: "user_id",
   SCHOOL_ID: "school_id",
   ROLE: "role",
   INSTALLED_AT: "installed_at",
   LAST_SYNCED_AT: "last_synced_at",
-  CURRENT_SESSION_ID: "current_session_id",
+  ACTIVE_SESSION_ID: "active_session_id", // 🚨 NEW
+  ACTIVE_TERM_ID: "active_term_id",       // 🚨 NEW
+  LAST_ROLLOVER_AT: "last_rollover_at",   // 🚨 NEW
   DB_VERSION: "db_version",
   CURSOR_PREFIX: "cursor.",
   LOCK_OWNER: "lock.owner",

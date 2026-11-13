@@ -131,10 +131,14 @@ export function useCompilerForm(
     const o = parseFloat(form.daysOpened) || 0;
     const p = parseFloat(form.daysPresent) || 0;
     const absent = Math.max(0, o - p).toString();
-    if (absent !== form.daysAbsent) {
-      setField("daysAbsent", absent);
+    
+    // 🚨 FIX: Only auto-calculate if daysOpened or daysPresent change. 
+    // Do not include form.daysAbsent in the dependency array so it doesn't overwrite manual input.
+    if (form.daysAbsent === "" || absent !== form.daysAbsent) {
+       setField("daysAbsent", absent);
     }
-  }, [form.daysOpened, form.daysPresent, form.daysAbsent, setField]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.daysOpened, form.daysPresent, setField]);
 
   return { form, setField, setForm, clearAll };
 }

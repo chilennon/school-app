@@ -6,6 +6,7 @@ export function ReviewHeader({
   setBulkComment,
   batchPrinting,
   reviewLoading,
+  pendingCount, // 🚨 ADD THIS HERE
   onBack,
   onBatchPrint,
   onApproveAll,
@@ -15,6 +16,7 @@ export function ReviewHeader({
   setBulkComment: (v: string) => void;
   batchPrinting: boolean;
   reviewLoading: boolean;
+  pendingCount: number; // 🚨 ADD THIS HERE
   onBack: () => void;
   onBatchPrint: () => void;
   onApproveAll: () => void;
@@ -61,7 +63,7 @@ export function ReviewHeader({
         </button>
         <button
           onClick={onApproveAll}
-          disabled={reviewLoading}
+          disabled={pendingCount === 0}
           className="flex-1 py-3 bg-emerald-600 active:bg-emerald-700 disabled:bg-emerald-300 text-white font-bold rounded-xl text-sm"
         >
           {reviewLoading ? "Approving…" : "Approve All"}

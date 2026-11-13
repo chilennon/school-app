@@ -18,43 +18,29 @@ const DEFAULT_GRADE_BANDS = [
 function currentSessionName(): string {
   const now = new Date();
   const year = now.getFullYear();
-  const month = now.getMonth(); // 0-indexed
-  // Nigerian academic year runs roughly August–July
+  const month = now.getMonth(); 
   return month >= 7 ? `${year}/${year + 1}` : `${year - 1}/${year}`;
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    // ADDED: schoolType to destructured body
-    const { adminName, email, password, schoolName, schoolType, address, phone, motto } = body;
+    const { 
+      adminName, email, password, schoolName, schoolType, address, phone, motto,
+      sessionName, startingTerm 
+    } = body;
 
     // ── Validation ──
-    if (
-      !adminName?.trim() ||
-      !email?.trim() ||
-      !password ||
-      !schoolName?.trim() ||
-      !schoolType?.trim() // ADDED: validation for schoolType
-    ) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+    if (!adminName?.trim() || !email?.trim() || !password || !schoolName?.trim() || !schoolType?.trim()) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     if (password.length < 8) {
-      return NextResponse.json(
-        { error: "Password must be at least 8 characters" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      return NextResponse.json(
-        { error: "Invalid email address" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
     }
 
     // ── 1. Create the school row ──
@@ -63,68 +49,59 @@ export async function POST(req: NextRequest) {
       .insert([
         {
           name: schoolName.trim(),
-          school_type: schoolType.trim(), // <-- ADDED: save school_type
+          school_type: schoolType.trim(),
           address: address?.trim() || null,
           phone: phone?.trim() || null,
           motto: motto?.trim() || null,
+          promotion_threshold: 40, // 🚨 Default to 40% pass mark
         },
       ])
       .select("id")
       .single();
 
     if (schoolErr || !school) {
-      return NextResponse.json(
-        { error: schoolErr?.message || "School creation failed" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: schoolErr?.message || "School creation failed" }, { status: 500 });
     }
 
     const schoolId = school.id;
 
-    // ── 2. Seed a default session + three terms ──
-    const sessionName = currentSessionName();
+    // ── 2. Seed session + three terms ──
+    const finalSessionName = sessionName?.trim() || currentSessionName();
+    const finalStartingTerm = startingTerm || "First"; // Fallback to First
 
     const { data: newSession, error: sessErr } = await supabaseAdmin
       .from("sessions")
-      .insert([
-        {
-          school_id: schoolId,
-          name: sessionName,
-          is_current: true,
-        },
-      ])
+      .insert([{ school_id: schoolId, name: finalSessionName, is_current: true }])
       .select("id")
       .single();
 
     if (sessErr || !newSession) {
       await supabaseAdmin.from("schools").delete().eq("id", schoolId);
-      return NextResponse.json(
-        { error: sessErr?.message || "Session setup failed" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: sessErr?.message || "Session setup failed" }, { status: 500 });
     }
 
+    // 🚨 FIX: Set is_current based on the starting term
     const { error: termsErr } = await supabaseAdmin.from("terms").insert([
       {
         school_id: schoolId,
         session_id: newSession.id,
         name: "First",
         sequence: 1,
-        is_current: true,
+        is_current: finalStartingTerm === "First",
       },
       {
         school_id: schoolId,
         session_id: newSession.id,
         name: "Second",
         sequence: 2,
-        is_current: false,
+        is_current: finalStartingTerm === "Second",
       },
       {
         school_id: schoolId,
         session_id: newSession.id,
         name: "Third",
         sequence: 3,
-        is_current: false,
+        is_current: finalStartingTerm === "Third",
       },
     ]);
 
@@ -134,7 +111,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: termsErr.message }, { status: 500 });
     }
 
-    // ── 3. Seed default grade bands ──
+    // ── 3. Seed grade bands ──
     const { error: bandsErr } = await supabaseAdmin.from("grade_bands").insert(
       DEFAULT_GRADE_BANDS.map((b) => ({ ...b, school_id: schoolId }))
     );
@@ -146,68 +123,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: bandsErr.message }, { status: 500 });
     }
 
-    // ── 4. Create the admin user — trigger creates the profile ──
-    const { data: authUser, error: authErr } =
-      await supabaseAdmin.auth.admin.createUser({
-        email: email.trim(),
-        password,
-        email_confirm: true,
-        user_metadata: { name: adminName.trim() },
-        app_metadata: {
-          role: "owner",
-          school_id: schoolId,
-        },
-      });
+    // ── 4. Create the admin user ──
+    const { data: authUser, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+      email: email.trim(),
+      password,
+      email_confirm: true,
+      user_metadata: { name: adminName.trim() },
+      app_metadata: { role: "owner", school_id: schoolId },
+    });
 
     if (authErr || !authUser.user) {
       await supabaseAdmin.from("grade_bands").delete().eq("school_id", schoolId);
       await supabaseAdmin.from("terms").delete().eq("session_id", newSession.id);
       await supabaseAdmin.from("sessions").delete().eq("id", newSession.id);
       await supabaseAdmin.from("schools").delete().eq("id", schoolId);
-
-      return NextResponse.json(
-        { error: authErr?.message || "Admin account creation failed" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: authErr?.message || "Admin account creation failed" }, { status: 500 });
     }
 
-    // Explicitly insert the profile row (no trigger involved)
-    const { error: profileErr } = await supabaseAdmin
-      .from("profiles")
-      .insert([
-        {
-          id: authUser.user.id,
-          name: adminName.trim(),
-          email: email.trim(),
-          role: "owner",
-          school_id: schoolId,
-        },
-      ]);
+    // ── 5. Insert profile ──
+    const { error: profileErr } = await supabaseAdmin.from("profiles").insert([
+      {
+        id: authUser.user.id,
+        name: adminName.trim(),
+        email: email.trim(),
+        role: "owner",
+        school_id: schoolId,
+      },
+    ]);
 
     if (profileErr) {
-      console.error("signup profile error:", profileErr);
       await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
       await supabaseAdmin.from("grade_bands").delete().eq("school_id", schoolId);
       await supabaseAdmin.from("terms").delete().eq("session_id", newSession.id);
       await supabaseAdmin.from("sessions").delete().eq("id", newSession.id);
       await supabaseAdmin.from("schools").delete().eq("id", schoolId);
-
-      return NextResponse.json(
-        { error: profileErr.message },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: profileErr.message }, { status: 500 });
     }
 
-    return NextResponse.json({
-      success: true,
-      schoolId,
-      email: email.trim(),
-    });
+    return NextResponse.json({ success: true, schoolId, email: email.trim() });
   } catch (err) {
     console.error("School signup failed:", err);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

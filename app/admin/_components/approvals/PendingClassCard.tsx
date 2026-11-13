@@ -5,9 +5,11 @@ import type { PendingClass } from "../../_lib/types";
 export function PendingClassCard({
   item,
   onOpen,
+  readOnly = false,
 }: {
   item: PendingClass;
   onOpen: () => void;
+  readOnly?: boolean;
 }) {
   return (
     <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-3">

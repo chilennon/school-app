@@ -1,81 +1,131 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { NaijaSchoolDB, openDb, wipeDb, META_KEYS } from "@/lib/db";
+import { NaijaSchoolDB, openDb, wipeDb } from "@/lib/db";
 import { syncNow, registerBackgroundSync } from "@/lib/sync/worker";
+
+export type BootstrapStatus = "loading" | "syncing" | "ready" | "error";
 
 export function useDexieBootstrap() {
   const [db, setDb] = useState<NaijaSchoolDB | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const [status, setStatus] = useState<BootstrapStatus>("loading");
+  const [message, setMessage] = useState("Connecting to your school...");
   const [error, setError] = useState<string | null>(null);
+  const isMounted = useRef(true);
 
   useEffect(() => {
-    let isMounted = true;
+    isMounted.current = true;
+    let localDb: NaijaSchoolDB | null = null;
 
     async function init() {
       try {
-        // 1. Get current user session
         const { data: { session }, error: authError } = await supabase.auth.getSession();
-        
         if (authError || !session) {
-          if (isMounted) setError("No active session found.");
+          if (isMounted.current) { setError("No active session found."); setStatus("error"); }
           return;
         }
 
         const schoolId = session.user.app_metadata?.school_id;
         const userId = session.user.id;
-
         if (!schoolId) {
-          if (isMounted) setError("Missing school context in session.");
+          if (isMounted.current) { setError("Missing school context."); setStatus("error"); }
           return;
         }
 
-        // 2. Open the Dexie database for this specific user
-        const localDb = await openDb(schoolId, userId);
+        if (isMounted.current) setMessage("Opening local database...");
+        localDb = await openDb(schoolId, userId);
 
-        // 3. Check if this is a fresh installation
-        const installedAt = await localDb.meta.get(META_KEYS.INSTALLED_AT);
+        // 1. Fetch current session and term from Supabase
+        const { data: currentTerm } = await supabase
+          .from("terms")
+          .select("id, session_id")
+          .eq("school_id", schoolId)
+          .eq("is_current", true)
+          .maybeSingle();
 
-        if (!installedAt) {
-          console.log("[Bootstrap] Fresh install detected. Pulling entire database...");
-          // Mark as installed to prevent infinite loops if sync fails
-          await localDb.meta.put({ key: META_KEYS.INSTALLED_AT, value: new Date().toISOString() });
+        if (!currentTerm) {
+           if (isMounted.current) { setDb(localDb); setStatus("ready"); }
+           return;
         }
 
-        if (isMounted) setDb(localDb);
+        const localSessionId = await localDb.meta.get("ACTIVE_SESSION_ID");
+        const localTermId = await localDb.meta.get("ACTIVE_TERM_ID");
+        const lastRollover = await localDb.meta.get("last_rollover_at");
+        
+        // 2. Handle Rollovers
+        if (!localSessionId || !localTermId) {
+          // Fresh install
+          await localDb.meta.put({ key: "ACTIVE_SESSION_ID", value: currentTerm.session_id });
+          await localDb.meta.put({ key: "ACTIVE_TERM_ID", value: currentTerm.id });
+        } 
+        else if (localSessionId.value !== currentTerm.session_id) {
+          // New SESSION started (Promotions happened)
+          if (isMounted.current) setMessage("A new session has started. Preparing your new classes...");
+          await localDb.meta.put({ key: "ACTIVE_SESSION_ID", value: currentTerm.session_id });
+          await localDb.meta.put({ key: "ACTIVE_TERM_ID", value: currentTerm.id });
+          await localDb.meta.put({ key: "last_rollover_at", value: new Date().toISOString() });
+        } 
+        else if (localTermId.value !== currentTerm.id) {
+          // New TERM started (Same session)
+          if (isMounted.current) setMessage("Welcome to the new term. Syncing your registers...");
+          await localDb.meta.put({ key: "ACTIVE_TERM_ID", value: currentTerm.id });
+        }
 
-        // 4. Run the initial sync (this pulls all data if it's a fresh install)
-        // We don't await this completely so the UI can render, but we do want to know when it's done
-        syncNow(localDb);
+        // 3. The 30-Day Archive Cleanup
+        if (lastRollover && lastRollover.value) {
+          const daysSinceRollover = (Date.now() - new Date(lastRollover.value as string).getTime()) / (1000 * 60 * 60 * 24);
+          
+          if (daysSinceRollover > 30) {
+            if (isMounted.current) setMessage("Optimizing storage... Archiving old records.");
+            await new Promise(r => setTimeout(r, 1500)); // Emotional pause
+            await wipeDb(localDb);
+            localDb = await openDb(schoolId, userId);
+            
+            await localDb.meta.put({ key: "ACTIVE_SESSION_ID", value: currentTerm.session_id });
+            await localDb.meta.put({ key: "ACTIVE_TERM_ID", value: currentTerm.id });
+            await localDb.meta.delete("last_rollover_at"); 
+          }
+        }
 
-        if (isMounted) setIsReady(true);
+        if (isMounted.current) {
+          setDb(localDb);
+          setStatus("syncing");
+          setMessage("Downloading your classes and students...");
+        }
 
-        // 5. Register background sync worker
+        // 4. Run the initial sync
+        await syncNow(localDb);
+
+        if (isMounted.current) {
+          setStatus("ready");
+          setMessage("You are all set.");
+        }
+
         await registerBackgroundSync();
 
-        // 6. Add event listener for when internet comes back
         const handleOnline = () => {
-          console.log("[Bootstrap] Device is back online. Triggering sync...");
-          syncNow(localDb);
+          if (localDb) syncNow(localDb);
         };
         window.addEventListener("online", handleOnline);
 
-        // Cleanup
         return () => {
           window.removeEventListener("online", handleOnline);
         };
 
       } catch (err: any) {
         console.error("[Bootstrap] Failed to initialize Dexie:", err);
-        if (isMounted) setError(err.message || "Failed to initialize local database.");
+        if (isMounted.current) {
+          setError(err.message || "Failed to initialize local database.");
+          setStatus("error");
+        }
       }
     }
 
     init();
 
     return () => {
-      isMounted = false;
+      isMounted.current = false;
     };
   }, []);
 
-  return { db, isReady, error };
+  return { db, status, message, error, isReady: status === "ready" };
 }

@@ -23,7 +23,7 @@ import type { MobileTab, StudentInfo } from "./_lib/types";
 export default function TeacherDashboardPage() {
   const router = useRouter();
   const { config } = useSchoolConfig();
-  const { db, isReady, error } = useDexieBootstrap();
+  const { db, status, message, error, isReady } = useDexieBootstrap();
 
   const [mobileTab, setMobileTab] = useState<MobileTab>("home");
   const [submitting, setSubmitting] = useState(false);
@@ -31,7 +31,6 @@ export default function TeacherDashboardPage() {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
   
-  // 🚨 ADDED: readOnly to state
   const [activeCompilerData, setActiveCompilerData] = useState<{
     student: any;
     classRoom: ClassRoom;
@@ -88,21 +87,26 @@ export default function TeacherDashboardPage() {
   const selectedClass = classes.find((c) => c.id === selectedClassId) || null;
 
   useEffect(() => {
-    if (selectedClass && allTerms.length > 0 && !selectedTermId) {
+    if (selectedClass && allTerms.length > 0) {
       const currentTerm = allTerms.find((t) => t.is_current);
-      if (currentTerm) setSelectedTermId(currentTerm.id);
+      if (currentTerm && currentTerm.id !== selectedTermId) {
+        setSelectedTermId(currentTerm.id);
+      }
     }
   }, [selectedClass, allTerms, selectedTermId]);
 
   const rosterStudents: StudentInfo[] = useMemo(() => {
     if (!selectedClass || !allEnrolments || !allStudents) return [];
     return allEnrolments
-      .filter(e => e.class_id === selectedClass.id && e.status === "active")
+      .filter(e => 
+        e.class_id === selectedClass.id && 
+        e.status === "active" &&
+        e.session_id === selectedClass.session_id // 🚨 SESSION FILTER
+      )
       .map(e => {
         const s = allStudents.find(st => st.id === e.student_id);
         if (!s) return null;
         
-        // Find the actual status from Dexie
         const termRecord = allTermRecords.find(tr => tr.enrolment_id === e.id && tr.term_id === selectedTermId);
         const actualStatus = termRecord?.status || "draft";
         
@@ -118,26 +122,8 @@ export default function TeacherDashboardPage() {
       }).filter(Boolean) as StudentInfo[];
   }, [selectedClass, allEnrolments, allStudents, allTermRecords, selectedTermId]);
 
-  // 🚨 SUBJECT NAME → UUID MAP (for fallback during save)
-  const subjectMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    if (!selectedClass) return map;
-
-    const classSubs = allClassSubjects.filter(
-      (cs) => cs.class_id === selectedClass.id,
-    );
-    classSubs.forEach((cs) => {
-      const subj = allSubjects.find((s) => s.id === cs.subject_id);
-      if (subj) map[subj.name] = cs.id;
-    });
-
-    return map;
-  }, [selectedClass, allClassSubjects, allSubjects]);
-
-  // 🚨 DEDUPLICATE SUBJECTS AND ATTACH UUID
   const uniqueClassSubjects = useMemo(() => {
     if (!selectedClass) return [];
-
     const classSubs = allClassSubjects.filter(
       (cs) => cs.class_id === selectedClass.id,
     );
@@ -157,19 +143,21 @@ export default function TeacherDashboardPage() {
         });
       }
     }
-
     return result;
   }, [selectedClass, allClassSubjects, allSubjects]);
 
   // 🚨 EARLY RETURNS
   if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
-  if (!isReady || !db)
+  
+  if (status !== "ready" || !db) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 px-6 text-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600 mb-4" />
-        <p className="text-sm text-slate-500 font-medium">Syncing...</p>
+        <p className="text-sm text-slate-600 font-medium">{message}</p>
+        <p className="text-xs text-slate-400 mt-2">Your data is safe on this device.</p>
       </div>
     );
+  }
 
   // 🚨 HANDLERS
   const handleSaveAttendance = async (
@@ -210,11 +198,16 @@ export default function TeacherDashboardPage() {
         .where({ enrolment_id: student.enrolment_id, term_id: selectedTermId })
         .first();
 
-      // 🚨 FIX: Use the status from the roster directly. 
-      // If it's not "draft", it's read-only.
+      // 🚨 NEW: Calculate attendance from Dexie logs
+      const attendanceLogs = await db.attendance_logs
+        .where({ enrolment_id: student.enrolment_id })
+        .toArray();
+        
+      const calculatedDaysOpened = attendanceLogs.length;
+      const calculatedDaysPresent = attendanceLogs.filter(a => a.status === "present").length;
+
       const isReadOnly = student.assessment?.status !== "draft" && student.assessment?.status !== "not_started";
 
-      // Deduplicate scores
       const uniqueScoresMap = new Map();
       rawScores.forEach((s) => uniqueScoresMap.set(s.class_subject_id, s));
       const uniqueScores = Array.from(uniqueScoresMap.values());
@@ -222,7 +215,6 @@ export default function TeacherDashboardPage() {
       const assessment = {
         status: student.assessment?.status || "draft",
         subjects: uniqueScores.map((s) => {
-          // ... same as before
           const classSub = allClassSubjects.find((cs) => cs.id === s.class_subject_id);
           const subject = allSubjects.find((subj) => subj.id === classSub?.subject_id);
           return {
@@ -235,9 +227,10 @@ export default function TeacherDashboardPage() {
         }),
         affective: traits.filter((t) => t.trait_domain === "affective").reduce((acc, t) => ({ ...acc, [t.trait_key]: t.rating?.toString() || "" }), {}),
         psychomotor: traits.filter((t) => t.trait_domain === "psychomotor").reduce((acc, t) => ({ ...acc, [t.trait_key]: t.rating?.toString() || "" }), {}),
-        daysOpened: termRecord?.days_opened?.toString() || "",
-        daysPresent: termRecord?.days_present?.toString() || "",
-        daysAbsent: termRecord?.days_absent?.toString() || "",
+        // 🚨 NEW: Use manual if exists, otherwise use Dexie calculation
+        daysOpened: termRecord?.days_opened != null ? termRecord.days_opened.toString() : calculatedDaysOpened.toString(),
+        daysPresent: termRecord?.days_present != null ? termRecord.days_present.toString() : calculatedDaysPresent.toString(),
+        daysAbsent: termRecord?.days_absent != null ? termRecord.days_absent.toString() : (calculatedDaysOpened - calculatedDaysPresent).toString(),
         teacherRemark: termRecord?.class_teacher_comment || "",
         headRemark: termRecord?.head_teacher_comment || "",
         schoolName: config?.name || "",
@@ -255,14 +248,15 @@ export default function TeacherDashboardPage() {
         id: selectedClass.id,
         name: selectedClass.name,
         session: selectedClass.session || "",
-        assignedTeacherId: selectedClass.teacher_id || null,
+        session_id: selectedClass.session_id || null,
+        teacher_id: selectedClass.teacher_id || null,
         studentIds: rosterStudents.map((s) => s.id),
       };
 
       setActiveCompilerData({
         student: { ...student, assessment },
         classRoom: uiClassRoom,
-        readOnly: isReadOnly, // 🚨 Pass the calculated flag
+        readOnly: isReadOnly,
       });
     } catch (err) {
       console.error(err);
@@ -274,8 +268,7 @@ export default function TeacherDashboardPage() {
     updatedStudent: any,
     status: "draft" | "completed",
   ) => {
-    if (!db)
-      throw new Error("Offline database not ready. Try again in a moment.");
+    if (!db) throw new Error("Offline database not ready.");
     if (!selectedClass) throw new Error("No class selected.");
     if (!selectedTermId) throw new Error("No term selected.");
     if (!activeCompilerData) throw new Error("No student selected.");
@@ -346,15 +339,11 @@ export default function TeacherDashboardPage() {
       <CompilerView
         student={activeCompilerData.student}
         classRoom={activeCompilerData.classRoom}
-        termName={
-          allTerms.find((t) => t.id === selectedTermId)?.name || "First"
-        }
-        classTerms={allTerms.filter(
-          (t) => t.session_id === selectedClass?.session_id,
-        )}
+        termName={allTerms.find((t) => t.id === selectedTermId)?.name || "First"}
+        classTerms={allTerms.filter((t) => t.session_id === selectedClass?.session_id)}
         selectedTermId={selectedTermId || ""}
         catalogSubjects={uniqueClassSubjects}
-        readOnly={activeCompilerData.readOnly} // 🚨 PASS PROP HERE
+        readOnly={activeCompilerData.readOnly}
         onBack={() => setActiveCompilerData(null)}
         onSaveDraft={(s) => handleSave(s, "draft")}
         onComplete={(s) => handleSave(s, "completed")}
@@ -376,9 +365,7 @@ export default function TeacherDashboardPage() {
             schoolName={config?.name || ""}
             teacherName={teacherName}
             selectedClass={selectedClass}
-            selectedTermName={
-              allTerms.find((t) => t.id === selectedTermId)?.name || ""
-            }
+            selectedTermName={allTerms.find((t) => t.id === selectedTermId)?.name || ""}
             assignedClasses={classes}
             onOpenScores={() => setMobileTab("scores")}
             onSelectClass={(cls) => {
@@ -392,9 +379,7 @@ export default function TeacherDashboardPage() {
             assignedClasses={classes}
             selectedClass={selectedClass}
             onSelectClass={(c) => setSelectedClassId(c.id)}
-            classTerms={allTerms.filter(
-              (t) => t.session_id === selectedClass?.session_id,
-            )}
+            classTerms={allTerms.filter((t) => t.session_id === selectedClass?.session_id)}
             selectedTermId={selectedTermId || ""}
             onSelectTerm={setSelectedTermId}
             students={rosterStudents}
@@ -416,13 +401,7 @@ export default function TeacherDashboardPage() {
               enrolmentId: a.enrolment_id,
               date: a.date,
               status: a.status,
-              name:
-                allStudents.find(
-                  (s) =>
-                    s.id ===
-                    allEnrolments.find((e) => e.id === a.enrolment_id)
-                      ?.student_id,
-                )?.name || "",
+              name: allStudents.find((s) => s.id === allEnrolments.find((e) => e.id === a.enrolment_id)?.student_id)?.name || "",
             }))}
             onStartRollCall={(date) => setRollCallDate(date)}
           />

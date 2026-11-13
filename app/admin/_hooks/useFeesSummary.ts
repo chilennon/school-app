@@ -14,7 +14,6 @@ export function useFeesSummary(isOwner: boolean) {
   const { term: currentTerm } = useCurrentTerm();
 
   useEffect(() => {
-    // 1. If not owner or no term, hide the card immediately
     if (!isOwner || !currentTerm?.id) {
       setFeeSummary(null);
       setLoading(false);
@@ -23,39 +22,54 @@ export function useFeesSummary(isOwner: boolean) {
 
     const fetchSummary = async () => {
       try {
-        // 2. Fetch expected charges for the current term
-        const { data: charges } = await supabase
-          .from("charges")
-          .select("amount")
-          .eq("term_id", currentTerm.id);
-
-        // 3. Fetch all payments (since FIFO applies them to oldest debts)
-        const { data: payments } = await supabase
-          .from("payments")
-          .select("amount");
-
-        // 4. Fetch families to count debtors
-        const { data: families } = await supabase
+        const { data: families, error } = await supabase
           .from("families")
-          .select(`id, charges(amount), payments(amount)`);
+          .select(`id, charges(amount, term_id), payments(amount)`)
+          .is("deleted_at", null);
 
+        if (error) throw error;
+
+        let totalExpected = 0;
+        let totalCollected = 0;
         let debtors = 0;
+
         if (families) {
           families.forEach((f) => {
-            const fCharges = f.charges.reduce((s: number, c: any) => s + Number(c.amount), 0);
-            const fPayments = f.payments.reduce((s: number, p: any) => s + Number(p.amount), 0);
-            if (fCharges - fPayments > 0) debtors++;
+            const charges = f.charges || [];
+            const payments = f.payments || [];
+
+            // 1. Charges for CURRENT term vs PAST terms
+            const currentTermCharges = charges
+              .filter((c: any) => c.term_id === currentTerm.id)
+              .reduce((s: number, c: any) => s + Number(c.amount), 0);
+              
+            const pastTermCharges = charges
+              .filter((c: any) => c.term_id !== currentTerm.id)
+              .reduce((s: number, c: any) => s + Number(c.amount), 0);
+
+            // 2. Total money paid by this family
+            const totalPaid = payments.reduce((s: number, p: any) => s + Number(p.amount), 0);
+
+            // 3. FIFO Calculation (Money clears past debt first)
+            const paidTowardsPast = Math.min(totalPaid, pastTermCharges);
+            const remainingPayment = totalPaid - paidTowardsPast;
+            const paidTowardsCurrent = Math.min(remainingPayment, currentTermCharges);
+
+            // 4. Accumulate totals for the dashboard
+            totalExpected += currentTermCharges;
+            totalCollected += paidTowardsCurrent;
+
+            // 5. Count debtors (anyone who owes anything, past or present)
+            const totalBalance = (pastTermCharges + currentTermCharges) - totalPaid;
+            if (totalBalance > 0) debtors++;
           });
         }
 
-        const expected = (charges || []).reduce((sum, c) => sum + Number(c.amount), 0);
-        const collected = (payments || []).reduce((sum, p) => sum + Number(p.amount), 0);
-
         setFeeSummary({
-          termLabel: currentTerm.name, // <-- Fixed to match FeeSummary
-          collected: Math.max(0, collected),
-          expected: Math.max(0, expected),
-          outstandingStudents: debtors, // <-- Fixed to match FeeSummary
+          termLabel: currentTerm.name,
+          collected: Math.max(0, totalCollected),
+          expected: Math.max(0, totalExpected),
+          outstandingStudents: debtors,
         });
       } catch (error) {
         console.error("Failed to fetch fee summary", error);
